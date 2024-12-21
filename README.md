@@ -11,7 +11,7 @@
 <div style="align:center">
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13367077.svg)](https://doi.org/10.5281/zenodo.13367077)
-[![Latest PyPI version](https://img.shields.io/pypi/v/veux?logo=pypi&style=for-the-badge)](https://pypi.python.org/pypi/sees)
+[![Latest PyPI version](https://img.shields.io/pypi/v/veux?logo=pypi)](https://pypi.python.org/pypi/veux)
 
 </div>
 
