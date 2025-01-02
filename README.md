@@ -10,7 +10,7 @@
 
 <div style="align:center">
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13367077.svg)](https://doi.org/10.5281/zenodo.13367077)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13367076.svg)](https://doi.org/10.5281/zenodo.13367076)
 [![Latest PyPI version](https://img.shields.io/pypi/v/veux?logo=pypi)](https://pypi.python.org/pypi/veux)
 
 </div>
