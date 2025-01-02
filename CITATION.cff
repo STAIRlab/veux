@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Perez"
+  given-names: "Claudio"
+  orcid: "https://orcid.org/0000-0001-8156-2651"
+- family-names: "Chern"
+  given-names: "Chrystal"
+  orcid: "https://orcid.org/0009-0008-1247-1180"
+title: "veux"
+version: 0.0.2
+doi: 10.5281/zenodo.13367076
+date-released: 2024-07-14
+url: "https://stairlab.berkeley.edu/software/veux"
