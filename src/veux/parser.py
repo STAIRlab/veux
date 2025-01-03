@@ -10,8 +10,8 @@ import os
 import ast
 import sys
 import json
-from sees import config
-from sees.errors import RenderError
+from veux import config
+from veux.errors import RenderError
 
 
 __version__ = "0.0.13"

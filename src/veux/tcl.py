@@ -1,9 +1,9 @@
 import sys
 import json
 from functools import partial
-from sees import config, render
-from sees.parser import parse_args
-from sees.errors import RenderError
+from veux import config, render
+from veux.parser import parse_args
+from veux.errors import RenderError
 
 def _render(*args, rt=None):
     try:

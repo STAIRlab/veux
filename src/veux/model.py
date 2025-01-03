@@ -58,7 +58,7 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
     elif isinstance(filename, str) and (
         filename.endswith(".s2k") or filename.endswith(".$2k") or filename.endswith(".$br")):
         from openbim import csi
-        # import sees.reader.csi as csi
+        # import veux.reader.csi as csi
         with open(filename, "r") as f:
             model = csi.create_model(csi.load(f), verbose=verbose)
         return model.asdict()
@@ -378,6 +378,15 @@ class FrameModel:
             outline = self._extrude_default
 
 
+        if outline is None:
+            return
+
+        elif isinstance(outline, list):
+            outline = np.array(outline)
+
+        elif len(outline.shape) == 0:
+            return
+
         # Interpolate coord
         if len(outline.shape) > 2:
             def interpolate(values, x):
@@ -412,7 +421,7 @@ def _from_opensees(sam: dict, shift, R):
 
     try:
         #coord = np.array([R@n.pop("crd") for n in geom["nodes"]], dtype=float) + shift
-        coord = np.array([R@n["crd"] for n in geom["nodes"]], dtype=float) + shift
+        coord = np.array([R@n["crd"] for n in geom["nodes"]], dtype=float) + R@shift
         ndm = 3
     except:
         coord = np.array([R@[*n["crd"], 0.0] for n in geom["nodes"]], dtype=float) + shift
@@ -462,6 +471,9 @@ def _from_opensees(sam: dict, shift, R):
     return output
 
 
+def collect_outlines(model):
+    return _get_frame_outlines(_from_opensees(model, [0, 0, 0], np.eye(3)))
+
 def _add_section_shape(section, sections=None, outlines=None):
     import scipy.spatial
 
@@ -484,24 +496,42 @@ def _add_section_shape(section, sections=None, outlines=None):
         try:
             outlines[section["name"]] = points[scipy.spatial.ConvexHull(points).vertices]
         except scipy.spatial._qhull.QhullError as e:
-            from sees.utility.alpha_shape import alpha_shape
+            from veux.utility.alpha_shape import alpha_shape
             outlines[section["name"]] = alpha_shape(points, 1)
            #warnings.warn(str(e))
 
 
 def _get_frame_outlines(model):
-    sections = {}
+    shapes = {}
     for name,section in model["sections"].items():
-        _add_section_shape(section, model["sections"], sections)
+        _add_section_shape(section, model["sections"], shapes)
 
-    outlines = {
-        # TODO: For now, only using the first of the element's cross
-        #       sections
-        elem["name"]: np.array(sections[elem["sections"][0]])
+    homogeneous = lambda lst: (
+            isinstance(lst, list) and \
+              all(isinstance(x, list) and \
+                  len(set(map(len, lst))) == 1 and all(isinstance(xx, list) and len(set(map(len, x))) == 1 for xx in x) for x in lst
+              )
+    )
 
-        for elem in model["assembly"].values()
-            if "sections" in elem and elem["sections"][0] in sections
-    }
+    outlines = {}
+    for elem in model["assembly"].values():
+        if "sections" in elem:
+            elem_shapes = [shapes[i] for i in elem["sections"] if i in shapes]
+            if len(elem_shapes) == 0:
+                continue
+            elif not homogeneous(elem_shapes):
+                elem_shapes = np.array(elem_shapes[0])
+            else:
+                elem_shapes = np.array(elem_shapes)
+
+            outlines[elem["name"]] = elem_shapes
+
+#   outlines = {
+#       elem["name"]: np.array([shapes[i] for i in elem["sections"][0]])
+
+#       for elem in model["assembly"].values()
+#           if "sections" in elem and elem["sections"][0] in shapes
+#   }
 
     return outlines
 

@@ -2,8 +2,8 @@
 # Summer 2024
 import sys
 import bottle
-from sees.viewer import Viewer
-from sees.server import Server
+from veux.viewer import Viewer
+from veux.server import Server
 
 
 if __name__ == "__main__":

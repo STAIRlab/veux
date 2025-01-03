@@ -1,6 +1,6 @@
-import sees.__main__
+import veux.__main__
 
-NAME = sees.__main__.NAME
+NAME = veux.__main__.NAME
 
 EXAMPLES="""
 Examples:

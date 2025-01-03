@@ -2,7 +2,7 @@
 import numpy as np
 import warnings
 
-from sees.config import MeshStyle, LineStyle, NodeStyle
+from veux.config import MeshStyle, LineStyle, NodeStyle
 
 
 class Canvas:
@@ -31,10 +31,11 @@ class Canvas:
     def plot_vectors(self, locs, vecs, label=None, **kwds):
         ne = vecs.shape[0]
         for j in range(3):
+            style = kwds.get("line_style", LineStyle(color=("red", "blue", "green")[j]))
             X = np.zeros((ne*3, 3))*np.nan
             for i in range(j,ne,3):
                 X[i*3,:] = locs[i]
                 X[i*3+1,:] = locs[i] + vecs[i]
-            self.plot_lines(X, style=LineStyle(color=("red", "blue", "green")[j]), label=label)
+            self.plot_lines(X, style=style, label=label)
 
 

@@ -1,5 +1,5 @@
-import sees.frame.extrude
-render = sees.frame.extrude._render
+import veux.frame.extrude
+render = veux.frame.extrude._render
 
 L = 10
 

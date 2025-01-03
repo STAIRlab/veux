@@ -97,7 +97,7 @@ Config = lambda : {
   "state_config":  {"time": None, "recover": None},
   "canvas_config": {
       # Canvas
-      "type":       "matplotlib",
+      "type":       "gltf",
       "view":       "iso",
       "camera": {
           "view": "iso",               # iso | plan| elev[ation] | sect[ion]

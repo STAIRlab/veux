@@ -29,16 +29,21 @@ import numpy as np
 import pygltflib
 from scipy.spatial.transform import Rotation
 
-import sees
+import veux
+
 from .canvas import Canvas
-from sees import utility
-from sees.config import NodeStyle, MeshStyle, LineStyle, DrawStyle
+from veux import utility
+from veux.config import NodeStyle, MeshStyle, LineStyle, DrawStyle
 
 GLTF_T = {
     "float32": pygltflib.FLOAT,
     "uint8":   pygltflib.UNSIGNED_BYTE,
     "uint16":  pygltflib.UNSIGNED_SHORT,
 }
+
+import numpy as np
+import pygltflib
+
 
 
 class GltfLibCanvas(Canvas):
@@ -111,6 +116,15 @@ class GltfLibCanvas(Canvas):
                     pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
                         baseColorFactor=[0.9, 0.9, 0.9, 1]
                     )
+                ),
+                pygltflib.Material(
+                    name="hidden",
+                    alphaMode=pygltflib.BLEND,  # Enables transparency
+                    doubleSided=True,
+#                   extensions={"KHR_materials_unlit": {}},
+                    pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
+                        baseColorFactor=[1, 1, 1, 0]
+                    )
                 )
                 #                 pygltflib.Material(
                 #                     name="metal",
@@ -134,7 +148,7 @@ class GltfLibCanvas(Canvas):
 
 
         # Map pairs of (color, alpha) to material's index in material list
-        self._color = {(m.name,m.pbrMetallicRoughness.baseColorFactor[3]): i
+        self._color = {(m.name,m.pbrMetallicRoughness.baseColorFactor[3]) if m.pbrMetallicRoughness else (m.name, 0): i
                        for i,m in enumerate(self.gltf.materials)}
 
         #
@@ -142,7 +156,7 @@ class GltfLibCanvas(Canvas):
         #
         if False:
             for i,file in enumerate(("rust.jpg", "occlusionRoughnessMetallic.png")):
-                path  = str(sees.assets/"metal"/file)
+                path  = str(veux.assets/"metal"/file)
                 image = pygltflib.Image()
                 image.uri = path
                 self.gltf.images.append(image)
@@ -395,34 +409,38 @@ class GltfLibCanvas(Canvas):
     def plot_mesh(self, vertices, triangles, local_coords=None, style=None, **kwds):
 
         material  = self._get_material(style or MeshStyle())
-        points    = np.array(vertices, dtype=self.float_t)
         triangles = np.array(triangles,dtype=self.index_t)
-
         triangles_binary_blob = triangles.flatten().tobytes()
-        points_binary_blob = points.tobytes()
-
-        # Add accessors for (1) point coordinates and (2) indices
+        triangle_buffer = self._push_data(triangles_binary_blob, pygltflib.ELEMENT_ARRAY_BUFFER)
         self.gltf.accessors.extend([
             pygltflib.Accessor(
-                bufferView=self._push_data(triangles_binary_blob, pygltflib.ELEMENT_ARRAY_BUFFER),
+                bufferView=triangle_buffer,
                 componentType=GLTF_T[self.index_t],
                 count=triangles.size,
                 type=pygltflib.SCALAR,
                 max=[int(triangles.max())],
                 min=[int(triangles.min())],
-            ),
-            pygltflib.Accessor(
-                bufferView=self._push_data(points_binary_blob, pygltflib.ARRAY_BUFFER),
-                componentType=GLTF_T[self.float_t],
-                count=len(points),
-                type=pygltflib.VEC3,
-                max=points.max(axis=0).tolist(),
-                min=points.min(axis=0).tolist(),
             )
         ])
+        index_access = len(self.gltf.accessors)-1
 
-        index_access = len(self.gltf.accessors)-2
-        point_access = len(self.gltf.accessors)-1
+        if not isinstance(vertices, int):
+            points    = np.array(vertices, dtype=self.float_t)
+            self.gltf.accessors.extend([
+                pygltflib.Accessor(
+                    bufferView=self._push_data(points.tobytes(), pygltflib.ARRAY_BUFFER),
+                    componentType=GLTF_T[self.float_t],
+                    count=len(points),
+                    type=pygltflib.VEC3,
+                    max=points.max(axis=0).tolist(),
+                    min=points.min(axis=0).tolist(),
+                )
+            ])
+            point_access = len(self.gltf.accessors)-1
+        else:
+            point_access = vertices
+
+        # Add accessors for (1) point coordinates and (2) indices
 
         self.gltf.meshes.append(
                pygltflib.Mesh(
@@ -462,6 +480,8 @@ class GltfLibCanvas(Canvas):
             )
         )
         self.gltf.scenes[0].nodes.append(len(self.gltf.nodes)-1)
+
+        return point_access
 
 
     def to_glb(self)->bytes:

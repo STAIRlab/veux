@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from scipy.spatial.transform import Rotation, Slerp
 
-from sees.config import LineStyle, MeshStyle
+from veux.config import LineStyle, MeshStyle
 
 class State:
     time: float

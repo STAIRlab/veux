@@ -15,9 +15,9 @@ import numpy as np
 Array = np.ndarray
 from scipy.linalg import block_diag
 
-from sees.model  import FrameModel
-from sees.state  import read_state, State, BasicState
-from sees.config import Config, apply_config, LineStyle, NodeStyle
+from veux.model  import FrameModel
+from veux.state  import read_state, State, BasicState
+from veux.config import Config, apply_config, LineStyle, NodeStyle
 
 
 def _is_truss(el):
@@ -148,6 +148,9 @@ class FrameArtist:
                           (0,1, 0)))
 
         self._plot_rotation = R
+
+        if loc is None and isinstance(model_config, dict) and "shift" in model_config:
+            loc = model_config.pop("shift")
 
         self.model = model = FrameModel(model_data, shift=loc, rot=R,
                                         **(model_config or {}))
@@ -338,7 +341,7 @@ class FrameArtist:
         model = self.model
 
         # Draw extruded frames
-        from sees.frame import extrude
+        from veux.frame import extrude
         if "frame" in config and config["frame"]["show"]:
             extrude.draw_extrusions(model,
                                     canvas=self.canvas,

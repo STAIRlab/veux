@@ -8,9 +8,9 @@
 #
 import sys
 
-from sees import render
-from sees.parser import parse_args
-from sees.errors import RenderError
+from veux import render
+from veux.parser import parse_args
+from veux.errors import RenderError
 
 
 NAME="sees"
@@ -35,17 +35,17 @@ def main(argv):
             artist.canvas.popup()
 
         elif hasattr(artist.canvas, "to_glb"):
-            import sees.server
+            import veux.server
             viewer = config["viewer_config"].get("name", None)
             port = config["server_config"].get("port", None)
-            server = sees.server.Server(glb=artist.canvas.to_glb(),
+            server = veux.server.Server(glb=artist.canvas.to_glb(),
                                         viewer=viewer)
             server.run(port=port)
 
         elif hasattr(artist.canvas, "to_html"):
-            import sees.server
+            import veux.server
             port = config["server_config"].get("port", None)
-            server = sees.server.Server(html=artist.canvas.to_html())
+            server = veux.server.Server(html=artist.canvas.to_html())
             server.run(port=port)
 
     except (FileNotFoundError, RenderError) as e:

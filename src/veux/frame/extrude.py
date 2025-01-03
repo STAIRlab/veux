@@ -5,12 +5,51 @@ from scipy.spatial.transform import Rotation
 
 import shps.curve
 
-import sees
-import sees.frame
-from sees.model import read_model
-from sees.errors import RenderError
-from sees.config import MeshStyle, LineStyle
+import veux
+import veux.frame
+from veux.utility.earcut import earcut
+from veux.model import read_model
+from veux.errors import RenderError
+from veux.config import MeshStyle, LineStyle
 
+
+def _is_concave(polygon_vertices):
+    """
+    Check if a 2D polygon is concave.
+
+    Parameters:
+        polygon_vertices (array-like): List or numpy array of (x, y) coordinates defining the polygon.
+
+    Returns:
+        bool: True if the polygon is concave, False otherwise.
+    """
+    # Ensure the input is a numpy array
+    polygon_vertices = np.asarray(polygon_vertices, dtype=float)
+
+    # Number of vertices
+    n = len(polygon_vertices)
+    if n < 3:
+        raise ValueError("A polygon must have at least 3 vertices.")
+
+    # Calculate cross products of consecutive edges
+    cross_products = []
+    for i in range(n):
+        # Get the current, next, and previous vertices
+        prev_vertex = polygon_vertices[i - 1]
+        curr_vertex = polygon_vertices[i]
+        next_vertex = polygon_vertices[(i + 1) % n]
+
+        # Compute vectors
+        vec1 = curr_vertex - prev_vertex
+        vec2 = next_vertex - curr_vertex
+
+        # Compute 2D cross product (z-component only)
+        cross_product = np.cross(vec1, vec2)
+        cross_products.append(cross_product)
+
+    # Check for sign changes in cross products
+    cross_products = np.array(cross_products)
+    return np.any(cross_products < 0) and np.any(cross_products > 0)
 
 def draw_extrusions(model, canvas, state=None, config=None):
     #
@@ -27,6 +66,7 @@ def draw_extrusions(model, canvas, state=None, config=None):
 
     coords = [] # Global mesh coordinates
     triang = [] # Triangle indices into coords
+    caps   = []
     locoor = [] # Local mesh coordinates, used for textures
 
     if config is None:
@@ -59,6 +99,11 @@ def draw_extrusions(model, canvas, state=None, config=None):
             R = [model.frame_orientation(el["name"]).T]*nen
 
 
+
+        caps.append(I+np.array(earcut(model.cell_section(el["name"], 0)[:,1:])))
+        caps.append(I+(nen-1)*noe+np.array(earcut(model.cell_section(el["name"], 1)[:,1:])))
+#       caps.append(I+(nen-1)*(noe)+cap)
+
         # Loop over sample points along element length to assemble
         # `coord` and `triang` arrays
         for j in range(nen):
@@ -70,6 +115,7 @@ def draw_extrusions(model, canvas, state=None, config=None):
                 locoor.append(
                              [ (j+0)/nen+0.1,  0.1+(k+0)/(noe+0) ]
                 )
+
 
                 if j == 0:
                     # Skip the first section
@@ -88,7 +134,7 @@ def draw_extrusions(model, canvas, state=None, config=None):
                         [      I + noe*j, I + noe*(j-1), I+noe*(j-1) + k]
                     ])
 
-                if len(outline) > 20:
+                if len(outline) > 25:
                     no_outline.add(len(triang)-1)
                     no_outline.add(len(triang)-2)
 
@@ -97,7 +143,12 @@ def draw_extrusions(model, canvas, state=None, config=None):
     triang = [list(reversed(i)) for i in triang]
 
     if len(triang) > 0:
-        canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
+        cbuf = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
+
+        if len(caps) > 0:
+            for cap in caps:
+                canvas.plot_mesh(cbuf, cap, style=config["style"])
+
 
     show_edges = True
 
@@ -163,7 +214,7 @@ def _render(sam_file, res_file=None, **opts):
     # from sources with the following priorities:
     #      defaults < file configs < kwds 
 
-    config = sees.config.Config()
+    config = veux.config.Config()
 
 
     if sam_file is None:
@@ -176,17 +227,17 @@ def _render(sam_file, res_file=None, **opts):
         model = sam_file
 
     if "RendererConfiguration" in model:
-        sees.apply_config(model["RendererConfiguration"], config)
+        veux.apply_config(model["RendererConfiguration"], config)
 
-    sees.apply_config(opts, config)
+    veux.apply_config(opts, config)
 
-    artist = sees.FrameArtist(model, **config)
+    artist = veux.FrameArtist(model, **config)
 
     draw_extrusions(artist.model, artist.canvas, config=opts)
 
     # -----------------------------------------------------------
 
-    soln = sees.state.read_state(res_file, artist.model, **opts)
+    soln = veux.state.read_state(res_file, artist.model, **opts)
     if soln is not None:
         if "time" not in opts:
             soln = soln[soln.times[-1]]
@@ -203,8 +254,8 @@ def _render(sam_file, res_file=None, **opts):
 
 
 if __name__ == "__main__":
-    import sees.parser
-    config = sees.parser.parse_args(sys.argv)
+    import veux.parser
+    config = veux.parser.parse_args(sys.argv)
 
     try:
         artist = _render(**config)
@@ -219,14 +270,14 @@ if __name__ == "__main__":
             artist.canvas.popup()
 
         elif hasattr(artist.canvas, "to_glb"):
-            import sees.server
-            server = sees.server.Server(glb=artist.canvas.to_glb(),
+            import veux.server
+            server = veux.server.Server(glb=artist.canvas.to_glb(),
                                         viewer=config["viewer_config"].get("name", None))
             server.run(config["server_config"].get("port", None))
 
         elif hasattr(artist.canvas, "to_html"):
-            import sees.server
-            server = sees.server.Server(html=artist.canvas.to_html())
+            import veux.server
+            server = veux.server.Server(html=artist.canvas.to_html())
             server.run(config["server_config"].get("port", None))
 
     except (FileNotFoundError, RenderError) as e:

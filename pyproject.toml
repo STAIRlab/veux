@@ -1,6 +1,6 @@
 [project]
-name = "sees"
-version = "0.0.25"
+name = "veux"
+version = "0.0.3"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
   {name="Chrystal Chern",   email="52893467+chrystalchern@users.noreply.github.com"}
@@ -63,11 +63,11 @@ classifiers = [
 
 
 [project.urls]
-Repository = "https://github.com/STAIRLab/sees"
+Repository = "https://github.com/STAIRLab/veux"
 Documentation = "https://stairlab.github.io/opensees-gallery"
 
 [project.scripts]
-sees = "sees.__main__:main"
+veux = "veux.__main__:main"
 
 [build-system]
 requires = [
@@ -77,6 +77,6 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
-sees = ["assets/*"]
+veux = ["assets/*"]
 
 

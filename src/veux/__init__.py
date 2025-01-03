@@ -28,14 +28,14 @@ def __getattr__(name: str):
 
 
 def serve(artist, viewer="mv", port=None):
-    import sees.server
+    import veux.server
     if hasattr(artist.canvas, "to_glb"):
-        server = sees.server.Server(glb=artist.canvas.to_glb(),
+        server = veux.server.Server(glb=artist.canvas.to_glb(),
                                     viewer=viewer)
         server.run(port=port)
 
     elif hasattr(artist.canvas, "to_html"):
-        server = sees.server.Server(html=artist.canvas.to_html())
+        server = veux.server.Server(html=artist.canvas.to_html())
         server.run(port=port)
 
     elif hasattr(artist.canvas, "show"):
@@ -52,20 +52,17 @@ def _create_canvas(name=None, config=None):
     if not isinstance(name, str):
         return name
     elif name == "matplotlib":
-        import sees.canvas.mpl
-        return sees.canvas.mpl.MatplotlibCanvas(config=config)
-#   elif name == "femgl":
-#       import sees.canvas.femgl
-#       return sees.canvas.femgl.FemGlCanvas(self.model, config=config)
+        import veux.canvas.mpl
+        return veux.canvas.mpl.MatplotlibCanvas(config=config)
     elif name == "plotly":
-        import sees.canvas.ply
-        return sees.canvas.ply.PlotlyCanvas(config=config)
+        import veux.canvas.ply
+        return veux.canvas.ply.PlotlyCanvas(config=config)
     elif name == "gltf":
-        import sees.canvas.gltf
-        return sees.canvas.gltf.GltfLibCanvas(config=config)
+        import veux.canvas.gltf
+        return veux.canvas.gltf.GltfLibCanvas(config=config)
     elif name == "trimesh":
-        import sees.canvas.tri
-        return sees.canvas.tri.TrimeshCanvas(config=config)
+        import veux.canvas.tri
+        return veux.canvas.tri.TrimeshCanvas(config=config)
     else:
         raise ValueError("Unknown canvas name " + str(name))
 
@@ -79,7 +76,7 @@ def render(sam_file, res_file=None, noshow=False, ndf=6,
            reference=None,
            **opts):
 
-    import sees.model
+    import veux.model
 
     # Configuration is determined by successively layering
     # from sources with the following priorities:
@@ -93,21 +90,21 @@ def render(sam_file, res_file=None, noshow=False, ndf=6,
     # Read model data
     #
     if isinstance(sam_file, (str, Path)):
-        model_data = sees.model.read_model(sam_file)
+        model_data = veux.model.read_model(sam_file)
 
     elif hasattr(sam_file, "asdict"):
         # Assuming an opensees.openseespy.Model
         model_data = sam_file.asdict()
 
     elif hasattr(sam_file, "read"):
-        model_data = sees.model.read_model(sam_file)
+        model_data = veux.model.read_model(sam_file)
 
     elif isinstance(sam_file, tuple):
         # TODO: (nodes, cells)
         pass
 
     elif not isinstance(sam_file, dict):
-        model_data = sees.model.FrameModel(sam_file)
+        model_data = veux.model.FrameModel(sam_file)
 
     else:
         model_data = sam_file
@@ -177,7 +174,7 @@ def render(sam_file, res_file=None, noshow=False, ndf=6,
     return artist
 
 
-def render_mode(model, mode_number, scale=1, file_name=None, canvas="plotly", **kwds):
+def render_mode(model, mode_number, scale=1, file_name=None, canvas="gltf", **kwds):
 
     # Define a function that tells the renderer the displacement
     # at a given node. We will pass this function as an argument

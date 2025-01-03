@@ -510,10 +510,10 @@ def create_model(sap, types=None, verbose=False):
 
 if __name__ == "__main__":
     import sys
-    import sees
+    import veux
 
     with open(sys.argv[1], "r") as f:
         sap = load(f)
 
-    sees.serve(sees.render(create_model(sap), canvas="gltf"))
+    veux.serve(sees.render(create_model(sap), canvas="gltf"))
 

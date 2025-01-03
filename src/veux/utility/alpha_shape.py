@@ -1,12 +1,11 @@
 import numpy as np
 from scipy.spatial import Delaunay
 
-# Alpha shape utilities
-#-----------------------------------------------------------------------
 def find_edges_with(i, edge_set):
-    i_first = [j for (x,j) in edge_set if x==i]
-    i_second = [j for (j,x) in edge_set if x==i]
-    return i_first,i_second
+    return (
+             [j for (x,j) in edge_set if x==i],
+             [j for (j,x) in edge_set if x==i]
+    )
 
 def stitch_boundaries(edges):
     edge_set = edges.copy()

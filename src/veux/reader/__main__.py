@@ -1,4 +1,4 @@
-import sees.reader.csi as csi
+import veux.reader.csi as csi
 
 if __name__ == "__main__":
     import sys
