@@ -81,12 +81,14 @@ pip install veux
 To render a model directly from Python, use the `veux.render` function:
 
 ```python
+...
 artist = veux.render(model, canvas=canvas)
 ```
 
 - **model**: the `model` parameter can be of several types
-  - **string** variables are treated like file paths. Supported files are `.json` and `.tcl`
-  - **dict** variables are treated
+  - `str` (string) variables are treated like file paths. Supported files are `.json` and `.tcl`
+  - `dict` variables are treated
+  - `opensees.Model` variables from the [`sees`](https://pypi.org/project/sees) Python package can be passed directly
 - **canvas**: The `canvas` parameter is a string which indicates which "backend" technology to use. The options are:
   - `"gltf"` is the default canvas and produces the highest quality renderings. You can save renderings drawn by this backend to either `.html` or `.glb` files. `.glb` files are preferred as they are a natural format for 3D objects and can be viewed by standard 3D viewing applications.
   - `"plotly"`
