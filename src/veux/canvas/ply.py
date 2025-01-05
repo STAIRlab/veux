@@ -16,6 +16,7 @@ class PlotlyCanvas(Canvas):
         self.data = []
         self.config = config
         self.annotations = []
+        self._vertices = []
 
     def plot_nodes(self, vertices, label = None, style=None, data=None, rotations=None):
         name = label or "nodes"
@@ -119,11 +120,18 @@ class PlotlyCanvas(Canvas):
                 "showlegend": False
             })
 
-    def plot_mesh(self, vertices, triangles, style=None, local_coords=None):
+    def plot_mesh(self, vertices, triangles, style=None, local_coords=None)->tuple:
         if style is None:
             style = MeshStyle()
 
-        x,y,z = zip(*vertices)
+        if isinstance(vertices, int):
+            x, y, z = self._vertices[vertices]
+            point_access = vertices
+        else:
+            x,y,z = zip(*vertices)
+            self._vertices.append(vertices)
+            point_access = len(self._vertices) - 1
+
         i,j,k = zip(*triangles)
         self.data.append({
             #"name": label if label is not None else "",
@@ -136,6 +144,7 @@ class PlotlyCanvas(Canvas):
             "opacity": style.alpha,
             "color":   style.color,
         })
+        return point_access, None
 
     def build(self):
         opts = self.config
