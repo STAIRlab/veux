@@ -81,7 +81,6 @@ pip install veux
 To render a model directly from Python, use the `veux.render` function:
 
 ```python
-...
 artist = veux.render(model, canvas=canvas)
 ```
 
