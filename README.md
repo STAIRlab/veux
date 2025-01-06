@@ -47,26 +47,6 @@ Documentation is currently under development.
 
 -------------------------------------------------------------------- 
 
-## Gallery
-
-
-|                   |                   |
-| :---------------: | :---------------: |
-| ![][glry-0001]    | ![][glry-0003]    |
-| ![][glry-0002]    | ![][glry-0005]    |
-
-
-[glry-0001]: <https://stairlab.github.io/opensees-gallery/gallery/cablestayed02/CableStayed02.png>
-[view-0001]: <https://stairlab.github.io/opensees-gallery/gallery/cablestayed02/CableStayed02.png>
-
-[glry-0002]: <https://stairlab.github.io/opensees-gallery/examples/example7/safeway_hu11201694704832599949.png>
-[view-0002]: <https://stairlab.github.io/opensees-gallery/examples/example7/safeway_hu11201694704832599949.png>
-
-[glry-0003]: <https://stairlab.github.io/opensees-gallery/examples/shellframe/ShellFrame_hu5013315635971397841.png>
-[view-0003]: <https://stairlab.github.io/opensees-gallery/examples/shellframe/ShellFrame_hu5013315635971397841.png>
-
-[glry-0005]: <https://raw.githubusercontent.com/STAIRlab/veux/master/docs/figures/shellframe01.png>
-[view-0005]: <https://raw.githubusercontent.com/STAIRlab/veux/master/docs/figures/shellframe01.png>
 
 ## Getting Started
 
@@ -142,7 +122,6 @@ To see the help page run
 python -m veux --help
 ```
 
-
 <br>
 
 ## Related Links
@@ -169,6 +148,28 @@ Other
 
 - [`fapp`](https://github.com/wcfrobert/fapp) 
 -->
+
+## Gallery
+
+
+|                   |                   |
+| :---------------: | :---------------: |
+| ![][glry-0001]    | ![][glry-0003]    |
+| ![][glry-0002]    | ![][glry-0005]    |
+
+
+[glry-0001]: <https://stairlab.github.io/opensees-gallery/gallery/cablestayed02/CableStayed02.png>
+[view-0001]: <https://stairlab.github.io/opensees-gallery/gallery/cablestayed02/CableStayed02.png>
+
+[glry-0002]: <https://stairlab.github.io/opensees-gallery/examples/example7/safeway_hu11201694704832599949.png>
+[view-0002]: <https://stairlab.github.io/opensees-gallery/examples/example7/safeway_hu11201694704832599949.png>
+
+[glry-0003]: <https://stairlab.github.io/opensees-gallery/examples/shellframe/ShellFrame_hu5013315635971397841.png>
+[view-0003]: <https://stairlab.github.io/opensees-gallery/examples/shellframe/ShellFrame_hu5013315635971397841.png>
+
+[glry-0005]: <https://raw.githubusercontent.com/STAIRlab/veux/master/docs/figures/shellframe01.png>
+[view-0005]: <https://raw.githubusercontent.com/STAIRlab/veux/master/docs/figures/shellframe01.png>
+
 
 ## Support
 
