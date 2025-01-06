@@ -70,8 +70,44 @@ artist = veux.render(model, canvas=canvas)
   - [`Model`](https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html) variables from the [`sees`](https://pypi.org/project/sees) Python package can be passed directly
 - **canvas**: The `canvas` parameter is a string which indicates which "backend" technology to use. The options are:
   - `"gltf"` is the default canvas and produces the highest quality renderings. You can save renderings drawn by this backend to either `.html` or `.glb` files. `.glb` files are preferred as they are a natural format for 3D objects and can be viewed by standard 3D viewing applications.
-  - `"plotly"`
+  - `"plotly"` is best for model debugging as it is able to embed model details like node/element numbers and properties with hover annotations. However, the renderings produced by this backend dont look quite as good as with `gltf`.
   - `"matplotlib"`: can be used to programatically create `.png` files.
+
+Once the `artist` is created, the rendering can either be displayed or saved to a file. Each `canvas` supports slightly different options:
+- **viewing** To view a rendering that is generated either with `canvas="gltf"` or `canvas="plotly"`, use the `veux.serve()` function:
+  ```python
+  veux.serve(artist)
+  ```
+  After running you will see a message like the following printed
+  to your terminal:
+  ```
+      Bottle v0.13.1 server starting up (using WSGIRefServer())...
+      Listening on http://localhost:8081/
+      Hit Ctrl-C to quit.
+  ```
+  Paste the URL from this message (eg, http://localhost:8081) into
+  the address bar of a browser and an interactive rendering will
+  appear.
+
+- **saving** Use the `artist`'s `save()` method to write the rendering to a file. The file type depends on the canvas:
+    - with `canvas="gltf"`, files are saved in the glTF format with extension `.glb`:
+      ```python
+      ...
+      artist.save("model.glb")
+      ```
+    - with `canvas="plotly"`, files are saved in to HTML:
+      ```python
+      ...
+      artist.save("model.html")
+      ```
+    - with `canvas="matplotlib"`, files are saved in as PNGs:
+      ```python
+      ...
+      artist.save("model.png")
+      ```
+      Note, however, that renderings produced by the `"matplotlib"` canvas are generally very poor quality. 
+      For high quality images, use the `"gltf"` canvas and take screen captures.
+
 
 ### Command Line Interface
 
