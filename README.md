@@ -145,13 +145,11 @@ python -m veux --help
 
 <br>
 
-
-
 ## Related Links
 
 See also
 
-- [`opensees`](https://github.com/claudioperez/OpenSeesRT)
+- [`sees`](https://github.com/claudioperez/OpenSeesRT)
 - [`osmg`](https://pypi.org/project/osmg)
 - [`mdof`](https://pypi.org/project/mdof)
 - [`sdof`](https://pypi.org/project/sdof)
