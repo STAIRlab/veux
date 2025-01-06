@@ -4,8 +4,6 @@
 #
 #===----------------------------------------------------------------------===#
 #
-import os
-import sys
 from pathlib import Path
 
 from .errors import RenderError
@@ -66,7 +64,7 @@ def _create_canvas(name=None, config=None):
     else:
         raise ValueError("Unknown canvas name " + str(name))
 
-def render(sam_file, res_file=None, noshow=False, ndf=6,
+def render(sam_file, res_file=None, ndf=6,
            canvas=None,
            show=None,
            hide=None,
@@ -81,7 +79,6 @@ def render(sam_file, res_file=None, noshow=False, ndf=6,
     # Configuration is determined by successively layering
     # from sources with the following priorities:
     #      defaults < file configs < kwds 
-
 
     if sam_file is None:
         raise RenderError("Expected required argument <sam-file>")
@@ -117,6 +114,9 @@ def render(sam_file, res_file=None, noshow=False, ndf=6,
 
     config["artist_config"]["vertical"] = vertical
     apply_config(opts, config)
+    if show is not None and reference is None and displaced is None: 
+        reference = show 
+
     if reference is not None:
         preserve = set()
         sketch_show(config["artist_config"], f"reference", "show")

@@ -6,10 +6,7 @@
 #
 # Claudio Perez
 #
-import sys
 import warnings
-from collections import defaultdict
-
 
 import numpy as np
 Array = np.ndarray
@@ -17,7 +14,7 @@ from scipy.linalg import block_diag
 
 from veux.model  import FrameModel
 from veux.state  import read_state, State, BasicState
-from veux.config import Config, apply_config, LineStyle, NodeStyle
+from veux.config import Config, LineStyle, NodeStyle
 
 
 def _is_truss(el):
@@ -204,14 +201,14 @@ class FrameArtist:
         return name
 
 
-    def add_state(self, res_file, scale=1.0, only=None, type=None, **kwds):
+    def add_state(self, res_file, scale=1.0, only=None, sketch_config=None, **state_config):
 
         if not isinstance(res_file, (dict, Array, State)):
             state = read_state(res_file, only=only,
                                model=self.model,
                                scale=scale,
                                transform=self.dofs2plot,
-                               **kwds)
+                               **state_config)
         else:
             state = res_file
 
@@ -239,6 +236,29 @@ class FrameArtist:
         displ_array[:,3:] *= scale/100
         displ_array[:,:3] *= scale
         return name
+
+
+    # def plot_displaced_assembly(self, state=None, label=None):
+    #     model = self.model
+    #     N  = 10 if state is not None else 2
+    #     ne = len(model["assembly"])
+    #     coords = np.zeros((ne*(N+1), 3))
+    #     coords.fill(np.nan)
+
+    #     do_lines = False
+    #     for i,(tag,el) in enumerate(model["assembly"].items()):
+    #         if _is_frame(el) and state is not None:
+    #             do_lines = True
+    #             coords[(N+1)*i:(N+1)*i+N,:] = displaced_profile(model.cell_position(tag),
+    #                                                             state.cell_array(tag).flatten(),
+    #                                                             Q=model.frame_orientation(tag),
+    #                                                             npoints=N).T
+    #         elif len(el["crd"]) == 2:
+    #             do_lines = True
+    #             coords[(N+1)*i:(N+1)*i+N,:] = np.linspace(*el["crd"], N)
+
+    #     if do_lines:
+    #         self.canvas.plot_lines(coords[:, :self.ndm], style=LineStyle(color="red"), label=label)
 
 
     def plot_origin(self, **kwds):
@@ -270,7 +290,29 @@ class FrameArtist:
                                    style=NodeStyle(shape="sphere"),
                                    label=name)
 
+    def _draw_sketch(self, state, config):
+        if config["outline"] is not None:
+            self.draw_outlines(state, config=config["outline"])
 
+        if config["surface"] is not None:
+            self.draw_surfaces(state, config=config["surface"])
+
+        if config["marker"] is not None \
+            and "node" in config["marker"] \
+            and config["marker"]["node"]["show"]:
+            self.draw_nodes(state, config=config["marker"])
+
+        if config["axes"] is not None:
+            self.draw_axes(state, config=config["axes"])
+
+        if "hover" in config:
+            try:
+                self.add_elem_data(config=config["hover"])
+            except Exception as e:
+                raise e
+            warnings.warn(str(e))
+
+    # sketches with or without state
     def draw_outlines(self, state=None, config=None):
         model = self.model
         ndm   = self.model["ndm"]
@@ -362,54 +404,7 @@ class FrameArtist:
 
         return
 
-        #
-        # TODO: Remove everthing below
-        #
-
-        # N = 2
-        N = 20 if displ is not None else 2
-
-        I = 0
-        coords = []
-        triang = []
-        for i,el in enumerate(self.model["assembly"].values()):
-            # if int(el["name"]) < 30: continue
-            try:
-                sect = sections[el["name"]]
-            except:
-                if int(el["name"]) < 1e3:
-                    sect = self.config["default_section"]
-                else:
-                    sect = np.array([[-48, -48],
-                                     [ 48, -48],
-                                     [ 48,  48],
-                                     [-48,  48]])
-
-
-
-    def plot_displaced_assembly(self, state=None, label=None):
-        model = self.model
-        N  = 10 if state is not None else 2
-        ne = len(model["assembly"])
-        coords = np.zeros((ne*(N+1), 3))
-        coords.fill(np.nan)
-
-        do_lines = False
-        for i,(tag,el) in enumerate(model["assembly"].items()):
-            if _is_frame(el) and state is not None:
-                do_lines = True
-                coords[(N+1)*i:(N+1)*i+N,:] = displaced_profile(model.cell_position(tag),
-                                                                state.cell_array(tag).flatten(),
-                                                                Q=model.frame_orientation(tag),
-                                                                npoints=N).T
-            elif len(el["crd"]) == 2:
-                do_lines = True
-                coords[(N+1)*i:(N+1)*i+N,:] = np.linspace(*el["crd"], N)
-
-        if do_lines:
-            self.canvas.plot_lines(coords[:, :self.ndm], style=LineStyle(color="red"), label=label)
-
-    def plot_nodes(self, state=None, data=None, label=None, config=None):
+    def draw_nodes(self, state=None, data=None, label=None, config=None):
         if state is not None and state.rotation is not None and self.model.ndm == 3:
             rotations = self.model.node_rotation(state=state)
         else:
@@ -426,7 +421,6 @@ class FrameArtist:
                                    keys=["tag", "crd"],
                                    data=[[str(k), list(map(str, coord[i]))]
                                        for i,k in enumerate(self.model.iter_node_tags())])
-
 
     def draw_axes(self, state=None, config=None):
         ne = len(self.model["assembly"])
@@ -445,34 +439,13 @@ class FrameArtist:
         self.canvas.plot_vectors(xyz.reshape(ne*3,3), uvw.reshape(ne*3,3))
 
 
-    def sketch(self, state, config, layer=None):
-        if config["outline"] is not None:
-            self.draw_outlines(state, config=config["outline"])
-
-        if config["surface"] is not None:
-            self.draw_surfaces(state, config=config["surface"])
-
-        if config["marker"] is not None \
-            and "node" in config["marker"] \
-            and config["marker"]["node"]["show"]:
-            self.plot_nodes(state, config=config["marker"])
-
-        if config["axes"] is not None:
-            self.draw_axes(state, config=config["axes"])
-
-        if "hover" in config:
-            try:
-                self.add_elem_data(config=config["hover"])
-            except Exception as e:
-                raise e
-            warnings.warn(str(e))
-
+# PUBLIC
 
     def draw(self):
         # Background
-        if "origin" in self.config["sketches"]["default"] \
-                and self.config["sketches"]["default"]["origin"]["axes"]["show"]:
-            origin = self.config["sketches"]["default"]["origin"]
+        default = self.config["sketches"]["default"]
+        if "origin" in default and default["origin"]["axes"]["show"]:
+            origin = default["origin"]
             self.plot_origin(line_style=origin["axes"]["style"],
                                   scale=origin["axes"]["scale"],
                                   label=origin["axes"]["label"])
@@ -480,16 +453,15 @@ class FrameArtist:
         # Reference
         if ("reference" in self.config["sketches"] \
                 and self.config["sketches"]["reference"]):
-            self.sketch(None, config=self._config_sketch("reference"))
+            self._draw_sketch(None, config=self._config_sketch("reference"))
 
         elif len(self.displ_states) == 0:
-            self.sketch(None, config=self._config_sketch("default"))
+            self._draw_sketch(None, config=self._config_sketch("default"))
 
-
+        # Deformations
         for layer, state in self.displ_states.items():
-            self.sketch(config=self._config_sketch("displaced"),
-                        state=state,
-                        layer=layer)
+            self._draw_sketch(config=self._config_sketch("displaced"),
+                        state=state)
 
         self.canvas.build()
         return self

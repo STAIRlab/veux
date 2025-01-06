@@ -1,7 +1,8 @@
 """
 A direct port of mapbox/earcut
 
-https://github.com/joshuaskelly/earcut-python/tree/master
+Adapted from:
+  https://github.com/joshuaskelly/earcut-python
 """
 import math
 import numpy as np
@@ -10,13 +11,13 @@ __all__ = ['earcut', 'deviation', 'flatten']
 
 def earcut1(vertices):
     """
-    Triangulate a simple polygon using the Earcut library.
+    Triangulate a simple polygon using the mapbox_earcut library.
 
     Parameters:
-    polycoord (list or ndarray): A list or array of [x, y] coordinates of the polygon vertices in order.
+      vertices (list or ndarray): A list or array of [x, y] coordinates of the polygon vertices in order.
 
     Returns:
-    triangles (ndarray): An (n, 3) array of indices into polycoord, each row representing a triangle.
+      triangles (ndarray): An (n, 3) array of indices into `vertices`, each row representing a triangle.
     """
     import mapbox_earcut as earcut
     if np.array_equal(vertices[0], vertices[-1]):
@@ -33,7 +34,7 @@ def earcut1(vertices):
 
     return triangles
 
-class Node:
+class _PointLink:
     def __init__(self, i, x, y):
     # vertice index in coordinates array
         self.i = i
@@ -150,8 +151,8 @@ def middleInside(a, b):
 # link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
 # if one belongs to the outer ring and another to a hole, it merges it into a single ring
 def _split_polygon(a, b):
-    a2 = Node(a.i, a.x, a.y)
-    b2 = Node(b.i, b.x, b.y)
+    a2 = _PointLink(a.i, a.x, a.y)
+    b2 = _PointLink(b.i, b.x, b.y)
     an = a.next
     bp = b.prev
 
@@ -232,14 +233,14 @@ def _create_links(data, start, end, dim, clockwise):
 
     if (clockwise == (_polygon_area(data, start, end, dim) > 0)):
         for i in range(start, end, dim):
-            last = _insert_node(i, data[i], data[i + 1], last)
+            last = _insert_link(i, data[i], data[i + 1], last)
 
     else:
         for i in reversed(range(start, end, dim)):
-            last = _insert_node(i, data[i], data[i + 1], last)
+            last = _insert_link(i, data[i], data[i + 1], last)
 
     if last and _points_equal(last, last.next):
-        _remove_node(last)
+        _remove_link(last)
         last = last.next
 
     return last
@@ -259,7 +260,7 @@ def _filter_points(start, end=None):
         again = False
 
         if not p.steiner and (_points_equal(p, p.next) or _triangle_area(p.prev, p, p.next) == 0):
-            _remove_node(p)
+            _remove_link(p)
             p = end = p.prev
             if (p == p.next):
                 return None
@@ -271,7 +272,7 @@ def _filter_points(start, end=None):
 
     return end
 
-def _earcut_links(ear: "Node", triangles, dim, minX, minY, size, _pass=None):
+def _earcut_links(ear: "_PointLink", triangles, dim, minX, minY, size, _pass=None):
     """main ear slicing loop which triangulates a polygon (given as a linked list)"""
 
     if not ear:
@@ -296,7 +297,7 @@ def _earcut_links(ear: "Node", triangles, dim, minX, minY, size, _pass=None):
             triangles.append(ear.i  // dim)
             triangles.append(next.i // dim)
 
-            _remove_node(ear)
+            _remove_link(ear)
 
             # skipping the next vertice leads to less sliver triangles
             ear  = next.next
@@ -395,8 +396,8 @@ def cureLocalIntersections(start, triangles, dim):
             triangles.append(b.i // dim)
 
             # remove two nodes involved
-            _remove_node(p)
-            _remove_node(p.next)
+            _remove_link(p)
+            _remove_link(p.next)
 
             p = start = b
 
@@ -627,8 +628,9 @@ def _sort_links(L):
     return L
 
 
-# z-order of a point given coords and size of the data bounding box
 def _z_order(x, y, minX, minY, size):
+    "z-order of a point given coords and size of the data bounding box"
+
     # coords are transformed into non-negative 15-bit integer range
     x = 32767 * (x - minX) // size
     y = 32767 * (y - minY) // size
@@ -645,8 +647,9 @@ def _z_order(x, y, minX, minY, size):
 
     return x | (y << 1)
 
-# find the leftmost node of a polygon ring
+
 def _leftmost_node(start):
+    "find the leftmost node of a polygon ring"
     do = True
     p = start
     leftmost = start
@@ -660,9 +663,9 @@ def _leftmost_node(start):
     return leftmost
 
 
-def _insert_node(i, x, y, last):
+def _insert_link(i, x, y, last):
     "create a node and optionally link it with previous one (in a circular doubly linked list)"
-    p = Node(i, x, y)
+    p = _PointLink(i, x, y)
 
     if not last:
         p.prev = p
@@ -676,7 +679,7 @@ def _insert_node(i, x, y, last):
 
     return p
 
-def _remove_node(p):
+def _remove_link(p):
     p.next.prev = p.prev
     p.prev.next = p.next
 

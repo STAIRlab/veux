@@ -6,7 +6,6 @@
 #
 # Claudio Perez
 #
-import warnings
 from collections import defaultdict
 
 import numpy as np
@@ -474,7 +473,7 @@ def _from_opensees(sam: dict, shift, R):
 def collect_outlines(model):
     return _get_frame_outlines(_from_opensees(model, [0, 0, 0], np.eye(3)))
 
-def _add_section_shape(section, sections=None, outlines=None):
+def _add_section_shape(section, sections, outlines):
     import scipy.spatial
 
     # Rotation to change coordinates from x-y to z-y
@@ -496,9 +495,10 @@ def _add_section_shape(section, sections=None, outlines=None):
         try:
             outlines[section["name"]] = points[scipy.spatial.ConvexHull(points).vertices]
         except scipy.spatial._qhull.QhullError as e:
+            import warnings
             from veux.utility.alpha_shape import alpha_shape
             outlines[section["name"]] = alpha_shape(points, 1)
-           #warnings.warn(str(e))
+            warnings.warn(str(e))
 
 
 def _get_frame_outlines(model):
@@ -506,6 +506,7 @@ def _get_frame_outlines(model):
     for name,section in model["sections"].items():
         _add_section_shape(section, model["sections"], shapes)
 
+    # Function to check if list of lists is homogeneous
     homogeneous = lambda lst: (
             isinstance(lst, list) and \
               all(isinstance(x, list) and \
@@ -525,13 +526,6 @@ def _get_frame_outlines(model):
                 elem_shapes = np.array(elem_shapes)
 
             outlines[elem["name"]] = elem_shapes
-
-#   outlines = {
-#       elem["name"]: np.array([shapes[i] for i in elem["sections"][0]])
-
-#       for elem in model["assembly"].values()
-#           if "sections" in elem and elem["sections"][0] in shapes
-#   }
 
     return outlines
 

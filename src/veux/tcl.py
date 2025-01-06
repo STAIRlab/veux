@@ -1,7 +1,6 @@
 import sys
-import json
 from functools import partial
-from veux import config, render
+from veux import render
 from veux.parser import parse_args
 from veux.errors import RenderError
 

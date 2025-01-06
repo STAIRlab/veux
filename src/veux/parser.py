@@ -149,6 +149,7 @@ def parse_args(argv)->dict:
 
     # 2. Local configuration file
     if os.path.exists(".render.yaml"):
+        import yaml
         with open(".render.yaml", "r") as f:
             presets = yaml.load(f, Loader=yaml.Loader)
 
@@ -164,12 +165,6 @@ def parse_args(argv)->dict:
         try:
             if arg == "--help" or arg == "-h":
                 print(HELP.format(NAME=NAME))
-                return None
-
-            elif arg == "--install":
-                try: install_me(next(args))
-                # if no directory is provided, use default
-                except StopIteration: install_me()
                 return None
 
             elif arg[:2] == "-o":

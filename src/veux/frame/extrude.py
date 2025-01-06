@@ -1,5 +1,6 @@
 # Claudio Perez
 import sys
+import warnings
 import numpy as np
 from scipy.spatial.transform import Rotation
 
@@ -10,46 +11,8 @@ import veux.frame
 from veux.utility.earcut import earcut
 from veux.model import read_model
 from veux.errors import RenderError
-from veux.config import MeshStyle, LineStyle
+from veux.config import MeshStyle
 
-
-def _is_concave(polygon_vertices):
-    """
-    Check if a 2D polygon is concave.
-
-    Parameters:
-        polygon_vertices (array-like): List or numpy array of (x, y) coordinates defining the polygon.
-
-    Returns:
-        bool: True if the polygon is concave, False otherwise.
-    """
-    # Ensure the input is a numpy array
-    polygon_vertices = np.asarray(polygon_vertices, dtype=float)
-
-    # Number of vertices
-    n = len(polygon_vertices)
-    if n < 3:
-        raise ValueError("A polygon must have at least 3 vertices.")
-
-    # Calculate cross products of consecutive edges
-    cross_products = []
-    for i in range(n):
-        # Get the current, next, and previous vertices
-        prev_vertex = polygon_vertices[i - 1]
-        curr_vertex = polygon_vertices[i]
-        next_vertex = polygon_vertices[(i + 1) % n]
-
-        # Compute vectors
-        vec1 = curr_vertex - prev_vertex
-        vec2 = next_vertex - curr_vertex
-
-        # Compute 2D cross product (z-component only)
-        cross_product = np.cross(vec1, vec2)
-        cross_products.append(cross_product)
-
-    # Check for sign changes in cross products
-    cross_products = np.array(cross_products)
-    return np.any(cross_products < 0) and np.any(cross_products > 0)
 
 def draw_extrusions(model, canvas, state=None, config=None):
     #
@@ -84,7 +47,7 @@ def draw_extrusions(model, canvas, state=None, config=None):
         if outline is None:
             continue
 
-        outline = outline*config["scale"]
+        outline_scale = config["scale"]
 
         nen  = len(el["nodes"])
 
@@ -95,19 +58,23 @@ def draw_extrusions(model, canvas, state=None, config=None):
             R = state.cell_array(el["name"], state.rotation)
         else:
             outline = outline*0.99
+            outline_scale *= 0.99
             X = np.array(el["crd"])
             R = [model.frame_orientation(el["name"]).T]*nen
 
 
+        try:
+            caps.append(I+np.array(earcut(model.cell_section(el["name"], 0)[:,1:])))
+            caps.append(I+(nen-1)*noe + np.array(earcut(model.cell_section(el["name"], 1)[:,1:])))
+        except Exception as e:
+            warnings.warn(f"Earcut failed with message: {e}")
 
-        caps.append(I+np.array(earcut(model.cell_section(el["name"], 0)[:,1:])))
-        caps.append(I+(nen-1)*noe+np.array(earcut(model.cell_section(el["name"], 1)[:,1:])))
-#       caps.append(I+(nen-1)*(noe)+cap)
 
         # Loop over sample points along element length to assemble
         # `coord` and `triang` arrays
         for j in range(nen):
-            outline = model.cell_section(el["name"], j) # TODO: Pass float between 0 and 1
+            outline = model.cell_section(el["name"], j).copy() # TODO: Pass float between 0 and 1 instead of j
+            outline[:,1:] *= outline_scale
             # Loop over section edges
             for k,edge in enumerate(outline):
                 # Append rotated section coordinates to list of coordinates
@@ -142,18 +109,15 @@ def draw_extrusions(model, canvas, state=None, config=None):
 
     triang = [list(reversed(i)) for i in triang]
 
-    if len(triang) > 0:
-        cbuf = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
-
-        if len(caps) > 0:
-            for cap in caps:
-                canvas.plot_mesh(cbuf, cap, style=config["style"])
-
-
-    show_edges = True
-
-    if not show_edges or len(triang) == 0:
+    if len(triang) == 0:
         return
+
+    cbuf, tbuf, *_ = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
+
+    if len(caps) > 0:
+        for cap in caps:
+            canvas.plot_mesh(cbuf, cap, style=config["style"])
+
 
     IDX = np.array((
         (0, 2),
@@ -161,7 +125,6 @@ def draw_extrusions(model, canvas, state=None, config=None):
     ))
 
     triang = [list(reversed(i)) for i in triang]
-
 
     nan = np.zeros(ndm)*np.nan
     coords = np.array(coords)
@@ -180,10 +143,6 @@ def draw_extrusions(model, canvas, state=None, config=None):
 
     canvas.plot_lines(tri_points,
                       style=config["line_style"]
-                       #LineStyle(
-                       #     color="black" if state is not None else "#808080",
-                       #     width=4
-                       #)
     )
 
 class so3:
@@ -193,7 +152,7 @@ class so3:
 
 def _add_moment(artist, loc, axis):
     import meshio
-    mesh_data = meshio.read(sees.assets/'chrystals_moment.stl')
+    mesh_data = meshio.read(veux.assets/'chrystals_moment.stl')
     coords = mesh_data.points
 
     coords = np.einsum('ik, kj -> ij',  coords,
@@ -204,7 +163,7 @@ def _add_moment(artist, loc, axis):
     for i in mesh_data.cells:
         if i.type == "triangle":
             triangles =  i.data #mesh_data.cells['triangle']
-            break;
+            break
 
     artist.canvas.plot_mesh(coords, triangles)
 

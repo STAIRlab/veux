@@ -77,7 +77,7 @@ class MatplotlibCanvas(Canvas):
         }
         self.ax.scatter(*vertices.T, **props)
 
-    def plot_mesh(self, vertices, indices, local_coords=None, style=None):
+    def plot_mesh(self, vertices, indices, local_coords=None, style=None)->int:
         if style is None:
             style = MeshStyle()
         self.ax.plot_trisurf(*np.array(vertices).T, triangles=indices, color=style.color)

@@ -22,7 +22,6 @@
 
 """
 import sys
-import warnings
 import itertools
 
 import numpy as np
@@ -364,11 +363,11 @@ class GltfLibCanvas(Canvas):
             n  = sum(np.isnan(vertices[:indices[0],0]))
             indices_array = indices - np.dtype(self.index_t).type(n)
 
-#           indices_binary_blob = indices_array.astype(self.index_t).tobytes()
             indices_binary_blob = indices_array.tobytes()
 
             if len(indices_array) <= 1:
-                print(indices_array, file=sys.stderr)
+                import warnings
+                warnings.warn(indices_array, file=sys.stderr)
                 continue
 
             self.gltf.accessors.extend([
@@ -406,25 +405,29 @@ class GltfLibCanvas(Canvas):
             self.gltf.scenes[0].nodes.append(len(self.gltf.nodes)-1)
 
 
-    def plot_mesh(self, vertices, triangles, local_coords=None, style=None, **kwds):
+    def plot_mesh(self, vertices, triangles, local_coords=None, style=None, **kwds) -> tuple:
 
         material  = self._get_material(style or MeshStyle())
-        triangles = np.array(triangles,dtype=self.index_t)
-        triangles_binary_blob = triangles.flatten().tobytes()
-        triangle_buffer = self._push_data(triangles_binary_blob, pygltflib.ELEMENT_ARRAY_BUFFER)
-        self.gltf.accessors.extend([
-            pygltflib.Accessor(
-                bufferView=triangle_buffer,
-                componentType=GLTF_T[self.index_t],
-                count=triangles.size,
-                type=pygltflib.SCALAR,
-                max=[int(triangles.max())],
-                min=[int(triangles.min())],
-            )
-        ])
-        index_access = len(self.gltf.accessors)-1
 
-        if not isinstance(vertices, int):
+        if isinstance(triangles, int):
+            index_access = triangles 
+        else:
+            triangles = np.array(triangles,dtype=self.index_t)
+            self.gltf.accessors.extend([
+                pygltflib.Accessor(
+                    bufferView=self._push_data(triangles.flatten().tobytes(), pygltflib.ELEMENT_ARRAY_BUFFER),
+                    componentType=GLTF_T[self.index_t],
+                    count=triangles.size,
+                    type=pygltflib.SCALAR,
+                    max=[int(triangles.max())],
+                    min=[int(triangles.min())],
+                )
+            ])
+            index_access = len(self.gltf.accessors)-1
+
+        if isinstance(vertices, int):
+            point_access = vertices
+        else:
             points    = np.array(vertices, dtype=self.float_t)
             self.gltf.accessors.extend([
                 pygltflib.Accessor(
@@ -437,8 +440,6 @@ class GltfLibCanvas(Canvas):
                 )
             ])
             point_access = len(self.gltf.accessors)-1
-        else:
-            point_access = vertices
 
         # Add accessors for (1) point coordinates and (2) indices
 
@@ -481,7 +482,7 @@ class GltfLibCanvas(Canvas):
         )
         self.gltf.scenes[0].nodes.append(len(self.gltf.nodes)-1)
 
-        return point_access
+        return point_access, index_access
 
 
     def to_glb(self)->bytes:

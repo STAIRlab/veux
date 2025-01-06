@@ -74,7 +74,7 @@ class Server:
 
     def run(self, port=None):
         if port is None:
-            port = 8082
+            port = 8081
 
         try:
             bottle.run(self._app, host="localhost", port=port)
