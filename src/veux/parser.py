@@ -46,6 +46,7 @@ Options:
 
   BACKEND
   --canvas <canvas>              trimesh, gnu, plotly, matplotlib
+  --port <port>                  port to serve rendering
 
   MISC.
   -o, --save   <out-file>        Save plot to <out-file>.
@@ -208,6 +209,8 @@ def parse_args(argv)->dict:
             #
             elif arg == "--viewer":
                 opts["viewer_config"]["name"] = next(args)
+            elif arg == "--port":
+                opts["server_config"]["port"] = int(next(args))
 
             #
             # Canvas
