@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -62,7 +62,8 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/STAIRLab/veux"
-Documentation = "https://stairlab.github.io/opensees-gallery"
+Documentation = "https://stairlab.berkeley.edu/software/veux"
+Examples = "https://gallery.stairlab.io/"
 
 [project.scripts]
 veux = "veux.__main__:main"
