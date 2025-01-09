@@ -55,12 +55,13 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
         return interp.serialize()
 
     elif isinstance(filename, str) and (
-        filename.endswith(".s2k") or filename.endswith(".$2k") or filename.endswith(".$br")):
+        filename.endswith(".s2k") or filename.endswith(".$2k") or filename.endswith(".$br")) or filename.endswith(".b2k"):
         from openbim import csi
         # import veux.reader.csi as csi
         with open(filename, "r") as f:
             model = csi.create_model(csi.load(f), verbose=verbose)
         return model.asdict()
+
     elif isinstance(filename, str) and filename.endswith(".inp"):
         pass
 
