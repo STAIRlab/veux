@@ -9,17 +9,40 @@ import pygltflib
 from veux.canvas.gltf import GltfLibCanvas
 
 
-class GltfLibAnimation:
+def _append_index(lst, item):
+    lst.append(item)
+    return len(lst) - 1
+
+
+class GltfLibAnimation01:
     """
     A utility class that manages animations for a glTF scene.
     It owns a GltfLibCanvas instance which holds geometry, nodes, etc.
     """
 
-    def __init__(self, config=None):
-        # Create a new canvas (or you can pass in an existing one, if you prefer)
-        self.canvas = GltfLibCanvas(config=config)
+    def __init__(self, canvas=None, name="MyAnimation"):
+        if canvas is None:
+            canvas = GltfLibCanvas(config=None)
 
-    def add_rotation_animation(self, node_index, times, quaternions, path="rotation"):
+        self.canvas = canvas
+
+        gltf = canvas.gltf
+
+        # Build the Animation object
+        anim = pygltflib.Animation(
+            samplers=[],
+            channels=[],
+            name=name
+        )
+
+        # Append to glTF's animations
+        if gltf.animations is None:
+            gltf.animations = []
+        gltf.animations.append(anim)
+        self.anim = anim
+
+
+    def set_node_states(self, node_index, times, rotations, path="rotation"):
         """
         Attach a keyframed quaternion-rotation animation to a node in the scene.
 
@@ -29,42 +52,37 @@ class GltfLibAnimation:
         :param path:       "rotation" (for rotating the node), or "translation", etc.
         """
         gltf = self.canvas.gltf
+        canvas = self.canvas
 
         # Convert times/quaternions to binary
         time_bytes = b"".join([struct.pack("<f", t) for t in times])
-        quat_bytes = b"".join([struct.pack("<4f", *q) for q in quaternions])
+        quat_bytes = b"".join([struct.pack("<4f", *q) for q in rotations])
 
-        # Create new BufferViews for time & quaternions
-        time_buffer_view_idx = self.canvas._push_data(time_bytes, target=None)
-        quat_buffer_view_idx = self.canvas._push_data(quat_bytes, target=None)
-
-        # Create Accessors for time & quaternions
-        time_accessor = pygltflib.Accessor(
-            bufferView=time_buffer_view_idx,
-            byteOffset=0,
-            componentType=pygltflib.FLOAT,
-            count=len(times),
-            type=pygltflib.SCALAR,
-            min=[times[0]] if times else [0],
-            max=[times[-1]] if times else [0]
+        # Create Accessors for time & states
+        time_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
+                bufferView=canvas._push_data(time_bytes, target=None),
+                byteOffset=0,
+                componentType=pygltflib.FLOAT,
+                count=len(times),
+                type=pygltflib.SCALAR,
+                min=[times[ 0]] if times else [0],
+                max=[times[-1]] if times else [0]
+            )
         )
-        gltf.accessors.append(time_accessor)
-        time_accessor_idx = len(gltf.accessors) - 1
 
-        quat_accessor = pygltflib.Accessor(
-            bufferView=quat_buffer_view_idx,
+        state_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
+            bufferView=canvas._push_data(quat_bytes, target=None),
             byteOffset=0,
             componentType=pygltflib.FLOAT,
-            count=len(quaternions),
+            count=len(rotations),
             type=pygltflib.VEC4
-        )
-        gltf.accessors.append(quat_accessor)
-        quat_accessor_idx = len(gltf.accessors) - 1
+        ))
+
 
         # Create AnimationSampler & AnimationChannel
         sampler = pygltflib.AnimationSampler(
-            input=time_accessor_idx,
-            output=quat_accessor_idx,
+            input=time_accessor,
+            output=state_accessor,
             interpolation="LINEAR"
         )
         channel = pygltflib.AnimationChannel(
@@ -75,66 +93,34 @@ class GltfLibAnimation:
             )
         )
 
-        # Build the Animation object
-        new_animation = pygltflib.Animation(
-            samplers=[sampler],
-            channels=[channel],
-            name="MyAnimation"
-        )
+        self.anim.samplers.append(sampler)
+        self.anim.channels.append(channel)
 
-        # Append to glTF's animations
-        if gltf.animations is None:
-            gltf.animations = []
-        gltf.animations.append(new_animation)
 
     def save(self, filename="scene.glb"):
         """Delegate to the canvas to write out the final GLB."""
         self.canvas.write(filename)
-        print(f"Saved: {filename}")
 
 
-#-----------------------
+def _create_rotations(
+    period = 2.0,
+    num_samples = 10,
+    amplitude_degs_z = 45,
+    amplitude_degs_x = 10):
 
-def quaternion_multiply(q1, q2):
-    """
-    Standard quaternion multiply: q1 * q2
-    q1, q2 are (x, y, z, w)
-    """
-    x1, y1, z1, w1 = q1
-    x2, y2, z2, w2 = q2
-    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
-    y = w1*y2 + y1*w2 + z1*x2 - x1*z2
-    z = w1*z2 + z1*w2 + x1*y2 - y1*x2
-    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
-    return (x, y, z, w)
+    def quaternion_multiply(q1, q2):
+        """
+        Standard quaternion multiply: q1 * q2
+        q1, q2 are (x, y, z, w)
+        """
+        x1, y1, z1, w1 = q1
+        x2, y2, z2, w2 = q2
+        x = w1*x2 + x1*w2 + y1*z2 - z1*y2
+        y = w1*y2 + y1*w2 + z1*x2 - x1*z2
+        z = w1*z2 + z1*w2 + x1*y2 - y1*x2
+        w = w1*w2 - x1*x2 - y1*y2 - z1*z2
+        return (x, y, z, w)
 
-def main():
-    # 1) Create glTF animation helper
-    anim = GltfLibAnimation()
-
-    # 2) Make pendulum geometry
-    #    We'll define two vertices for a line: pivot at (0,0,0), tip at (0, -2, 0)
-    L = 2.0
-    pendulum_verts = np.array([[0,  0, 0],
-                               [0, -L, 0]],
-                              dtype=float)
-    # Indices for a single line (two points)
-    pendulum_indices = [[0, 1]]
-
-    # Plot it onto the canvas
-    anim.canvas.plot_lines(
-        vertices=pendulum_verts,
-        indices=pendulum_indices,
-    )
-
-    # The newly added line is in a new node at the end of gltf.nodes
-    pendulum_node_index = len(anim.canvas.gltf.nodes) - 1
-
-    # 3) Build the time samples and quaternions for a simple 3D swing
-    period = 2.0
-    num_samples = 10
-    amplitude_degs_z = 45
-    amplitude_degs_x = 10
 
     amp_z = math.radians(amplitude_degs_z)
     amp_x = math.radians(amplitude_degs_x)
@@ -159,14 +145,60 @@ def main():
 
         times.append(t)
         quaternions.append(qTotal)
+    return times, quaternions 
+
+
+def _test_pendulum():
+    # 1) Create glTF animation helper
+    anim = GltfLibAnimation01()
+
+    # 2) Make pendulum geometry
+    #    Define two vertices for a line: pivot at (0,0,0), tip at (0, -L, 0)
+    L = 2.0
+    anim.canvas.plot_lines(
+        vertices=np.array([[0,  0, 0], [0, -L, 0]],dtype=float),
+        indices=[[0, 1]],
+    )
+
+    # The newly added line is in a new node at the end of gltf.nodes
+    node = len(anim.canvas.gltf.nodes) - 1
+
+    times, rotations = _create_rotations()
 
     # 4) Add an animation to rotate our pendulum node
-    anim.add_rotation_animation(pendulum_node_index, times, quaternions)
+    anim.set_node_states(node, times, rotations)
 
     # 5) Save everything to disk
     anim.save("pendulum.glb")
 
 
+def _test_pendulum02():
+    from veux.frame.skins import VeuxAnimation
+    # 1) Create glTF animation helper
+    anim = VeuxAnimation()
+
+    # 2) Make pendulum geometry
+    #    Define two vertices for a line: pivot at (0,0,0), tip at (0, -L, 0)
+    L = 2.0
+    canvas = GltfLibCanvas()
+    canvas.plot_lines(
+        vertices=np.array([[0,  0, 0], [0, -L, 0]],dtype=float),
+        indices=[[0, 1]],
+    )
+
+    # The newly added line is in a new node at the end of gltf.nodes
+    node = len(canvas.gltf.nodes) - 1
+
+    for time, rotation in zip(*_create_rotations()):
+        anim.add_node_rotation(node, rotation, time=time)
+
+    anim.apply(canvas)
+
+    # 5) Save everything to disk
+    canvas.write("pendulum02.glb")
+
+
 if __name__ == "__main__":
-    main()
+    _test_pendulum()
+    _test_pendulum02()
 
