@@ -181,16 +181,16 @@ def _test_pendulum02():
     #    Define two vertices for a line: pivot at (0,0,0), tip at (0, -L, 0)
     L = 2.0
     canvas = GltfLibCanvas()
-    canvas.plot_lines(
+    lines = canvas.plot_lines(
         vertices=np.array([[0,  0, 0], [0, -L, 0]],dtype=float),
         indices=[[0, 1]],
     )
 
     # The newly added line is in a new node at the end of gltf.nodes
-    node = len(canvas.gltf.nodes) - 1
+    node = lines[0].id
 
     for time, rotation in zip(*_create_rotations()):
-        anim.add_node_rotation(node, rotation, time=time)
+        anim.set_node_rotation(node, rotation, time=time)
 
     anim.apply(canvas)
 

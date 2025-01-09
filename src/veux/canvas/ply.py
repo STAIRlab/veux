@@ -38,11 +38,12 @@ class PlotlyCanvas(Canvas):
         }
         self.data.append(trace)
 
-    def plot_lines(self, vertices, indices=None, label=None, style=None):
+    def plot_lines(self, vertices, indices=None, label=None, style=None)->list:
+        lines=[]
         if indices is not None:
             for idx in indices:
-                self.plot_lines(vertices[idx], label=label, style=style)
-            return
+                lines.extend(self.plot_lines(vertices[idx], label=label, style=style))
+            return lines
 
         if style is None:
             style = LineStyle(color="#808080")
@@ -61,6 +62,7 @@ class PlotlyCanvas(Canvas):
             "hoverinfo":"skip"
         }
         self.data.append(data)
+        return lines
 
 
     def plot_hover(self, vertices, data=None, keys=None, text=None, html=None, style=None, label=None):

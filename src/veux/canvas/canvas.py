@@ -1,9 +1,21 @@
 # Claudio Perez
 import numpy as np
 import warnings
+from dataclasses import dataclass
 
 from veux.config import MeshStyle, LineStyle, NodeStyle
 
+@dataclass
+class Line:
+    id: int 
+    vertices = None
+    indices  = None
+
+@dataclass
+class Mesh:
+    id: int
+    vertices = None 
+    indices  = None 
 
 class Canvas:
     def build(self): ...
@@ -22,7 +34,7 @@ class Canvas:
     def plot_nodes(self, vertices, indices=None, label=None, style: NodeStyle=None, rotate=None, data=None):
         warnings.warn("plot_nodes not implemented for chosen canvas")
 
-    def plot_lines(self, vertices, indices=None, label=None, style: LineStyle=None):
+    def plot_lines(self, vertices, indices=None, label=None, style: LineStyle=None)->list:
         warnings.warn("plot_lines not implemented for chosen canvas")
 
     def plot_mesh(self,  vertices, indices     , label=None, style: MeshStyle=None, local_coords=None):

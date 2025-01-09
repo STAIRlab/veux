@@ -30,7 +30,7 @@ from scipy.spatial.transform import Rotation
 
 import veux
 
-from .canvas import Canvas
+from .canvas import Canvas, Line, Mesh
 from veux import utility
 from veux.config import NodeStyle, MeshStyle, LineStyle, DrawStyle
 
@@ -43,6 +43,10 @@ GLTF_T = {
 import numpy as np
 import pygltflib
 
+
+def _append_index(lst, item):
+    lst.append(item)
+    return len(lst) - 1
 
 
 class GltfLibCanvas(Canvas):
@@ -201,7 +205,6 @@ class GltfLibCanvas(Canvas):
             dtype=index_t,
         )
         triangles_binary_blob = triangles.flatten().tobytes()
-        points_binary_blob = points.tobytes()
 
         self.gltf.accessors.extend([
             pygltflib.Accessor(
@@ -214,7 +217,7 @@ class GltfLibCanvas(Canvas):
                 min=[int(triangles.min())],
             ),
             pygltflib.Accessor(
-                bufferView=self._push_data(points_binary_blob,
+                bufferView=self._push_data(points.tobytes(),
                                            pygltflib.ARRAY_BUFFER),
                 componentType=GLTF_T[self.float_t],
                 count=len(points),
@@ -309,7 +312,7 @@ class GltfLibCanvas(Canvas):
         return self._color[(color, alpha)]
 
 
-    def _push_data(self, data, target, byteStride=None)->int:
+    def _push_data(self, data, target=None, byteStride=None)->int:
         self.gltf.bufferViews.append(
                 pygltflib.BufferView(
                     buffer=0,
@@ -326,6 +329,8 @@ class GltfLibCanvas(Canvas):
 
 
     def plot_lines(self, vertices, indices=None, style: LineStyle=None, vcache:str=None, **kwds):
+
+        lines = []
         material = self._get_material(style or LineStyle())
 
         # vertices is given with nans separating line groups, but
@@ -402,15 +407,26 @@ class GltfLibCanvas(Canvas):
                     rotation=self._rotation
                 )
             )
-            self.gltf.scenes[0].nodes.append(len(self.gltf.nodes)-1)
 
+            self.gltf.scenes[0].nodes.append(
+                len(self.gltf.nodes)-1
+            )
+
+            lines.append(Line(
+                id=len(self.gltf.nodes)-1
+            ))
+
+        return lines
+    
+    def draw_skin(self, vertices, triangles):
+        pass
 
     def plot_mesh(self, vertices, triangles, local_coords=None, style=None, **kwds) -> tuple:
 
         material  = self._get_material(style or MeshStyle())
 
         if isinstance(triangles, int):
-            index_access = triangles 
+            index_access = triangles
         else:
             triangles = np.array(triangles,dtype=self.index_t)
             self.gltf.accessors.extend([
@@ -462,10 +478,9 @@ class GltfLibCanvas(Canvas):
 
         if local_coords is not None:
             locoor = np.array(local_coords, dtype=self.float_t)
-            locoor_binary_blob = locoor.tobytes()
             self.gltf.accessors.extend([
                 pygltflib.Accessor(
-                    bufferView=self._push_data(locoor_binary_blob, pygltflib.ARRAY_BUFFER),
+                    bufferView=self._push_data(locoor.tobytes(), pygltflib.ARRAY_BUFFER),
                     componentType=GLTF_T[self.float_t],
                     count=len(locoor),
                     type=pygltflib.VEC2,
@@ -480,9 +495,13 @@ class GltfLibCanvas(Canvas):
                 rotation=self._rotation
             )
         )
-        self.gltf.scenes[0].nodes.append(len(self.gltf.nodes)-1)
 
-        return point_access, index_access
+        scene_node = len(self.gltf.nodes)-1
+        self.gltf.scenes[0].nodes.append(scene_node)
+
+        return Mesh(id=scene_node,
+                    vertices=point_access, 
+                    indices=index_access)
 
 
     def to_glb(self)->bytes:

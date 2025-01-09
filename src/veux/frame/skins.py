@@ -14,11 +14,9 @@ from scipy.spatial.transform import Rotation
 
 import pygltflib
 from pygltflib import FLOAT, UNSIGNED_SHORT
-from pygltflib import AnimationChannelTarget
 
 from veux.config import MeshStyle
 from veux.utility.earcut import earcut
-
 
 def _append_index(lst, item):
     lst.append(item)
@@ -225,6 +223,7 @@ def _create_skin(canvas, ibms, joint_nodes):
 
     return _append_index(gltf.skins, skin)
 
+
 def _create_mesh(canvas, skin_idx,
                   positions, 
                   texcoords, 
@@ -422,20 +421,20 @@ class VeuxAnimation:
     def set_mode_state():
         pass
 
-    def add_node_position(self, node, position, time=None):
+    def set_node_position(self, node, position, time=None):
         if time is None: 
             time = self.current_time
 
         self._keyframes[node]["translation"].append((time, position))
         
-    def add_node_rotation(self, node, rotation, time=None):
+    def set_node_rotation(self, node, rotation, time=None):
         if time is None: 
             time = self.current_time
 
         self._keyframes[node]["rotation"].append((time, rotation))
         
 
-    def add_skin_state(self, state, skin_nodes):
+    def add_skin_state(self, state, skin_nodes, time=None):
         """
         Given a 'state' that has deformed positions & rotations for each element’s cross-section,
         record a new keyframe at the current time. Then advance self.current_time by self.time_step.
@@ -458,8 +457,8 @@ class VeuxAnimation:
             X_ref = np.array(el["crd"])  # (nen, 3)
 
             # Displacements & rotations from 'state'
-            disp_all = state.cell_array(el["name"], state.position)   # shape (nen,3?)
-            rot_all  = state.cell_array(el["name"], state.rotation)   # shape (nen,3x3)?
+            pos_all = state.cell_array(el["name"], state.position)   # shape (nen,3?)
+            rot_all = state.cell_array(el["name"], state.rotation)   # shape (nen,3x3)?
 
             for j in range(nen):
                 # look up the glTF node index
@@ -467,17 +466,15 @@ class VeuxAnimation:
                 if key not in skin_nodes:
                     continue
 
-                node_idx = skin_nodes[key]
-
                 # compute final position for cross section j
-                x_def = X_ref[j] + disp_all[j]
+                x_def = X_ref[j] + pos_all[j]
                 # convert rotation matrix -> quaternion
-                R_def = rot_all[j]  # 3x3
-                qx, qy, qz, qw = Rotation.from_matrix(R_def).as_quat()
+                qx, qy, qz, qw = Rotation.from_matrix(rot_all[j]).as_quat()
 
                 # store a keyframe
-                self.add_node_position(skin_nodes[key], (x_def[0], x_def[1], x_def[2]))
-                self.add_node_rotation(skin_nodes[key], (qx, qy, qz, qw))
+                self.set_node_position(skin_nodes[key], (x_def[0], x_def[1], x_def[2]))
+                self.set_node_rotation(skin_nodes[key], (qx, qy, qz, qw))
+
 
     def apply(self, canvas):
         """
@@ -557,7 +554,7 @@ class VeuxAnimation:
                 # Create a channel for translation
                 anim.channels.append(pygltflib.AnimationChannel(
                     sampler=node_position_sampler_index[node_idx],
-                    target=AnimationChannelTarget(
+                    target=pygltflib.AnimationChannelTarget(
                         node=node_idx,
                         path="translation"
                     )
@@ -567,7 +564,7 @@ class VeuxAnimation:
                 # Create a channel for rotation
                 anim.channels.append(pygltflib.AnimationChannel(
                     sampler=node_rotation_sampler_index[node_idx],
-                    target=AnimationChannelTarget(
+                    target=pygltflib.AnimationChannelTarget(
                         node=node_idx,
                         path="rotation"
                     )

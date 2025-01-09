@@ -112,11 +112,11 @@ def draw_extrusions(model, canvas, state=None, config=None):
     if len(triang) == 0:
         return
 
-    cbuf, tbuf, *_ = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
+    mesh = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
 
     if len(caps) > 0:
         for cap in caps:
-            canvas.plot_mesh(cbuf, cap, style=config["style"])
+            canvas.plot_mesh(mesh.vertices, cap, style=config["style"])
 
 
     IDX = np.array((
