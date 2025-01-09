@@ -32,6 +32,7 @@ class Viewer:
           <body>
             <model-viewer alt="rendering"
                           src="{self._glbsrc}"
+                          autoplay
                           style="width: 100%; height: 500px;"
                           max-pixel-ratio="2"
                           shadow-intensity="1"
