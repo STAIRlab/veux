@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Babylon.js GLTF Viewer with Shadows</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: white;
+    }
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- Babylon.js CDN -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylon.glTF2FileLoader.min.js"></script>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+
+    const createScene = function () {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(1, 1, 1, 1); // White background
+
+      // Create an ArcRotateCamera
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        Math.PI / 2,
+        Math.PI / 2.5,
+        10,
+        BABYLON.Vector3.Zero(),
+        scene
+      );
+      camera.attachControl(canvas, true);
+
+      // Lighting setup
+      const hemiLight = new BABYLON.HemisphericLight(
+        "hemiLight",
+        new BABYLON.Vector3(0, 1, 0),
+        scene
+      );
+      hemiLight.intensity = 0.6;
+
+      const dirLight = new BABYLON.DirectionalLight(
+        "dirLight",
+        new BABYLON.Vector3(-1, -2, -1),
+        scene
+      );
+      dirLight.position = new BABYLON.Vector3(20, 40, 20);
+      dirLight.intensity = 1.0;
+
+      // Create a ground plane initially at y=0
+      const ground = BABYLON.MeshBuilder.CreateGround(
+        "ground",
+        { width: 100, height: 100 },
+        scene
+      );
+      ground.receiveShadows = true;
+
+      // Setup shadow generator
+      const shadowGenerator = new BABYLON.ShadowGenerator(1024, dirLight);
+      shadowGenerator.useBlurExponentialShadowMap = true;
+      shadowGenerator.blurKernel = 32;
+
+      // Function to adjust ground position based on model's bounds
+      function positionGroundBelowModel(meshes) {
+        // Compute combined bounding info for all meshes
+        let minY = Infinity;
+        let maxY = -Infinity;
+
+        meshes.forEach(mesh => {
+          if (mesh.getTotalVertices && mesh.getTotalVertices() > 0) {
+            mesh.refreshBoundingInfo();
+            const boundingInfo = mesh.getBoundingInfo();
+            const boundingBox = boundingInfo.boundingBox;
+            minY = Math.min(minY, boundingBox.minimumWorld.y);
+            maxY = Math.max(maxY, boundingBox.maximumWorld.y);
+          }
+        });
+
+        // Calculate model height and adjust ground y-position to be 5% below the lowest point
+        const modelHeight = maxY - minY;
+        if (isFinite(minY)) {
+          ground.position.y = minY - (modelHeight * 0.05);
+        }
+      }
+
+      // Load the glTF model
+      const modelUrl = "./model.glb";
+      BABYLON.SceneLoader.Append(
+        "",
+        modelUrl,
+        scene,
+        function (scene) {
+          // After model loads, add meshes for shadow casting and position ground
+          const modelMeshes = [];
+          scene.meshes.forEach(mesh => {
+            if (mesh !== ground) {
+              shadowGenerator.addShadowCaster(mesh);
+              modelMeshes.push(mesh);
+            }
+          });
+          positionGroundBelowModel(modelMeshes);
+        },
+        null,
+        function (scene, message) {
+          console.error(message);
+        }
+      );
+
+      return scene;
+    };
+
+    const scene = createScene();
+
+    engine.runRenderLoop(function () {
+      scene.render();
+    });
+
+    window.addEventListener("resize", function () {
+      engine.resize();
+    });
+  </script>
+</body>
+</html>
