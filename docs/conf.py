@@ -6,7 +6,7 @@ from pathlib import Path
 project = 'veux'
 copyright = '2024, STAIRLab'
 author = 'Claudio Perez'
-description = "Fast and friendly structural system identification."
+description = "Portable, GPU accelerated, finite element post-processing and visualization."
 version = '0.0.5'
 release = '0.0.5'
 
