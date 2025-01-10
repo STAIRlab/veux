@@ -6,7 +6,7 @@ from pathlib import Path
 project = 'veux'
 copyright = '2024, STAIRLab'
 author = 'Claudio Perez'
-description = "Fast and friendly structural system identification."
+description = "Portable, GPU accelerated, finite element post-processing and visualization."
 version = '0.0.5'
 release = '0.0.5'
 
@@ -50,15 +50,19 @@ html_additional_pages = {'index': 'home.html'}
 html_context = {
     'description': description,
     'examples': [
-        {"title": "Overview",            "link": "examples/00_Overview",   "image": "../_static/images/gallery/overview.svg"},
-        {"title": "SISO Basics",         "link": "examples/01_SISO_Intro", "image": "../_static/images/gallery/sdof_full.svg"},
-        {"title": "MIMO Basics",         "link": "examples/04_MIMO_Intro", "image": "../_static/images/gallery/2dof_full.svg"},
+        {"title": "Basics",              "link": "examples/00_Overview",   "image": "../_static/images/gallery/overview.svg"},
+        {"title": "Displacements",       "link": "examples/01_SISO_Intro", "image": "../_static/images/gallery/sdof_full.svg"},
+        {"title": "Motions",             "link": "examples/04_MIMO_Intro", "image": "../_static/images/gallery/2dof_full.svg"},
     ],
     **globals()
 }
-html_show_sourcelink = True
+html_show_sphinx = False
+html_show_sourcelink = False
 html_theme_options = {
-    "github_url": f"https://github.com/stairlab/{project}"
+    "github_url": f"https://github.com/stairlab/{project}",
+    "footer_items": [], #["copyright", "sphinx-version"],
 }
 
 autodoc_member_order = 'bysource'
+
+
