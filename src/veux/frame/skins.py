@@ -13,8 +13,9 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 import pygltflib
-from pygltflib import FLOAT, UNSIGNED_SHORT
+from pygltflib import FLOAT
 
+from veux.canvas.gltf import GLTF_T
 from veux.config import MeshStyle
 from veux.utility.earcut import earcut
 
@@ -34,6 +35,7 @@ def create_extrusion(model, canvas, config=None):
     :return: extrusion = {(element_name, j): node_index, ...}
     """
     gltf = canvas.gltf
+    scene = gltf.scenes[0]
 
     if config is None:
         config = {
@@ -50,8 +52,13 @@ def create_extrusion(model, canvas, config=None):
     indices     = []  # Triangles for side faces
     cap_indices = []  # Triangles for end caps
 
+    # Create a root node for the entire skeleton
+    skeleton_root_node = pygltflib.Node(name="FrameExtrusionSkeletonRoot", children=[])
+    skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
+    scene.nodes.append(skeleton_root_idx)
+
     # We also need to track each cross-section Node (joint) and its inverseBindMatrix
-    joint_nodes    = []     # glTF node indices
+    joint_nodes = skeleton_root_node.children    # glTF node indices
     inverse_bind_matrices = []     # 4x4 float32 arrays (one per joint)
     skin_nodes = {}                  # (element_name, j) -> glTF node index
 
@@ -62,7 +69,8 @@ def create_extrusion(model, canvas, config=None):
         M[:3,  3] = translation
         return M
 
-    # We’ll need to keep track of how many vertices so far, to build faces correctly
+
+    # Keep track of how many vertices were added, to build faces correctly
     global_vertex_offset = 0
 
     #------------------------------------------------------
@@ -103,7 +111,8 @@ def create_extrusion(model, canvas, config=None):
             # 1B) Compute the bind pose for this cross section
             M_bind    = _make_matrix(X[j,:], rot_mat)
             M_bind_inv = np.linalg.inv(M_bind)
-            inverse_bind_matrices.append(M_bind_inv)
+            # TODO:
+            inverse_bind_matrices.append(np.eye(4, dtype=canvas.float_t)) #(M_bind_inv)
             joint_nodes.append(this_node_idx)
 
             # 1C) Append the ring geometry in local coords
@@ -153,53 +162,60 @@ def create_extrusion(model, canvas, config=None):
                     ])
 
         # End for j in range(nen)
+        if False:
+            # Earcut-based end caps for j=0 and j=nen-1
+            try:
+                front_outline = model.cell_section(el["name"], 0)[:,1:]
+                front_idx     = earcut(front_outline)
+                j0_offset     = global_vertex_offset
+                # ring 0 has vertices [j0_offset .. j0_offset + noe -1]
 
-        # Earcut-based end caps for j=0 and j=nen-1
-        try:
-            front_outline = model.cell_section(el["name"], 0)[:,1:]
-            front_idx     = earcut(front_outline)
-            j0_offset     = global_vertex_offset
-            # ring 0 has vertices [j0_offset .. j0_offset + noe -1]
+                back_outline  = model.cell_section(el["name"], nen-1)[:,1:]
+                back_idx      = earcut(back_outline)
+                jN_offset     = global_vertex_offset + noe*(nen-1)
 
-            back_outline  = model.cell_section(el["name"], nen-1)[:,1:]
-            back_idx      = earcut(back_outline)
-            jN_offset     = global_vertex_offset + noe*(nen-1)
-
-            # Convert earcut output to global indices
-            for tri in front_idx:
-                cap_indices.append([
-                    j0_offset + tri[0],
-                    j0_offset + tri[1],
-                    j0_offset + tri[2],
-                ])
-            for tri in back_idx:
-                cap_indices.append([
-                    jN_offset + tri[0],
-                    jN_offset + tri[1],
-                    jN_offset + tri[2],
-                ])
-        except Exception as e:
-            warnings.warn(f"Earcut failed for element '{element_name}' in ref config: {e}")
+                # Convert earcut output to global indices
+                for tri in front_idx:
+                    cap_indices.append([
+                        j0_offset + tri[0],
+                        j0_offset + tri[1],
+                        j0_offset + tri[2],
+                    ])
+                for tri in back_idx:
+                    cap_indices.append([
+                        jN_offset + tri[0],
+                        jN_offset + tri[1],
+                        jN_offset + tri[2],
+                    ])
+            except Exception as e:
+                warnings.warn(f"Earcut failed for element '{element_name}' in ref config: {e}")
 
         # Increase global_vertex_offset now that we’ve added nen rings
         global_vertex_offset += nen * noe
 
-    # Combine side + cap indices
-    indices.extend(cap_indices)
+        # Combine side + cap indices
+        if False:
+            indices.extend(cap_indices)
 
     if len(positions)==0 or len(indices)==0:
         # No geometry
         return skin_nodes
-    
-    skin = _create_skin(canvas, inverse_bind_matrices, joint_nodes)
-    _create_mesh(canvas, skin, positions, texcoords, joints_0,  weights_0, indices)
+
+    #---------------------------------------------
+    # 2) Create the Skin referencing the joints
+    #---------------------------------------------
+    skin = _create_skin(canvas, inverse_bind_matrices, joint_nodes, skeleton_root_idx)
+
+    #---------------------------------------------
+    # 3) Build the Mesh with {POSITION, JOINTS_0, WEIGHTS_0, TEXCOORD_0}
+    #---------------------------------------------
+    _create_mesh(canvas, skin, positions, texcoords, joints_0,  weights_0, indices,
+                 material=canvas._get_material(config["style"]))
     return skin_nodes
 
 
-def _create_skin(canvas, ibms, joint_nodes):
-    #---------------------------------------------
-    # 2) Create a Skin referencing given joints
-    #---------------------------------------------
+def _create_skin(canvas, ibms, joint_nodes, skeleton):
+    "Create a Skin referencing given joints and add to skeleton"
     gltf = canvas.gltf
 
     # Flatten the inverse bind matrices into an Nx16 float32 array
@@ -214,7 +230,7 @@ def _create_skin(canvas, ibms, joint_nodes):
             type="MAT4"
         )),
         joints=joint_nodes,
-        skeleton=joint_nodes[0] if len(joint_nodes)>0 else 0,
+        skeleton=skeleton,
         name="FrameExtrusionSkin"
     )
 
@@ -225,88 +241,76 @@ def _create_skin(canvas, ibms, joint_nodes):
 
 
 def _create_mesh(canvas, skin_idx,
-                  positions, 
-                  texcoords, 
-                  joints_0,  
-                  weights_0, 
-                  indices):
+                  positions,
+                  texcoords,
+                  joints_0,
+                  weights_0,
+                  indices,
+                  material=None):
     
     gltf = canvas.gltf
-    #---------------------------------------------
-    # 3) Build the big mesh with {POSITION, JOINTS_0, WEIGHTS_0, TEXCOORD_0}
-    #---------------------------------------------
-    positions = np.array(positions, dtype=canvas.float_t)
-    texcoords = np.array(texcoords, dtype=canvas.float_t)
     joints_0  = np.array(joints_0,  dtype=canvas.index_t)
     weights_0 = np.array(weights_0, dtype=canvas.float_t)
     indices   = np.array(indices,   dtype=canvas.index_t).reshape(-1)
 
-    pos_bytes = positions.tobytes()
-    tex_bytes = texcoords.tobytes()
     jnt_bytes = joints_0.tobytes()
     wts_bytes = weights_0.tobytes()
-    idx_bytes = indices.tobytes()
-
-    pos_bv_idx = canvas._push_data(pos_bytes, pygltflib.ARRAY_BUFFER)
-    tex_bv_idx = canvas._push_data(tex_bytes, pygltflib.ARRAY_BUFFER)
-    jnt_bv_idx = canvas._push_data(jnt_bytes, pygltflib.ARRAY_BUFFER)
-    wts_bv_idx = canvas._push_data(wts_bytes, pygltflib.ARRAY_BUFFER)
-    idx_bv_idx = canvas._push_data(idx_bytes, pygltflib.ELEMENT_ARRAY_BUFFER)
 
     # Accessors
-    gltf.accessors.append(pygltflib.Accessor(
-        bufferView=pos_bv_idx,
+    positions = np.array(positions, dtype=canvas.float_t)
+    pos_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
+        bufferView=canvas._push_data(positions.tobytes(), pygltflib.ARRAY_BUFFER),
         componentType=FLOAT,
         count=len(positions),
         type="VEC3",
         min=positions.min(axis=0).tolist(),
         max=positions.max(axis=0).tolist()
     ))
-    pos_accessor_idx = len(gltf.accessors)-1
 
+    texcoords = np.array(texcoords, dtype=canvas.float_t)
     tex_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
-        bufferView=tex_bv_idx,
+        bufferView=canvas._push_data(texcoords.tobytes(), pygltflib.ARRAY_BUFFER),
         componentType=FLOAT,
         count=len(texcoords),
         type="VEC2"
     ))
 
-    jnt_accessor_idx = _append_index(gltf.accessors, pygltflib.Accessor(
-        bufferView=jnt_bv_idx,
-        componentType=UNSIGNED_SHORT,
+    jnt_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
+        bufferView=canvas._push_data(jnt_bytes, pygltflib.ARRAY_BUFFER),
+        componentType=GLTF_T[canvas.index_t],
         count=len(joints_0),
         type="VEC4"
     ))
 
     wts_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
-        bufferView=wts_bv_idx,
-        componentType=FLOAT,
+        bufferView=canvas._push_data(wts_bytes, pygltflib.ARRAY_BUFFER),
+        componentType=GLTF_T[canvas.float_t],
         count=len(weights_0),
         type="VEC4"
     ))
 
-    idx_accessor = pygltflib.Accessor(
-        bufferView=idx_bv_idx,
-        componentType=UNSIGNED_SHORT,
+
+    idx_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
+        bufferView=canvas._push_data(indices.tobytes(), pygltflib.ELEMENT_ARRAY_BUFFER),
+        componentType=GLTF_T[canvas.index_t],
         count=len(indices),
         type="SCALAR",
         min=[int(indices.min())],
         max=[int(indices.max())]
-    )
-    gltf.accessors.append(idx_accessor)
-    idx_accessor_idx = len(gltf.accessors)-1
+    ))
 
-    # Create the Primitive and Mesh
+    # Create the Mesh
     mesh = pygltflib.Mesh(
         primitives=[
             pygltflib.Primitive(
                 attributes=pygltflib.Attributes(
-                    POSITION=pos_accessor_idx,
-                    JOINTS_0=jnt_accessor_idx,
+                    POSITION=pos_accessor,
+                    JOINTS_0=jnt_accessor,
                     WEIGHTS_0=wts_accessor,
                     TEXCOORD_0=tex_accessor
                 ),
-                indices=idx_accessor_idx,
+                material=material,
+                indices=idx_accessor,
                 mode=pygltflib.TRIANGLES
             )
         ],
@@ -357,15 +361,11 @@ def deform_extrusion(model, canvas, state, skin_nodes, config=None):
         config = {}
 
     for element_name, el in model["assembly"].items():
-        # If we have no displacement/rotation for this element in 'state', skip
-        if element_name not in state.element_names:
-            continue
 
         # Number of cross sections
         nen = len(el["nodes"])
 
-        # Displacements & rotations from 'state' for each cross-section
-        # E.g.:
+        # Displacements and rotations from 'state' for each cross-section
         pos_all = state.cell_array(el["name"], state.position)  # shape (nen, 3?)
         rot_all = state.cell_array(el["name"], state.rotation)  # shape (nen, 3x3) ?
 
@@ -426,19 +426,19 @@ class VeuxAnimation:
             time = self.current_time
 
         self._keyframes[node]["translation"].append((time, position))
-        
+
     def set_node_rotation(self, node, rotation, time=None):
         if time is None: 
             time = self.current_time
 
         self._keyframes[node]["rotation"].append((time, rotation))
-        
+
 
     def add_skin_state(self, state, skin_nodes, time=None):
         """
         Given a 'state' that has deformed positions & rotations for each element’s cross-section,
         record a new keyframe at the current time. Then advance self.current_time by self.time_step.
-        
+
         :param model:  The same structural model used in draw_extrusions_ref().
         :param state:  Some data structure that can provide displacements & rotations
                        for each (element, cross_section_index).
@@ -446,9 +446,6 @@ class VeuxAnimation:
         model = self.model
         # For each element in the model
         for element_name, el in model["assembly"].items():
-            if element_name not in state.element_names:
-                # No data in this state for that element
-                continue
 
             # number of cross sections
             nen = len(el["nodes"])
@@ -623,11 +620,11 @@ def create_animation(artist, states, skin_nodes=None):
         skin_nodes = create_extrusion(artist.model, artist.canvas)
 
     # 2) Create the animation helper
-    animation = VeuxAnimation(artist.model, time_step=0.1)
+    animation = VeuxAnimation(artist.model, time_step=1)
 
     # 3) For each state, record a new keyframe
-    for state in states:
-        animation.add_skin_state(state, skin_nodes)
+    for time in states.times:
+        animation.add_skin_state(states[time], skin_nodes)
         animation.advance()
 
     animation.apply(artist.canvas)
@@ -639,7 +636,8 @@ def _render(sam_file, res_file=None, **opts):
     # Configuration is determined by successively layering
     # from sources with the following priorities:
     #      defaults < file configs < kwds
-    
+    from veux.frame import FrameArtist
+    import veux.canvas.gltf
     from veux.model import read_model 
 
     config = veux.config.Config()
@@ -659,12 +657,17 @@ def _render(sam_file, res_file=None, **opts):
 
     veux.apply_config(opts, config)
 
-    artist = veux.FrameArtist(model, **config)
+#   artist = veux.FrameArtist(model, **config)
+    artist = FrameArtist(model, ndf=6,
+                         config=config["artist_config"],
+                         model_config=config["model_config"],
+                         canvas=veux.canvas.gltf.GltfLibCanvas())
 
-    skin_nodes = create_extrusion(artist.model, artist.canvas, config=opts)
+    skin_nodes = create_extrusion(artist.model, artist.canvas, 
+                                  config=artist._config_sketch("default")["surface"]["frame"])
 
-    soln = veux.state.read_state(res_file, artist.model, **opts)
-    if soln is not None:
+    if res_file is not None:
+        soln = veux.state.read_state(res_file, artist.model, **opts["state_config"])
         if "time" not in opts:
             create_animation(artist, soln, skin_nodes)
         else:
