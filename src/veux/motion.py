@@ -488,7 +488,7 @@ class VeuxAnimation:
                                    samplers=[],
                                    channels=[])
 
-        # We'll create multiple samplers and channels:
+        # Create multiple samplers and channels:
         #   - For each node, we have two samplers (translation, rotation)
         #   - Then two channels referencing those samplers
 
@@ -497,7 +497,7 @@ class VeuxAnimation:
         node_position_sampler_index = {}
         node_rotation_sampler_index = {}
 
-        # 2) Flatten & encode data for each node
+        # 2) Flatten and encode data for each node
         # We do them all in a single big set of buffers—time values and output values.
         # However, each node gets its own Sampler, because it has distinct times/values
         # in this naive implementation. (We could share times if they match exactly.)
@@ -585,7 +585,7 @@ class VeuxAnimation:
                 max=[float(sampler.extras["times_array"].max())]
             ))
 
-            # If path=="translation", we have 3 floats, if path=="rotation", we have 4.
+            # If path=="translation" we have 3 floats, if path=="rotation" we have 4.
             # But we already know shape from sampler.extras["vals_array"].shape
             val_type = "VEC3" if sampler.extras["vals_array"].shape[1]==3 else "VEC4"
 
