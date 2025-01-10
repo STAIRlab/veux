@@ -50,9 +50,9 @@ html_additional_pages = {'index': 'home.html'}
 html_context = {
     'description': description,
     'examples': [
-        {"title": "Overview",            "link": "examples/00_Overview",   "image": "../_static/images/gallery/overview.svg"},
-        {"title": "SISO Basics",         "link": "examples/01_SISO_Intro", "image": "../_static/images/gallery/sdof_full.svg"},
-        {"title": "MIMO Basics",         "link": "examples/04_MIMO_Intro", "image": "../_static/images/gallery/2dof_full.svg"},
+        {"title": "Basics",              "link": "examples/00_Overview",   "image": "../_static/images/gallery/overview.svg"},
+        {"title": "Displacements",       "link": "examples/01_SISO_Intro", "image": "../_static/images/gallery/sdof_full.svg"},
+        {"title": "Motions",             "link": "examples/04_MIMO_Intro", "image": "../_static/images/gallery/2dof_full.svg"},
     ],
     **globals()
 }

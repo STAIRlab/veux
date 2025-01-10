@@ -13,7 +13,7 @@ The :mod:`veux` package features the following high-level
 functions for quickly rendering models:
 
 .. autosummary::
-   :toctree: generated/
+   :toctree: api/
 
    render
    serve
