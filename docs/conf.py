@@ -57,9 +57,10 @@ html_context = {
     **globals()
 }
 html_show_sphinx = False
-html_show_sourcelink = True
+html_show_sourcelink = False
 html_theme_options = {
-    "github_url": f"https://github.com/stairlab/{project}"
+    "github_url": f"https://github.com/stairlab/{project}",
+    "footer_items": [], #["copyright", "sphinx-version"],
 }
 
 autodoc_member_order = 'bysource'
