@@ -15,7 +15,7 @@ jobs:
     - name: Build HTML
       uses: ammaraskar/sphinx-action@master
       with:
-        docs-folder: "."
+        docs-folder: "./docs"
 
     
     - name: Upload static files as artifact
