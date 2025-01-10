@@ -30,7 +30,7 @@ from scipy.spatial.transform import Rotation
 
 import veux
 
-from .canvas import Canvas, Line, Mesh
+from .canvas import Canvas, Line, Mesh, Node
 from veux import utility
 from veux.config import NodeStyle, MeshStyle, LineStyle, DrawStyle
 
@@ -43,6 +43,7 @@ GLTF_T = {
 import numpy as np
 import pygltflib
 
+EYE3 = np.eye(3, dtype="float32")
 
 def _append_index(lst, item):
     lst.append(item)
@@ -248,7 +249,8 @@ class GltfLibCanvas(Canvas):
     def _use_asset(self, name, scale, rotation, material):
         pass
 
-    def plot_nodes(self, vertices, label = None, style=None, data=None, rotations=None, **kwds):
+    def plot_nodes(self, vertices, label = None, style=None, data=None, rotations=None, scene=0, **kwds):
+        nodes = []
 
         if not hasattr(self, "_node_mesh"):
             self._init_nodes(style or NodeStyle())
@@ -263,13 +265,17 @@ class GltfLibCanvas(Canvas):
 
 
         for coord, rotation in zip(vertices, rotations):
-            self.gltf.nodes.append(pygltflib.Node(
+            index = _append_index(self.gltf.nodes, pygltflib.Node(
                     mesh=self._node_mesh,
                     rotation=rotation,
                     translation=(self._rotation_matrix@coord).tolist(),
                 )
             )
-            self.gltf.scenes[0].nodes.append(len(self.gltf.nodes)-1)
+            if scene is not None:
+                self.gltf.scenes[scene].nodes.append(index)
+            nodes.append(Node(id=index))
+
+        return nodes
 
 
 
@@ -326,6 +332,172 @@ class GltfLibCanvas(Canvas):
         self.gltf._glb_data += data
         self.gltf.buffers[0].byteLength += len(data)
         return len(self.gltf.bufferViews)-1
+    
+    # def add_joints(self, )
+
+    def add_lines(self, lines: list, _, style=None, nodes=None):
+        """
+        Add skinned lines to the glTF object that connect pairs of nodes specified in `lines`.
+        The lines will deform as the corresponding nodes are translated.
+
+        :param gltf: The pygltflib.GLTF2 object to modify.
+        :param lines: A list of pairs of indices (i, j), where i and j are node indices.
+        :param access_vertices: The accessor index for initial positions of the nodes.
+        """
+        gltf = self.gltf 
+        scene = gltf.scenes[0]
+        EYE4 = np.eye(4, dtype=self.float_t)
+
+        # Validate that all node indices in `lines` exist in gltf.nodes
+        max_node_idx = len(gltf.nodes) - 1
+        for i, j in lines:
+            if i > max_node_idx or j > max_node_idx:
+                raise ValueError(f"Node indices {i} or {j} in `lines` are out of range for `gltf.nodes`.")
+
+
+        # Create joints (one per node) and bind the lines to them
+        if nodes is not None:
+            joint_nodes = list({nodes[idx].id for pair in lines for idx in pair})  # Unique joint indices
+        else:
+            joint_nodes = list({idx for pair in lines for idx in pair})  # Unique joint indices
+
+        joint_node_to_index = {node: i for i, node in enumerate(joint_nodes)}
+
+        # points = np.zeros((len(joint_nodes), 3), dtype=self.float_t) 
+        # points = np.array([self._rotation_matrix.T@self.gltf.nodes[n].translation for n in joint_nodes], dtype=self.float_t)
+        points = np.array([self._rotation_matrix.T@n for n in _], dtype=self.float_t)
+
+        vertices = _append_index(self.gltf.accessors, pygltflib.Accessor(
+                bufferView=self._push_data(points.tobytes(), pygltflib.ARRAY_BUFFER),
+                componentType=GLTF_T[self.float_t],
+                count=len(points),
+                type=pygltflib.VEC3,
+                max=points.max(axis=0).tolist(),
+                min=points.min(axis=0).tolist(),
+            )
+        )
+    
+        # Create a root node for the entire skeleton
+        skeleton_root_node = pygltflib.Node(name="LineSkeletonRoot", 
+                                            children=joint_nodes)
+        skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
+        scene.nodes.append(skeleton_root_idx)
+
+        # Create the inverse bind matrices
+        inverse_bind_matrices = []
+        for joint_node in joint_nodes:
+            # Compute the transform matrix for the bind pose
+            node = gltf.nodes[joint_node]
+            t_matrix = np.eye(4, dtype=self.float_t)
+            t_matrix[:3, 3] = node.translation if node.translation else [0.0, 0.0, 0.0]
+            rotation_matrix = Rotation.from_quat(node.rotation).as_matrix() if node.rotation else EYE3
+            t_matrix[:3, :3] = rotation_matrix * (node.scale if node.scale else 1.0)
+            # t_matrix = np.linalg.inv(t_matrix)
+
+            inverse_bind_matrices.append(np.array(t_matrix, dtype=self.float_t))
+            # inverse_bind_matrices.append(EYE4)
+
+        # Flatten inverse bind matrices for glTF format
+        # ibm_array = np.array(inverse_bind_matrices, dtype=self.float_t).reshape(-1, 16)
+        ibm_array = np.array([ibm.T.flatten() for ibm in inverse_bind_matrices], dtype=self.float_t)
+
+        # Add buffer view and accessor for the inverse bind matrices
+        ibm_accessor_idx = len(gltf.accessors)
+        gltf.accessors.append(pygltflib.Accessor(
+            bufferView=self._push_data(ibm_array.tobytes(), target=None),
+            componentType=GLTF_T[self.float_t],
+            count=len(joint_nodes),
+            type="MAT4"
+        ))
+
+        # Create the skin
+        if not gltf.skins:
+            gltf.skins = []
+        skin_idx = len(gltf.skins)
+        gltf.skins.append(pygltflib.Skin(
+            inverseBindMatrices=ibm_accessor_idx,
+            joints=joint_nodes,
+            skeleton=skeleton_root_idx,  # Root joint
+            name="LineSkin"
+        ))
+
+        # Create the index buffer for the lines
+        indices = []
+        joints_0 = []
+        weights_0 = []
+        for i, j in lines:
+            indices.extend([i, j])
+            joints_0.extend([
+                [joint_node_to_index[i], 0, 0, 0],
+                [joint_node_to_index[j], 0, 0, 0]
+            ])
+            weights_0.extend([
+                [1.0, 0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0, 0.0]
+            ])
+
+        index_array = np.array(indices, dtype=self.index_t).flatten()
+
+        # Add buffer view and accessor for the line indices
+        index_buffer_view_idx = self._push_data(index_array.tobytes(),
+            target=pygltflib.ELEMENT_ARRAY_BUFFER
+        )
+
+        index_accessor_idx = len(gltf.accessors)
+        gltf.accessors.append(pygltflib.Accessor(
+            bufferView=index_buffer_view_idx,
+            componentType=GLTF_T[self.index_t],
+            count=len(index_array),
+            type="SCALAR"
+        ))
+
+        # Create the line mesh with skinning attributes
+        joints_0_array  = np.array(joints_0, dtype=self.index_t)
+
+        joints_0_accessor_idx = len(gltf.accessors)
+        gltf.accessors.append(pygltflib.Accessor(
+            bufferView=self._push_data(joints_0_array.tobytes(), pygltflib.ARRAY_BUFFER),
+            componentType=GLTF_T[self.index_t],
+            count=len(joints_0),
+            type="VEC4"
+        ))
+
+        weights_0_array = np.array(weights_0, dtype=self.float_t)
+        weights_0_accessor_idx = len(gltf.accessors)
+        gltf.accessors.append(pygltflib.Accessor(
+            bufferView=self._push_data(weights_0_array.tobytes(), pygltflib.ARRAY_BUFFER),
+            componentType=GLTF_T[self.float_t],
+            count=len(weights_0),
+            type="VEC4"
+        ))
+
+        # Create the line mesh
+        line_mesh = pygltflib.Mesh(
+            primitives=[
+                pygltflib.Primitive(
+                    attributes=pygltflib.Attributes(
+                        POSITION=vertices,
+                        JOINTS_0=joints_0_accessor_idx,
+                        WEIGHTS_0=weights_0_accessor_idx
+                    ),
+                    indices=index_accessor_idx,
+                    mode=pygltflib.LINES,
+                    material=self._get_material(style or LineStyle())
+                )
+            ], name="LineSkinMesh")
+        mesh_idx = len(gltf.meshes)
+        gltf.meshes.append(line_mesh)
+
+        # Create a node for the line mesh
+        mesh_node = _append_index(gltf.nodes, pygltflib.Node(
+            mesh=mesh_idx, 
+            skin=skin_idx, 
+            rotation=self._rotation,
+            name="LineSkinMeshNode"
+        ))
+
+        # Add the new node to the scene
+        scene.nodes.append(mesh_node)
 
 
     def plot_lines(self, vertices, indices=None, style: LineStyle=None, vcache:str=None, **kwds):
