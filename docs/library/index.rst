@@ -1,5 +1,5 @@
-veux
-====
+Library
+=======
 
 .. currentmodule:: veux
 
