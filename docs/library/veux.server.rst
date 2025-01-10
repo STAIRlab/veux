@@ -1,7 +1,7 @@
-mdof.markov module
+veux.server module
 ==================
 
-.. automodule:: mdof.markov
+.. automodule:: veux.server
    :members:
    :undoc-members:
    :show-inheritance:
