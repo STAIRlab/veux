@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:svg="http://www.w3.org/2000/svg" viewBox="0 0 150 150">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #003262;
+      }
+
+      .cls-2 {
+        stroke-miterlimit: 11.3;
+      }
+
+      .cls-2, .cls-3 {
+        fill: none;
+        stroke: #b6b8ba;
+      }
+
+      .cls-3 {
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+  <!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 1.2.0 Build 709)  -->
+  <g>
+    <g id="Layer_1">
+      <sodipodi:namedview id="base" bordercolor="#666666" borderopacity="1.0" inkscape:current-layer="layer1" inkscape:cx="44.459339" inkscape:cy="29.742679" inkscape:deskcolor="#d1d1d1" inkscape:document-rotation="0" inkscape:document-units="mm" inkscape:object-paths="true" inkscape:pagecheckerboard="0" inkscape:pageopacity="0.0" inkscape:pageshadow="2" inkscape:showpageshadow="2" inkscape:snap-grids="false" inkscape:window-height="1013" inkscape:window-maximized="1" inkscape:window-width="1920" inkscape:window-x="-9" inkscape:window-y="-9" inkscape:zoom="11.313709" pagecolor="#ffffff" showgrid="true">
+        <inkscape:grid id="grid833" originx="-32.761505" originy="-138.60112" spacingx="1" spacingy="1" type="xygrid" units="mm" visible="true"/>
+      </sodipodi:namedview>
+      <g>
+        <path id="path1173" class="cls-1" d="M138.3,109.7l-1.5-2.3h-37.8v-58.2l-2.3-3.9v64.4h41.6Z" sodipodi:nodetypes="ccccccc"/>
+        <path id="path1178" class="cls-1" d="M97.8,39l-41.4,62.2,1.9,1.2,39.5-59.4,44.4,66.6h2.7s-47.1-70.6-47.1-70.6Z"/>
+      </g>
+      <g>
+        <path id="path869" class="cls-2" d="M12.3,108.5h36H12.3Z"/>
+        <path id="path871" class="cls-2" d="M57.3,108.5h36-36Z"/>
+        <path id="path859" class="cls-2" d="M57.3,41h36-36Z"/>
+        <path id="path861" class="cls-2" d="M49.8,45.5L10.8,104h0"/>
+        <path id="path863" class="cls-2" d="M48.3,78.1l-36,27h0"/>
+        <path id="path865" class="cls-2" d="M52.8,45.5v24.7h0"/>
+        <path id="path867" class="cls-2" d="M52.8,79.2v24.7"/>
+        <path id="path887" class="cls-2" d="M57.3,74.7h13.5"/>
+        <circle id="path1058" class="cls-3" cx="7.8" cy="108.4" r="2.3"/>
+        <circle id="path1058-3" class="cls-3" cx="52.9" cy="74.7" r="2.3"/>
+        <circle id="path1058-3-1" class="cls-3" cx="52.7" cy="41.1" r="2.3"/>
+        <circle id="path1058-3-1-0" class="cls-3" cx="52.7" cy="108.5" r="2.3"/>
+      </g>
+    </g>
+  </g>
+</svg>
