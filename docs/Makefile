@@ -1,7 +1,7 @@
 SHELL         = /bin/bash
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = docs
+SOURCEDIR     = .
 BUILDDIR      = _build
 
 
