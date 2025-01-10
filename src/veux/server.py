@@ -76,8 +76,9 @@ class Server:
         if port is None:
             port = 8081
 
+        print(f"  Displaying at http://localhost:{port}/ \n  Press Ctrl-C to quit.\n")
         try:
-            bottle.run(self._app, host="localhost", port=port)
+            bottle.run(self._app, host="localhost", port=port, quiet=True)
         except KeyboardInterrupt:
             pass
 
@@ -86,11 +87,15 @@ if __name__ == "__main__":
     options = {
         "viewer": None
     }
-    filename = sys.argv[1]
+    argi = iter(sys.argv[1:])
+
+    for arg in argi:
+        if arg == "--viewer":
+            options["viewer"] = next(argi)
+        else:
+            filename = arg
 
     with open(filename, "rb") as f:
         glb = f.read()
 
     Server(glb=glb, **options).run()
-
-
