@@ -194,8 +194,8 @@ Other
 | ![][glry-0002]    | ![][glry-0005]    |
 
 
-[glry-0001]: <https://gallery.stairlab.io/img/examples/cablestayed02/CableStayed02.png>
-[view-0001]: <https://gallery.stairlab.io/img/examples/cablestayed02/CableStayed02.png>
+[glry-0001]: <https://gallery.stairlab.io/examples/cablestayed/CableStayed02.png>
+[view-0001]: <https://gallery.stairlab.io/examples/cablestayed/CableStayed02.png>
 
 [glry-0002]: <https://gallery.stairlab.io/examples/example7/safeway_hu11201694704832599949.png>
 [view-0002]: <https://gallery.stairlab.io/examples/example7/safeway_hu11201694704832599949.png>
