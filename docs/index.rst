@@ -8,5 +8,5 @@ veux documentation
    :caption: Contents:
 
    library/index
-   classes/index
+   design/index
 
