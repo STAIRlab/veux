@@ -1,5 +1,5 @@
-veux
-====
+Library
+=======
 
 .. currentmodule:: veux
 
@@ -26,8 +26,8 @@ frequency domain and time domain analysis of vibration signals:
 .. toctree::
    :maxdepth: 1
 
-   veux.server
    veux.canvas
+   veux.server
 
 .. top-level functions
 .. -------------------

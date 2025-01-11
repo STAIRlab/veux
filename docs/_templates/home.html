@@ -281,7 +281,7 @@
       <div class=casestudies-box-container>
         {% for example in examples %}
         <a class="casestudies-box-content casestudies-underline"
-          href="{{pathto(example.link)}}">
+          href="{{example.link}}">
           <div class=casestudies-box-title>{{ example.title }}</div><img
                src="{{ pathto('_static/../_images', 1) }}/{{ example.image }}" alt="">
           <div class=casestudies-box-text>{{ example.description }}</div>

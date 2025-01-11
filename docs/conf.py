@@ -47,12 +47,13 @@ html_css_files = [
      'css/theme-css/'+str(file.name) for file in (Path(__file__).parents[0]/"_static/css/theme-css/").glob("*.css")
 ]
 html_additional_pages = {'index': 'home.html'}
+g = "https://gallery.stairlab.io"
 html_context = {
     'description': description,
     'examples': [
-        {"title": "Basics",              "link": "examples/00_Overview",   "image": "../_static/images/gallery/overview.svg"},
-        {"title": "Displacements",       "link": "examples/01_SISO_Intro", "image": "../_static/images/gallery/sdof_full.svg"},
-        {"title": "Motions",             "link": "examples/04_MIMO_Intro", "image": "../_static/images/gallery/2dof_full.svg"},
+        {"title": "Basics",         "link": f"{g}/examples/example7/",  "image": "../_static/images/gallery/safeway.png"},
+        {"title": "Displacements",  "link": f"{g}/examples/example5/",  "image": "../_static/images/gallery/Example5.png"},
+        {"title": "Motions",        "link": f"{g}/examples/example6/",  "image": "../_static/images/gallery/Example6.png"},
     ],
     **globals()
 }
