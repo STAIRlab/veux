@@ -197,8 +197,8 @@ Other
 [glry-0001]: <https://gallery.stairlab.io/examples/cablestayed02/CableStayed02.png>
 [view-0001]: <https://gallery.stairlab.io/examples/cablestayed02/CableStayed02.png>
 
-[glry-0002]: <https://gallery.stairlab.io/opensees-gallery/examples/example7/safeway_hu11201694704832599949.png>
-[view-0002]: <https://gallery.stairlab.io/opensees-gallery/examples/example7/safeway_hu11201694704832599949.png>
+[glry-0002]: <https://gallery.stairlab.io/examples/example7/safeway_hu11201694704832599949.png>
+[view-0002]: <https://gallery.stairlab.io/examples/example7/safeway_hu11201694704832599949.png>
 
 [glry-0003]: <https://gallery.stairlab.io/examples/shellframe/ShellFrame_hu5013315635971397841.png>
 [view-0003]: <https://gallery.stairlab.io/examples/shellframe/ShellFrame_hu5013315635971397841.png>
