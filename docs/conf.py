@@ -51,7 +51,7 @@ g = "https://gallery.stairlab.io"
 html_context = {
     'description': description,
     'examples': [
-        {"title": "Basics",         "link": f"{g}/examples/example7/",  "image": "../_static/images/gallery/safeway.png"},
+        {"title": "Basics",         "link": f"{g}/examples/example7/",  "image": "../_static/images/gallery/safeway.png", "description": "A simple example"},
         {"title": "Displacements",  "link": f"{g}/examples/example5/",  "image": "../_static/images/gallery/Example5.png"},
         {"title": "Motions",        "link": f"{g}/examples/example6/",  "image": "../_static/images/gallery/Example6.png"},
     ],
