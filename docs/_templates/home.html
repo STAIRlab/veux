@@ -177,52 +177,29 @@
     </div>
   </div>
 
-  {% if False %}
+  {% if True %}
   <section class=keyfeatures>
     <div class="container is-max-widescreen">
       <div class=keyfeatures-box-container>
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
-          <div class=keyfeatures-box-title>Powerful N-dimensional arrays</div>
-          <div class=keyfeatures-box-text>Fast and versatile, the sdof vectorization, indexing, and broadcasting
-            concepts are the de-facto standards of array computing today.</div>
+          <div class=keyfeatures-box-title>Fast</div>
+          <div class=keyfeatures-box-text>veux supports highly efficient rendering formats like <a href="https://www.khronos.org/Gltf">glTF</a> which allow for responsive interactive rendering.</div>
           </p>
         </div>
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
-          <div class=keyfeatures-box-title>Numerical computing tools</div>
-          <div class=keyfeatures-box-text>sdof offers comprehensive mathematical functions, random number generators,
-            linear algebra routines, Fourier transforms, and more.</div>
+          <div class=keyfeatures-box-title>Exact</div>
+          <div class=keyfeatures-box-text>veux offers support for geometrically exact simulations,
+            and correctly handles finite rotations.</div>
           </p>
         </div>
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
-          <div class=keyfeatures-box-title>Open source</div>
-          <div class=keyfeatures-box-text>Distributed under a liberal <a
-              href=https://github.com/numpy/numpy/blob/main/LICENSE.txt>BSD license</a>, sdof is developed and
-            maintained <a href=https://github.com/numpy/numpy>publicly on GitHub</a> by a vibrant, responsive, and
-            diverse <a href=/community>community</a>.</div>
-          </p>
-        </div>
-        <div class="keyfeatures-box-content keyfeatures-underline">
-          <p>
-          <div class=keyfeatures-box-title>Interoperable</div>
-          <div class=keyfeatures-box-text>sdof supports a wide range of hardware and computing platforms, and plays well
-            with distributed, GPU, and sparse array libraries.</div>
-          </p>
-        </div>
-        <div class="keyfeatures-box-content keyfeatures-underline">
-          <p>
-          <div class=keyfeatures-box-title>Performant</div>
-          <div class=keyfeatures-box-text>The core of sdof is well-optimized C code. Enjoy the flexibility of Python
-            with the speed of compiled code.</div>
-          </p>
-        </div>
-        <div class="keyfeatures-box-content keyfeatures-underline">
-          <p>
-          <div class=keyfeatures-box-title>Easy to use</div>
-          <div class=keyfeatures-box-text>sdof&rsquo;s high level syntax makes it accessible and productive for
-            programmers from any background or experience level.</div>
+          <div class=keyfeatures-box-title>Safe</div>
+          <div class=keyfeatures-box-text>
+            veux is stateless.
+          </div>
           </p>
         </div>
       </div>
@@ -230,49 +207,8 @@
   </section>
   {% endif %}
 
-  {% if False %}
-  <div class=hero-right>
-    <!--
-  <div class=numpy-shell-canvas>
-    <div class=numpy-shell-container>
-      <div class="shell-lesson shell-content">
-        <div class=highlight>
-        <pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4>
-        <code class=language-python data-lang=python><span style=display:flex><span><span style=color:#e6db74>&#34;&#34;&#34;
-        </span></span></span><span style=display:flex><span><span style=color:#e6db74>To try the examples in the browser:
-        </span></span></span><span style=display:flex><span><span style=color:#e6db74>1. Type code in the input cell and press
-        </span></span></span><span style=display:flex><span><span style=color:#e6db74>   Shift + Enter to execute
-        </span></span></span><span style=display:flex><span><span style=color:#e6db74>2. Or copy paste the code, and click on
-        </span></span></span><span style=display:flex><span><span style=color:#e6db74>   the &#34;Run&#34; button in the toolbar
-        </span></span></span><span style=display:flex><span><span style=color:#e6db74>&#34;&#34;&#34;</span>
-        </span></span><span style=display:flex><span>
-        </span></span><span style=display:flex><span><span style=color:#75715e># The standard way to import sdof:</span>
-        </span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
-        </span></span><span style=display:flex><span>
-        </span></span><span style=display:flex><span><span style=color:#75715e># Create a 2-D array, set every second element in</span>
-        </span></span><span style=display:flex><span><span style=color:#75715e># some rows and find max per row:</span>
-        </span></span><span style=display:flex><span>
-        </span></span><span style=display:flex><span>x <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>arange(<span style=color:#ae81ff>15</span>, dtype<span style=color:#f92672>=</span>np<span style=color:#f92672>.</span>int64)<span style=color:#f92672>.</span>reshape(<span style=color:#ae81ff>3</span>, <span style=color:#ae81ff>5</span>)
-        </span></span><span style=display:flex><span>x[<span style=color:#ae81ff>1</span>:, ::<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>99</span>
-        </span></span><span style=display:flex><span>x
-        </span></span><span style=display:flex><span><span style=color:#75715e># array([[  0,   1,   2,   3,   4],</span>
-        </span></span><span style=display:flex><span><span style=color:#75715e>#        [-99,   6, -99,   8, -99],</span>
-        </span></span><span style=display:flex><span><span style=color:#75715e>#        [-99,  11, -99,  13, -99]])</span>
-        </span></span><span style=display:flex><span>
-        </span></span><span style=display:flex><span>x<span style=color:#f92672>.</span>max(axis<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span>)
-        </span></span><span style=display:flex><span><span style=color:#75715e># array([ 4,  8, 13])</span>
-        </span></span><span style=display:flex><span>
-        </span></span><span style=display:flex><span><span style=color:#75715e># Generate normally distributed random numbers:</span>
-        </span></span><span style=display:flex><span>rng <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>default_rng()
-        </span></span><span style=display:flex><span>samples <span style=color:#f92672>=</span> rng<span style=color:#f92672>.</span>normal(size<span style=color:#f92672>=</span><span style=color:#ae81ff>2500</span>)
-        </span></span><span style=display:flex><span>samples
-        </span></span></code>
-      </pre></div></div>
-<iframe class=numpy-shell src="https://jupyterlite.github.io/demo/repl/?toolbar=1&kernel=python&code=import%20numpy%20as%20np"></iframe>
-</div>
-</div>
--->
-  </div>
+  {% if True %}
+
   {% endif %}
 
   <section class=casestudies>
