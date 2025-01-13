@@ -4,11 +4,11 @@
 #
 from pathlib import Path
 project = 'veux'
-copyright = '2024, STAIRLab'
+copyright = '2025, STAIRLab'
 author = 'Claudio Perez'
-description = "Portable, GPU accelerated, finite element post-processing and visualization."
-version = '0.0.5'
-release = '0.0.5'
+description = "Portable, GPU accelerated, finite element processing and visualization of exact deformations."
+version = '0.0.6'
+release = '0.0.6'
 
 # -- General configuration ---------------------------------------------------
 
