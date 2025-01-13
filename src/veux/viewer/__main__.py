@@ -9,7 +9,7 @@ from veux.server import Server
 if __name__ == "__main__":
 
     options = {
-        "viewer": None
+        "viewer": "three-170"
     }
     filename = sys.argv[1]
 

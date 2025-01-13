@@ -6,6 +6,12 @@ from dataclasses import dataclass
 from veux.config import MeshStyle, LineStyle, NodeStyle
 
 @dataclass
+class Node:
+    id: int
+    vertices: int = None
+    indices  : int = None 
+
+@dataclass
 class Line:
     id: int 
     vertices = None
@@ -14,8 +20,8 @@ class Line:
 @dataclass
 class Mesh:
     id: int
-    vertices = None 
-    indices  = None 
+    vertices: int = None
+    indices  : int = None 
 
 class Canvas:
     def build(self): ...

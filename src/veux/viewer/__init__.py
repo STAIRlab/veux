@@ -9,6 +9,14 @@ class Viewer:
         self._viewer = viewer if viewer is not None else "mv"
 
     def get_html(self):
+        if self._viewer == "babylon":
+            with open(Path(__file__).parents[0]/"babylon.html", "r") as f:
+                return f.read()
+
+        if self._viewer == "three-170":
+            with open(Path(__file__).parents[0]/"three-170.html", "r") as f:
+                return f.read()
+
         if self._viewer == "three-160":
             with open(Path(__file__).parents[0]/"gltf.html", "r") as f:
                 return f.read()
