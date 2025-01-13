@@ -1,10 +1,10 @@
 [project]
 name = "veux"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
-description="Finite element visualization with GPU support"
+description="Finite element processing and visualization for geometrically exact deformations."
 
 license = {file = ".github/LICENSE.txt"}
 readme = "README.md"
@@ -15,6 +15,7 @@ keywords = [
   "seismic",
   "opensees",
   "nonlinear",
+  "finite-rotations",
   "post-processing",
   "finite-element-analysis",
   "glTF"

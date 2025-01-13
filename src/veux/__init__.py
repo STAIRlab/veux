@@ -25,19 +25,31 @@ def __getattr__(name: str):
         return opensees.openseespy
 
 
-def serve(artist, viewer="mv", port=None):
+def serve(thing, viewer="mv", port=None):
+    """
+    Start a server displaying `thing`
+
+    thing: Canvas or Artist
+    """
     import veux.server
-    if hasattr(artist.canvas, "to_glb"):
-        server = veux.server.Server(glb=artist.canvas.to_glb(),
+
+    if hasattr(thing, "canvas"):
+        # artist was passed
+        canvas = thing.canvas
+    else:
+        canvas = thing
+
+    if hasattr(canvas, "to_glb"):
+        server = veux.server.Server(glb=canvas.to_glb(),
                                     viewer=viewer)
         server.run(port=port)
 
-    elif hasattr(artist.canvas, "to_html"):
-        server = veux.server.Server(html=artist.canvas.to_html())
+    elif hasattr(canvas, "to_html"):
+        server = veux.server.Server(html=canvas.to_html())
         server.run(port=port)
 
-    elif hasattr(artist.canvas, "show"):
-        artist.canvas.show()
+    elif hasattr(canvas, "show"):
+        canvas.show()
 
     else:
         raise ValueError("Cannot serve artist")
@@ -73,6 +85,70 @@ def render(sam_file, res_file=None, ndf=6,
            displaced=None,
            reference=None,
            **opts):
+    """
+    Primary rendering function.
+
+    To render a model directly from Python::
+
+        artist = veux.render(model, canvas=canvas)
+
+    Parameters
+    ----------
+    model : str, dict, or Model
+        The ``model`` parameter can be of several types:
+
+        - **str**: Treated as a file path. Supported file formats are ``.json`` and ``.tcl``.
+        - **dict**: A dictionary representation of the model.
+        - **Model**: An instance of the ``Model`` class from the `sees <https://pypi.org/project/sees>`_ Python package. See the `documentation <https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html>`_ 
+          for details.
+
+    canvas : str, optional
+        The rendering backend to use. Options are:
+
+        - ``"gltf"`` (default): Produces high-quality renderings. Files can be saved as ``.html`` or ``.glb``. ``.glb`` is recommended for 3D object portability.
+        - ``"plotly"``: Best for model debugging. Includes detailed annotations (e.g., node/element numbers, properties) but lower visual quality than  ``gltf``.
+        - ``"matplotlib"``: Generates ``.png`` files programmatically. Note that renderings are lower quality compared to ``gltf``.
+
+    Returns
+    -------
+    artist : Artist
+        An object representing the rendered model. Can be used to view or save the rendering.
+
+    Viewing the Rendering
+    ---------------------
+    To view a rendering generated with ``canvas="gltf"`` or ``canvas="plotly"``, use the ``veux.serve()`` function::
+
+        veux.serve(artist)
+
+    This will start a local web server and output a message like::
+
+        Bottle v0.13.1 server starting up (using WSGIRefServer())...
+        Listening on http://localhost:8081/
+        Hit Ctrl-C to quit.
+
+    Open the URL (e.g., http://localhost:8081) in a web browser to interactively view the rendering.
+
+    Saving the Rendering
+    --------------------
+    Use the ``artist.save()`` method to write the rendering to a file. The file format depends on the selected canvas:
+
+    - **gltf**: Files are saved in the glTF format with a ``.glb`` extension::
+
+        artist.save("model.glb")
+
+    - **plotly**: Files are saved as ``.html``::
+
+        artist.save("model.html")
+
+    - **matplotlib**: Files are saved as ``.png``::
+
+        artist.save("model.png")
+
+    Note
+    ----
+    Renderings produced with the ``"matplotlib"`` canvas are typically of poor quality. For high-quality images, use the ``"gltf"`` canvas and take screen captures.
+    """
+
 
     import veux.model
 

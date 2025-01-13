@@ -16,7 +16,7 @@ from veux.errors import RenderError
 
 __version__ = "0.0.13"
 
-NAME = "sees"
+NAME = "veux"
 
 HELP = """
 usage: {NAME} <sam-file>
@@ -37,15 +37,17 @@ Options:
   -s, --scale  <scale>           Set displacement scale factor.
   -d, --disp   <node>:<dof>...   Apply a unit displacement at node with tag
                                  <node> in direction <dof>.
-  VIEWING
-  -V, --view   {{elev|plan|sect}}  Set camera view.
-      --vert   <int>             Specify index of model's vertical coordinate
-      --hide   <object>          Hide <object>; see '--show'.
-      --show   <object>          Show <object>; accepts any of:
+  CANVAS
+  --canvas <canvas>              trimesh, gnu, plotly, matplotlib
+
+  ARTIST
+  --view   {{elev|plan|sect}}      Set camera view.
+  --vert   <int>                 Specify index of model's vertical coordinate
+  --hide   <object>              Hide <object>; see '--show'.
+  --show   <object>              Show <object>; accepts any of:
                                     {{origin|frames|frames.displ|nodes|nodes.displ|extrude}}
 
-  BACKEND
-  --canvas <canvas>              trimesh, gnu, plotly, matplotlib
+  SERVER
   --port <port>                  port to serve rendering
 
   MISC.
@@ -207,6 +209,8 @@ def parse_args(argv)->dict:
             #
             # Viewer
             #
+            elif arg == "-V":
+                pass
             elif arg == "--viewer":
                 opts["viewer_config"]["name"] = next(args)
             elif arg == "--port":
@@ -292,9 +296,6 @@ def parse_args(argv)->dict:
                             artist_config["sketches"][sketch][obj][stroke]["show"] = (arg == "--show")
 
 
-
-            elif arg[:2] == "-V":
-                opts["view"] = arg[2:] if len(arg) > 2 else next(args)
             elif arg == "--view":
                 opts["view"] = next(args)
 
