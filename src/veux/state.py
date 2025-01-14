@@ -5,7 +5,7 @@ import json
 import numpy as np
 from pathlib import Path
 from urllib.parse import urlparse
-from scipy.spatial.transform import Rotation, Slerp
+from scipy.spatial.transform import Rotation
 
 from veux.config import LineStyle, MeshStyle
 
@@ -152,6 +152,10 @@ class BasicState(State):
                 u for n in self.model.cell_nodes(tag)
                     for u in self.node_array(n, dof)
         ])
+        return np.array([
+                [u for u in self.node_array(n, dof)]
+                for n in self.model.cell_nodes(tag)
+        ])
 
 
 class Series:
@@ -281,10 +285,10 @@ class StateSeries(Series): # temporal distribution of states
                 # Initialize iteration at new time
                 i    = 0
                 self._hist[time] = {
-                    "iterations": {
-                        i: BasicState(s["DDU"], model, transform=transform, scale=scale, time=time)
-                    }
+                    "iterations": {}
                 }
+                if "DDU" in s:
+                    self._hist[time]["iterations"][i] = BasicState(s["DDU"], model, transform=transform, scale=scale, time=time)
 
             else:
                 i += 1
@@ -315,7 +319,7 @@ class StateSeries(Series): # temporal distribution of states
 
 
 class GroupSeriesSO3(Series):
-    def __init__(self, series, model, recover_rotations="init", transform=None):
+    def __init__(self, series: "StateSeries", model, recover_rotations="init", transform=None):
         self.model  = model
         self._series = series
         #
