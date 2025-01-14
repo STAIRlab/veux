@@ -10,6 +10,7 @@ import os
 import ast
 import sys
 import json
+import numpy as np
 from veux import config
 from veux.errors import RenderError
 
