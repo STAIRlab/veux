@@ -1,6 +1,20 @@
 
+```{currentmodule} veux
+```
+
 # Canvas
-![](image-1.png)
+
+
+```{admonition} Here's my title
+:class: warning
+
+Here's my admonition content
+```
+
+
+```{autofunction} create_canvas
+```
+
 
 `sees` supports several different rendering technologies through the `canvas` option.
 
