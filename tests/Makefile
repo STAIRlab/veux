@@ -1,4 +1,4 @@
-RENDER = python -m sees
+RENDER = python -m veux
 
 all:
 	 $(RENDER) --conf config.yaml --default-section hayward.txt c.json c.yaml -o out/c.html
