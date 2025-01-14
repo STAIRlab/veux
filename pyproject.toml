@@ -63,8 +63,8 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/STAIRLab/veux"
-Documentation = "https://stairlab.berkeley.edu/software/veux"
-Examples = "https://gallery.stairlab.io/"
+Documentation = "https://veux.stairlab.io"
+Examples = "https://gallery.stairlab.io"
 
 [project.scripts]
 veux = "veux.__main__:main"
