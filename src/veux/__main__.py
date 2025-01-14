@@ -9,11 +9,10 @@
 import sys
 
 from veux import render
-from veux.parser import parse_args
+from veux.parser import parse_args, NAME
 from veux.errors import RenderError
+import veux.server
 
-
-NAME="sees"
 
 def main(argv):
 
@@ -35,7 +34,6 @@ def main(argv):
             artist.canvas.popup()
 
         elif hasattr(artist.canvas, "to_glb"):
-            import veux.server
             viewer = config["viewer_config"].get("name", None)
             port = config["server_config"].get("port", None)
             server = veux.server.Server(glb=artist.canvas.to_glb(),
