@@ -1,28 +1,6 @@
-#
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
-
-
-class PlaneArtist:
-    def __init__(self, model, **kwds):
-
-        import matplotlib.pyplot as plt
-        _,self.ax = plt.subplots()
-
-        self.model = model
-
-    def _draw_nodes(self, nodes):
-        self.ax.scatter(*zip(*nodes.values()))
-        for k,v in nodes.items():
-            self.ax.annotate(k, v)
-
-    def draw(self):
-        pass
-
-    def show(self):
-        import matplotlib.pyplot as plt
-        plt.show()
-
 
 def _plot_grid(x,y, ax=None, **kwargs):
     ax = ax or plt.gca()
@@ -49,13 +27,92 @@ def _quads_to_tris(quads):
         tris[j + 1][2] = quads[i][0]
     return tris
 
+class PlaneModel:
+    def __init__(self, mesh):
+        self.recs = []
+        self.tris = []
 
-# plot edges from a finite element mesh
-def _draw_plane_mesh(nodes, elements, ax):
-    for element in elements:
-        x = [nodes[element[i]][0] for i in range(len(element))]
-        y = [nodes[element[i]][1] for i in range(len(element))]
-        ax.fill(x, y, edgecolor='black', ls="-", lw=0.5, fill=False)
+        if isinstance(mesh, tuple):
+            self.nodes, elems = mesh
+            self.recs = [
+    #            tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 4
+                tuple(i   for i in elem) for elem in elems.values() if len(elem) == 4
+            ]
+
+        else:
+            # assume mesh is a meshio object
+            self.nodes = {i: list(coord) for i, coord in enumerate(mesh.points)}
+            for blk in mesh.cells:
+                if blk.type == "triangle":
+                    self.tris = self.tris + [
+                        tuple(int(i) for i in elem) for elem in blk.data
+                    ]
+                elif blk.type == "quad":
+                    self.recs = self.recs + [
+                        tuple(int(i) for i in elem) for elem in blk.data
+                    ]
+ 
+    def cell_exterior(self):
+        return self.tris + self.recs 
+
+    def node_position(self, tag=None):
+        return np.array(list(self.nodes.values()))
+
+    def cell_triangles(self):
+        node_tag_to_index = {tag: i for i, tag in enumerate(self.nodes.keys())}
+        return [
+                tuple(node_tag_to_index[tag] for tag in elem)
+                for elem in self.tris + _quads_to_tris(self.recs)
+        ]
+
+
+class PlaneArtist:
+    def __init__(self, model, ax=None, **kwds):
+        if ax is None:
+            _,ax = plt.subplots()
+        self.ax = ax
+
+        self.model = model
+
+    def _draw_nodes(self, nodes):
+        self.ax.scatter(*zip(*nodes.values()))
+        for k,v in nodes.items():
+            self.ax.annotate(k, v)
+
+    def draw_outlines(self, **kwds):
+        ax = self.ax
+        # TODO:
+        nodes = self.model.nodes
+
+        for element in self.model.cell_exterior():
+            x = [nodes[element[i]][0] for i in range(len(element))]
+            y = [nodes[element[i]][1] for i in range(len(element))]
+            ax.fill(x, y, edgecolor='black', ls="-", lw=0.5, fill=False)
+
+
+    def draw_surfaces(self, field=None, show_scale=False):
+        ax = self.ax 
+
+        #
+        # Plot solution contours
+        #
+        nodes_x, nodes_y = self.model.node_position().T
+
+        triangles = self.model.cell_triangles()
+
+        # create an unstructured triangular grid instance
+        triangulation = tri.Triangulation(nodes_x, nodes_y, triangles)
+        contours = \
+            ax.tricontourf(triangulation, field, cmap="twilight", alpha=0.5)
+
+        if show_scale:
+            plt.colorbar(contours, ax=ax)
+
+    def draw(self):
+        self.ax.axis('equal')
+
+    def show(self):
+        plt.show()
 
 
 def render(mesh, solution, ax=None,
@@ -67,12 +124,12 @@ def render(mesh, solution, ax=None,
     #
     # Extract mesh information
     #
-    quads = []
-    elements_tris = []
+    recs = []
+    tris = []
 
     if isinstance(mesh, tuple):
         nodes, elems = mesh
-        quads = quads + [
+        recs = [
 #            tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 4
              tuple(i   for i in elem) for elem in elems.values() if len(elem) == 4
         ]
@@ -82,16 +139,16 @@ def render(mesh, solution, ax=None,
         nodes = {i: list(coord) for i, coord in enumerate(mesh.points)}
         for blk in mesh.cells:
             if blk.type == "triangle":
-                elements_tris = elements_tris + [
+                tris = tris + [
                     tuple(int(i) for i in elem) for elem in blk.data
                 ]
             elif blk.type == "quad":
-                quads = quads + [
+                recs = recs + [
                     tuple(int(i) for i in elem) for elem in blk.data
                 ]
 
 
-    elements = elements_tris + quads
+    elements = tris + recs
 
 
     #
@@ -107,7 +164,7 @@ def render(mesh, solution, ax=None,
     # plot the finite element mesh
     #
     if show_edges:
-        _draw_plane_mesh(nodes, elements, ax=ax)
+        _draw_outlines(nodes, elements, ax=ax)
 
 
     #
@@ -119,7 +176,7 @@ def render(mesh, solution, ax=None,
     node_tag_to_index = {tag: i for i, tag in enumerate(nodes.keys())}
     elements_all_tris = [
             tuple(node_tag_to_index[tag] for tag in elem)
-            for elem in elements_tris + _quads_to_tris(quads)
+            for elem in tris + _quads_to_tris(recs)
     ]
 
     # create an unstructured triangular grid instance
@@ -127,8 +184,33 @@ def render(mesh, solution, ax=None,
     contours = \
         ax.tricontourf(triangulation, solution, cmap="twilight", alpha=0.5)
 
+
     if show_scale:
         plt.colorbar(contours, ax=ax)
     ax.axis('equal')
     return ax
 
+
+def render(mesh, field=None, ax=None,
+         # mesh options
+         show_edges=True,
+         # contour options
+         show_scale=True
+    ):
+    #
+    # Extract mesh information
+    #
+
+    artist = PlaneArtist(PlaneModel(mesh))
+
+    #
+    # plot the finite element mesh
+    #
+    if show_edges:
+        artist.draw_outlines()
+
+    if field is not None:
+        artist.draw_surfaces(field=field, show_scale=show_scale)
+
+    artist.draw() 
+    return artist

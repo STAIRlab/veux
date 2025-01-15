@@ -1,3 +1,5 @@
 sphinx
 pydata-sphinx-theme
 veux
+myst-parser
+

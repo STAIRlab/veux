@@ -16,6 +16,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     # 'autoapi.extension',
+    'myst_parser',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages'
 ]
@@ -51,9 +52,12 @@ g = "https://gallery.stairlab.io"
 html_context = {
     'description': description,
     'examples': [
-        {"title": "Basics",         "link": f"{g}/examples/example7/",  "image": "../_static/images/gallery/safeway.png", "description": "A simple example"},
-        {"title": "Displacements",  "link": f"{g}/examples/example5/",  "image": "../_static/images/gallery/Example5.png"},
-        {"title": "Motions",        "link": f"{g}/examples/example6/",  "image": "../_static/images/gallery/Example6.png"},
+        {"title": "Basics",      "link": f"{g}/examples/example6/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
+        {"title": "Frames",      "link": f"{g}/examples/example5/",     "image": "../_static/images/gallery/Example5.png", "description": "Comming soon."},
+        {"title": "Sections",    "link": f"{g}/examples/bridgesections/",     "image": "../_static/images/gallery/HaywardSmall.png", "description": "Comming soon."},
+        {"title": "Detailing",   "link": f"{g}/examples/example7/",     "image": "../_static/images/gallery/safeway.png", "description": "Comming soon."},
+        {"title": "Motions",     "link": f"{g}/examples/framehockle/",  "image": "../_static/images/gallery/Example6.png", "description": "Comming soon."},
+        {"title": "Interoperability", "link": f"{g}/examples/cablestayed/",  "image": "../_static/images/gallery/CableStayed02-576x324.webp", "description": "Coming soon."},
     ],
     **globals()
 }

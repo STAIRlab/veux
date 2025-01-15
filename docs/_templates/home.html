@@ -6,8 +6,12 @@
   <meta name=description content="{{ description }}">
   <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
   <meta http-equiv=x-ua-compatible content="ie=edge">
+
+  <meta name=twitter:card content="summary_large_image">
+  <meta name=twitter:image content="https://numpy.org/images/twitter-image.jpg">
+  <meta name=twitter:title content="{{ project }}">
+  <meta name=twitter:description content="{{ description }}">
   <title>{{ project }}</title>
-  <!--  -->
   {%- import "static/webpack-macros.html" as _webpack with context %}
   <script data-cfasync="false">
     document.documentElement.dataset.mode = localStorage.getItem("mode") || "{{ default_mode }}";
@@ -27,12 +31,6 @@
   <link rel="stylesheet" href=https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css>
   <link rel="stylesheet" type=text/css
     href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
-  <!--
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/code-highlight.css.min.60358f6aca833402d029f1625f9d78ac9331cb988429c4541f68207cfe3894ed.css" >
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/notices.css.min.a1ba05c782ca3a59361d6e284f0c2e1ff14e5a17a87057974212c60aa30fed2c.css" >
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/posts.css.min.6d27826ef3e7467b2bc97db6a0068283b47dddb32f6bf29504911aea6c237dd7.css" >
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/shortcuts.css.min.66eb490f98d06a7f1980356f649d586f140b68294e9aa3600404f393ce50dacb.css" >
-  -->
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/theme-css/content.css.min.04e1e257bae2de28e38445f3f5d76e28317dc313cb7ead5536bcb52baccf91f9.css">
   <link rel="stylesheet"
@@ -43,20 +41,10 @@
     href="{{ pathto('_static/css', 1) }}/theme-css/news.css.min.4bffc1f3e8e1dfedfa26d21423b0f206b10be408002e80d7628649afd6bb6a9d.css">
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/theme-css/styles.css.min.e52a9f63524ec98f63a3f6939054fa0313cac0c151de8a2ba4089dc9db834fb2.css">
-  <!--
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/tables.css.min.fb97ebea26ca35733dddd7051622133c047b532bf1aa066155c69a118d445803.css" >
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/teams.css.min.fcfb8db7476eab78560aefc0efcec4366740523e08279ec26c568590c69002fc.css" >
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/theme-css/videos.css.min.b305d98ddc47a74381f484299ab14f9483f69d62928c4ed32697a5701355f138.css" >
-  -->
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/theme-css/vars.css.min.aad4d4b106de179c549cb071137b8b97c38926db91edaaff08af8ab9055df90e.css">
-
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/css/casestudies.css.min.6bba5e8b00dd9f04d2fef2e38dd0a840baa2dd8a473df4c24c5913558e805609.css">
-  <!--
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/css/mailchimp.css.min.81c28937ed202cb4f9a0783641e5f436902980a188f0a90a2fe9ec66cd0af677.css" >
-  <link rel="stylesheet" href="{{ pathto('_static/css', 1) }}/css/shell.css.min.5ee5a6b8d8faedbb5157b1bfb4d9be5b2482bbe4e40af84575a92ae6ab028842.css" >
-  -->
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/css/tabs.css.min.2774227fab8d6dfd0b5b1c8f06b5abafeaf3d6247bec4efda87ac5a587b3d2bc.css">
   <link rel="stylesheet"
@@ -67,10 +55,6 @@
   <link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet">
   <script src=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/js/uikit.min.js></script>
   <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/css/uikit.min.css>
-  <meta name=twitter:card content="summary_large_image">
-  <meta name=twitter:image content="https://numpy.org/images/twitter-image.jpg">
-  <meta name=twitter:title content="{{ project }}">
-  <meta name=twitter:description content="{{ description }}">
   <style>
     .nav-item {
       color: #4a4a4a;
@@ -232,6 +216,7 @@
         <ul class="uk-flex-center uk-nav" uk-tab>
           <li class="uk-active"><a href=#>  Other libraries</a></li>
         </ul>
+
         <ul id=tabs-content class="uk-switcher uk-margin">
           <li class=array-libraries>
             <table>
@@ -239,7 +224,6 @@
                 <td class=bold-text></td>
                 <td class=bold-text>Package</td>
                 <td class=bold-text>Description</td>
-                <!-- </td> -->
               </tr>
               <tr>
                 <td style=text-align:center>
@@ -265,147 +249,6 @@
             </table>
           </li>
           {% if False %}
-          <li class=scientific-domains>
-            <p>Nearly every scientist working in Python draws on the power of sdof.</p>
-            <p>sdof brings the computational power of languages like C and Fortran to Python, a language much easier to
-              learn and use. With this power comes simplicity: a solution in sdof is often clear and elegant.</p>
-            <table>
-              <tr class=highlight-th>
-                <td class=bold-text>Quantum Computing</td>
-                <td class=bold-text>Statistical Computing</td>
-                <td class=bold-text>Signal Processing</td>
-                <td class=bold-text>Image Processing</td>
-                <td class=bold-text>Graphs and Networks</td>
-                <td class=bold-text>Astronomy</td>
-                <td class=bold-text>Cognitive Psychology</td>
-              </tr>
-              <tr>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/quantum_computing.svg"
-                    alt="A computer chip."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/statistical_computing.svg"
-                    alt="A line graph with the line moving up."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/signal_processing.svg"
-                    alt="A bar chart with positive and negative values."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/image_processing.svg"
-                    alt="An photograph of the mountains."></td>
-                <td><img class=cell-layout src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/sd6.svg"
-                    alt="A simple graph."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/astronomy_processes.svg"
-                    alt="A telescope."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static', 1) }}/images/content_images/sc_dom_img/cognitive_psychology.svg"
-                    alt="A human head with gears."></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=http://qutip.org>QuTiP</a></td>
-                <td class=center-text><a href=https://pandas.pydata.org>Pandas</a></td>
-                <td class=center-text><a href=https://www.scipy.org>SciPy</a></td>
-                <td class=center-text><a href=https://scikit-image.org>Scikit-image</a></td>
-                <td class=center-text><a href=https://networkx.org>NetworkX</a></td>
-                <td class=center-text><a href=https://www.astropy.org>AstroPy</a></td>
-                <td class=center-text><a href=https://www.psychopy.org>PsychoPy</a></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=https://pyquil-docs.rigetti.com/en/stable>PyQuil</a></td>
-                <td class=center-text><a href=https://github.com/statsmodels/statsmodels>statsmodels</a></td>
-                <td class=center-text><a href=https://pywavelets.readthedocs.io>PyWavelets</a></td>
-                <td class=center-text><a href=https://opencv.org>OpenCV</a></td>
-                <td class=center-text><a href=https://graph-tool.skewed.de />graph-tool</a></td>
-                <td class=center-text><a href=https://github.com/sunpy/sunpy>SunPy</a></td>
-                <td class=center-text></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=https://qiskit.org>Qiskit</a></td>
-                <td class=center-text><a href=https://xarray.pydata.org/en/stable />Xarray</a></td>
-                <td class=center-text><a href=https://python-control.org>python-control</a></td>
-                <td class=center-text><a href=https://mahotas.rtfd.io />Mahotas</a></td>
-                <td class=center-text><a href=https://igraph.org/python />igraph</a></td>
-                <td class=center-text><a href=https://github.com/spacepy/spacepy>SpacePy</a></td>
-                <td class=center-text></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=https://pennylane.ai>PennyLane</a></td>
-                <td class=center-text><a href=https://github.com/mwaskom/seaborn>Seaborn</a></td>
-                <td class=lastrow-center-text></td>
-                <td class=lastrow-center-text></td>
-                <td class=center-text><a href=https://pygsp.rtfd.io>PyGSP</a></td>
-                <td class=lastrow-center-text></td>
-                <td class=lastrow-center-text></td>
-              </tr>
-              <tr class=highlight-th>
-                <td class=bold-text>Bioinformatics</td>
-                <td class=bold-text>Bayesian Inference</td>
-                <td class=bold-text>Mathematical Analysis</td>
-                <td class=bold-text>Chemistry</td>
-                <td class=bold-text>Geoscience</td>
-                <td class=bold-text>Geographic Processing</td>
-                <td class=bold-text>Architecture & Engineering</td>
-              </tr>
-              <tr>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/bioinformatics.svg"
-                    alt="A strand of DNA."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/bayesian_inference.svg"
-                    alt="A graph with a bell-shaped curve."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/mathematical_analysis.svg"
-                    alt="Four mathematical symbols."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/chemistry.svg" alt="A test tube.">
-                </td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/geoscience.svg" alt="The Earth.">
-                </td>
-                <td><img class=cell-layout src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/GIS.svg"
-                    alt="A map."></td>
-                <td><img class=cell-layout
-                    src="{{ pathto('_static/', 1) }}/images/content_images/sc_dom_img/robotics.svg"
-                    alt="A microprocessor development board."></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=https://biopython.org>BioPython</a></td>
-                <td class=center-text><a href=https://pystan.readthedocs.io/en/latest />PyStan</a></td>
-                <td class=center-text><a href=https://www.scipy.org>SciPy</a></td>
-                <td class=center-text><a href=https://cantera.org />Cantera</a></td>
-                <td class=center-text><a href=https://pangeo.io />Pangeo</a></td>
-                <td class=center-text><a href=https://shapely.readthedocs.io>Shapely</a></td>
-                <td class=center-text><a href=https://compas.dev />COMPAS</a></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=http://scikit-bio.org>Scikit-Bio</a></td>
-                <td class=center-text><a href=https://docs.pymc.io>PyMC3</a></td>
-                <td class=center-text><a href=https://www.sympy.org>SymPy</a></td>
-                <td class=center-text><a href=https://www.mdanalysis.org />MDAnalysis</a></td>
-                <td class=center-text><a href=https://simpeg.xyz />Simpeg</a></td>
-                <td class=center-text><a href=https://geopandas.org />GeoPandas</a></td>
-                <td class=center-text><a href=https://cityenergyanalyst.com />City Energy Analyst</a></td>
-              </tr>
-              <tr>
-                <td class=center-text><a href=https://github.com/openvax/pyensembl>PyEnsembl</a></td>
-                <td class=center-text><a href=https://arviz-devs.github.io/arviz />ArviZ</a></td>
-                <td class=center-text><a href=https://github.com/cvxgrp/cvxpy>cvxpy</a></td>
-                <td class=center-text><a href=https://github.com/rdkit/rdkit>RDKit</a></td>
-                <td class=center-text><a href=https://github.com/obspy/obspy/wiki>ObsPy</a></td>
-                <td class=center-text><a href=https://python-visualization.github.io/folium>Folium</a></td>
-                <td class=center-text><a href=https://nortikin.github.io/sverchok />Sverchok</a></td>
-              </tr>
-              <tr>
-                <td class=lastrow-center-text><a href=http://etetoolkit.org />ETE</a></td>
-                <td class=lastrow-center-text><a href=https://emcee.readthedocs.io />emcee</a></td>
-                <td class=lastrow-center-text><a href=https://fenicsproject.org />FEniCS</a></td>
-                <td class=lastrow-center-text><a href=https://www.pybamm.org>PyBaMM</a></td>
-                <td class=lastrow-center-text><a href=https://www.fatiando.org />Fatiando a Terra</a></td>
-                <td class=lastrow-center-text></td>
-                <td class=lastrow-center-text></td>
-              </tr>
-            </table>
-          </li>
           <li class=data-science>
             <div class=grid-container>
               <div><a href=/images/content_images/ds-landscape.png target=_blank><img
@@ -499,10 +342,6 @@
                   <div><a href=https://altair-viz.github.io/gallery/streamgraph.html><img
                         src="{{ pathto('_static/images', 1) }}/content_images/v_altair.png"
                         alt="A streamgraph made iair" align=middle></a></div>
-                  <div><a href=https://seaborn.pydata.org><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_seaborn.png"
-                        alt='A pairplot of two types of graph, a plot-graph and a frequency graph made in seaborn"'
-                        align=middle></a></div>
                   <div><a href=https://docs.pyvista.org/examples/index.html><img
                         src="{{ pathto('_static/images', 1) }}/content_images/v_pyvista.png"
                         alt="A 3D volume rendering made in PyVista." align=middle></a></div>
