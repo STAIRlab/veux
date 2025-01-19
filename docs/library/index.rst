@@ -7,8 +7,9 @@ Library
    :hidden:
    :maxdepth: 1
 
-   veux <self>
+   Library <self>
    canvas
+   artist
 
 The :mod:`veux` package features the following high-level 
 functions for quickly rendering models:
@@ -17,18 +18,12 @@ functions for quickly rendering models:
    :toctree: api/
 
    render
+   create_artist
    serve
 
 
 
-The following modules expose the inner building blocks for
-frequency domain and time domain analysis of vibration signals:
 
-.. toctree::
-   :maxdepth: 1
-
-   veux.canvas
-   veux.server
 
 .. top-level functions
 .. -------------------
