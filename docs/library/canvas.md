@@ -5,12 +5,6 @@
 # Canvas
 
 
-```{admonition} Here's my title
-:class: warning
-
-Here's my admonition content
-```
-
 
 ```{autofunction} create_canvas
 ```
@@ -38,3 +32,11 @@ This canvas uses the <a href="https://plotly.com/">Plotly</a> library.
 Renderings on the <code>plotly</code> canvas can stored as <b>html</b> files and opened in standard browsers.
 </dd>
 </dl>
+
+```{admonition} Note
+:class: warning
+
+Renderings produced with the ``"matplotlib"`` canvas are typically of poor quality. For high-quality images, use the ``"gltf"`` canvas and take screen captures.
+```
+
+
