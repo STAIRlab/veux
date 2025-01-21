@@ -1,4 +1,11 @@
+#===----------------------------------------------------------------------===#
+#
+#         STAIRLab -- STructural Artificial Intelligence Laboratory
+#
+#===----------------------------------------------------------------------===#
+#
 # Claudio Perez
+#
 import sys
 import warnings
 import numpy as np
@@ -13,22 +20,6 @@ from veux.model import read_model
 from veux.errors import RenderError
 from veux.config import MeshStyle
 
-import sys
-import warnings
-import numpy as np
-from scipy.spatial.transform import Rotation
-
-import shps.curve
-
-import veux
-import veux.frame
-from veux.utility.earcut import earcut
-from veux.model import read_model
-from veux.errors import RenderError
-from veux.config import MeshStyle
-
-# 1) Import the new Extrusion class
-from shps.frame.extrude import Extrusion
 
 def draw_extrusions2(model, canvas, state=None, config=None):
     """
@@ -41,6 +32,9 @@ def draw_extrusions2(model, canvas, state=None, config=None):
     The final mesh is plotted with 'canvas.plot_mesh'. Then, if config["outline"] 
     includes 'tran' or 'long', we also call 'canvas.plot_lines' for edges or cross-hatching.
     """
+
+    from shps.frame.extrude import Extrusion
+
     ndm = 3
 
     if config is None:
@@ -48,25 +42,21 @@ def draw_extrusions2(model, canvas, state=None, config=None):
     scale_section = config.get("scale", 1.0)
 
     #----------------------------------------------------------
-    # 1) Build local geometry (side + caps) using Extrusion
+    # 1) Build local geometry (side + caps)
     #----------------------------------------------------------
-    # This extracts the ring-building logic from your original code
     extr = Extrusion(model, scale=scale_section, do_end_caps=True)
     local_positions = extr.vertices()    # Nx3 (local coords)
     triangles       = extr.triangles()   # Mx3
     ring_ranges     = extr.ring_ranges() # [((elem_name,j), start_idx, end_idx), ...]
 
-    # If there's no geometry, bail out
     if len(triangles) == 0:
         return
 
     # Create a global array for final coordinates
     coords = np.zeros_like(local_positions, dtype=float)
 
-    # We'll also build 'locoor' for local texture or param 
-    # for each vertex. The original code sets them in a complicated way, 
-    # but here we’ll replicate the same shape & fill them with something 
-    # similar to your old approach.
+    # Build 'locoor' for local texture or param 
+    # for each vertex.
     locoor = [None]*len(local_positions)
 
     #----------------------------------------------------------
@@ -129,7 +119,6 @@ def draw_extrusions2(model, canvas, state=None, config=None):
     IDX = np.array(((0,2),(0,1)))  # from your code
 
     if "tran" in config["outline"]:
-        # Then we create tri_points in the same way your code does:
         #   tri_points = [ coords[idx] if (j+1)%3 else nan for j,idx in enumerate(np.array(triang).reshape(-1)) ]
         tri_flat = np.array(triang).reshape(-1)
         tri_points = []
@@ -144,8 +133,8 @@ def draw_extrusions2(model, canvas, state=None, config=None):
     elif "long" in config["outline"]:
         # replicate that logic for "long"
         # tri_points = [ coords[i] if j%2 else nan for j,face in enumerate(triang) for i in face[IDX[j%2]] ]
-        # but your code also checks "if j not in no_outline"? We'll omit that since it's the original logic 
-        # for skipping edges on big outlines. If you truly want that, we can do it the same way.
+        # Omit "if j not in no_outline" since it's the original logic 
+        # for skipping edges on big outlines.
         tri_points = []
         tri_array  = np.array(triang)
         for j, face in enumerate(tri_array):
@@ -163,7 +152,6 @@ def draw_extrusions2(model, canvas, state=None, config=None):
         tri_points = np.array(tri_points)
         canvas.plot_lines(tri_points, style=config.get("line_style", None))
 
-    # done!
     return
 
 def draw_extrusions(model, canvas, state=None, config=None):
@@ -316,8 +304,6 @@ def _add_moment(artist, loc, axis):
     coords = np.einsum('ik, kj -> ij',  coords,
                        so3.exp([0, 0, -np.pi/4])@so3.exp(axis))
     coords = 1e-3*coords + loc
-#   for node in coords:
-#       node = so3.exp(axis)@node
     for i in mesh_data.cells:
         if i.type == "triangle":
             triangles =  i.data #mesh_data.cells['triangle']
