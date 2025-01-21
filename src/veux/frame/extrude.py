@@ -35,8 +35,6 @@ def draw_extrusions2(model, canvas, state=None, config=None):
 
     from shps.frame.extrude import Extrusion
 
-    ndm = 3
-
     if config is None:
         config = {"style": MeshStyle(color="gray")}
     scale_section = config.get("scale", 1.0)
@@ -54,10 +52,6 @@ def draw_extrusions2(model, canvas, state=None, config=None):
 
     # Create a global array for final coordinates
     coords = np.zeros_like(local_positions, dtype=float)
-
-    # Build 'locoor' for local texture or param 
-    # for each vertex.
-    locoor = [None]*len(local_positions)
 
     #----------------------------------------------------------
     # 2) For each ring, apply the global transform X[j] + R[j]@local_pt
@@ -93,12 +87,6 @@ def draw_extrusions2(model, canvas, state=None, config=None):
             # Global coords
             coords[i] = trans_j + rot_j @ local_pt
 
-            # locoor? The original code sets something like
-            #   locoor.append([ (j+0)/nen+0.1, 0.1+(k+0)/(noe+0 ) ])
-            # But we no longer track the "k" directly, so let's store a placeholder.
-            # Or we can store extr.texcoords() if you do that in your Extrusion class.
-            locoor[i] = [(j+0)/max(nen,1)+0.1, 0.1]  # minimal
-
     #----------------------------------------------------------
     # 3) Reverse triangle winding
     #----------------------------------------------------------
@@ -107,7 +95,7 @@ def draw_extrusions2(model, canvas, state=None, config=None):
     #----------------------------------------------------------
     # 4) Plot the main mesh
     #----------------------------------------------------------
-    canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
+    canvas.plot_mesh(coords, triang, style=config["style"])
 
     if "outline" not in config:
         return
@@ -116,22 +104,21 @@ def draw_extrusions2(model, canvas, state=None, config=None):
     # 5) Draw edges
     #----------------------------------------------------------
     nan = np.array([0,0,0], dtype=float)*np.nan
-    IDX = np.array(((0,2),(0,1)))  # from your code
+    IDX = np.array(((0,2),(0,1)))
 
     if "tran" in config["outline"]:
         #   tri_points = [ coords[idx] if (j+1)%3 else nan for j,idx in enumerate(np.array(triang).reshape(-1)) ]
         tri_flat = np.array(triang).reshape(-1)
         tri_points = []
         for j, idx in enumerate(tri_flat):
-            # after each 3rd vertex, we insert a nan
             tri_points.append(coords[idx])
+            # after each 3rd vertex, insert a nan
             if (j+1)%3 == 0:
                 tri_points.append(nan)
         tri_points = np.array(tri_points)
         canvas.plot_lines(tri_points, style=config.get("line_style", None))
 
     elif "long" in config["outline"]:
-        # replicate that logic for "long"
         # tri_points = [ coords[i] if j%2 else nan for j,face in enumerate(triang) for i in face[IDX[j%2]] ]
         # Omit "if j not in no_outline" since it's the original logic 
         # for skipping edges on big outlines.
@@ -168,7 +155,7 @@ def draw_extrusions(model, canvas, state=None, config=None):
     ndm = 3
 
     coords = [] # Global mesh coordinates
-    triang = [] # Triangle indices into coords
+    triang = []
     caps   = []
     locoor = [] # Local mesh coordinates, used for textures
 
@@ -183,8 +170,8 @@ def draw_extrusions(model, canvas, state=None, config=None):
     # Track outlines with excessive edges (eg, circles) to later avoid showing
     # their edges
     no_outline = set()
-    for i,el in enumerate(model["assembly"].values()):
-        tag  = el["name"]
+    for tag,el in enumerate(model["assembly"].items()):
+
 
         outline = model.cell_section(el["name"])
         if outline is None:
@@ -192,9 +179,10 @@ def draw_extrusions(model, canvas, state=None, config=None):
 
         outline_scale = scale_section
 
-        nen  = len(el["nodes"])
+        nen  = len(model.cell_nodes(tag))
 
-        noe = len(outline) # number of outline edges
+        noe = len(outline)
+
         if state is not None:
             glob_displ = state.cell_array(tag, state.position)
             X = shps.curve.displace(el["crd"], glob_displ, nen).T
@@ -212,7 +200,6 @@ def draw_extrusions(model, canvas, state=None, config=None):
         except Exception as e:
             warnings.warn(f"Earcut failed with message: {e}")
 
-
         # Loop over sample points along element length to assemble
         # `coord` and `triang` arrays
         for j in range(nen):
@@ -222,10 +209,7 @@ def draw_extrusions(model, canvas, state=None, config=None):
             for k,edge in enumerate(outline):
                 # Append rotated section coordinates to list of coordinates
                 coords.append(X[j, :] + R[j]@edge)
-                locoor.append(
-                             [ (j+0)/nen+0.1,  0.1+(k+0)/(noe+0) ]
-                )
-
+                locoor.append([ (j+0)/nen+0.1,  0.1+(k+0)/(noe+0) ])
 
                 if j == 0:
                     # Skip the first section
@@ -233,7 +217,6 @@ def draw_extrusions(model, canvas, state=None, config=None):
 
                 elif k < noe-1:
                     triang.extend([
-                        # Tie two triangles to this edge
                         [I+    noe*j + k,   I+    noe*j + k + 1,    I+noe*(j-1) + k],
                         [I+noe*j + k + 1,   I+noe*(j-1) + k + 1,    I+noe*(j-1) + k]
                     ])
