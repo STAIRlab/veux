@@ -12,29 +12,11 @@ import numpy as np
 Array = np.ndarray
 from scipy.linalg import block_diag
 
-from veux.model  import FrameModel
+from veux.model  import Model,FrameModel
 from veux.state  import read_state, State, BasicState
 from veux.config import Config, LineStyle, NodeStyle
 
 
-def _is_truss(el):
-    name = el["type"].lower()
-    return "truss" in name or "twonodelink" in name
-
-
-def _is_frame(el):
-    name = el["type"].lower()
-    return     "beam"  in name \
-            or "dfrm"  in name \
-            or "frame" in name
-
-def _is_plane(el):
-    name = el["type"].lower()
-    return "quad" in name or "shell" in name or "tri" in name
-
-def _is_solid(el):
-    name = el["type"].lower()
-    return "brick" in name
 
 def elastic_curve(x: Array, v: list, L:float)->Array:
     "compute points along Euler's elastica"
@@ -113,7 +95,8 @@ class FrameArtist:
     model:  "FrameModel"
     canvas: "Canvas"
 
-    def __init__(self, model_data,
+    def __init__(self,
+                 model_data,
                  ndf=None,
                  #
                  config=None,
@@ -124,6 +107,9 @@ class FrameArtist:
                  canvas=None,
                  #
                  **kwds):
+        
+        if config is None:
+            config = {}
 
         self.config = config
         self.canvas = canvas
@@ -146,27 +132,27 @@ class FrameArtist:
 
         self._plot_rotation = R
 
-        if loc is None and isinstance(model_config, dict) and "shift" in model_config:
-            loc = model_config.pop("shift")
+        if not isinstance(model_data, Model):
+            if loc is None and isinstance(model_config, dict) and "shift" in model_config:
+                loc = model_config.pop("shift")
 
-        self.model = model = FrameModel(model_data, shift=loc, rot=R,
-                                        **(model_config or {}))
+            self.model = model = FrameModel(model_data, shift=loc, rot=R,
+                                            **(model_config or {}))
+        else:
+            self.model = model = model_data
 
 
-        # Create permutation matrix
-        if model.ndf == 2 and model.ndm == 2:
+        # Define transformation from DOFs in `state` variables to plot
+        # coordinates
+        if model.ndf == 1 and model.ndm == 2:
+            self.dofs2plot = R@np.array(((0,),
+                                         (0,),
+                                         (1,)))
+
+        elif model.ndf == 2 and model.ndm == 2:
             self.dofs2plot = R@np.array(((1, 0),
                                          (0, 1),
                                          (0, 0)))
-
-        elif ndf == 3 and model.ndm == 3:
-            self.dofs2plot = block_diag(*[R]*2)@np.array(((1,0, 0),
-                                                          (0,1, 0),
-                                                          (0,0, 1),
-
-                                                          (0,0, 0),
-                                                          (0,0, 0),
-                                                          (0,0, 0)))
 
         elif ndf == 3 and model.ndm == 2:
             self.dofs2plot = block_diag(*[R]*2)@np.array(((1,0, 0),
@@ -177,6 +163,14 @@ class FrameArtist:
                                                           (0,0, 0),
                                                           (0,0, 1)))
 
+        elif ndf == 3 and model.ndm == 3:
+            self.dofs2plot = block_diag(*[R]*2)@np.array(((1,0, 0),
+                                                          (0,1, 0),
+                                                          (0,0, 1),
+
+                                                          (0,0, 0),
+                                                          (0,0, 0),
+                                                          (0,0, 0)))
         else:
             self.dofs2plot = block_diag(*[R]*2)
 
@@ -229,7 +223,7 @@ class FrameArtist:
 
     def add_point_displacements(self, displ, scale=1.0, name=None):
         displ_array = self.displ_states[name]
-        for i,n in enumerate(self.model["nodes"]):
+        for i,n in enumerate(self.model.iter_node_tags()):
             for dof in displ[n]:
                 displ_array[i, dof] = 1.0
 
@@ -261,7 +255,7 @@ class FrameArtist:
     #         self.canvas.plot_lines(coords[:, :self.ndm], style=LineStyle(color="red"), label=label)
 
 
-    def plot_origin(self, **kwds):
+    def draw_origin(self, **kwds):
         xyz = np.zeros((3,3))
         uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
         off = [[0, -kwds.get("scale", 1.0)/2, 0],
@@ -315,12 +309,14 @@ class FrameArtist:
     # sketches with or without state
     def draw_outlines(self, state=None, config=None):
         model = self.model
-        ndm   = self.model["ndm"]
+
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
 
         N = 10 if state is not None and config["frame"]["basis"] is not None else 2
         do_frames = False
-        # TODO: Count frame elements
-        ne = len(model["assembly"])
+        ne = sum(1 for tag in model.iter_cell_tags() if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"))
         frames = np.zeros((ne*(N+1),3))
         frames.fill(np.nan)
 #       frames = []
@@ -329,8 +325,8 @@ class FrameArtist:
         trians = []
         solids = []
 
-        for i,(tag,el) in enumerate(model["assembly"].items()):
-            if _is_frame(el) or _is_truss(el):
+        for i,tag in enumerate(model.iter_cell_tags()):
+            if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"):
                 if not config["frame"]["show"]:
                     continue
 
@@ -349,14 +345,14 @@ class FrameArtist:
                                                                     Q=model.frame_orientation(tag),
                                                                     npoints=N).T
 #                   )
-            elif _is_plane(el) and config["plane"]["show"]:
+            elif model.cell_matches(tag, "plane") and config["plane"]["show"]:
                 idx = model.cell_exterior(tag)
                 if len(idx) == 4:
                     quadrs.append([*idx, idx[0]])
                 elif len(idx) == 3:
                     trians.append([*idx, idx[0]])
 
-            elif _is_solid(el) and config["solid"]["show"]:
+            elif model.cell_matches(tag, "solid") and config["solid"]["show"]:
                 # TODO: get cell faces
                 idx = model.cell_exterior(tag)
                 solids.append(idx)
@@ -379,9 +375,12 @@ class FrameArtist:
             self.canvas.plot_lines(nodes, indices=np.array(solids),
                                           style=config["solid"]["style"])
 
-    def draw_surfaces(self, state=None, layer=None, config=None):
+    def draw_surfaces(self, state=None, field=None, layer=None, config=None):
         model = self.model
 
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["surface"] for type, conf in SketchConfig().items() if "surface" in conf}
         # Draw extruded frames
         from veux.frame import extrude
         if "frame" in config and config["frame"]["show"]:
@@ -395,16 +394,24 @@ class FrameArtist:
         if "plane" in config and config["plane"]["show"]:
             nodes = model.node_position(state=state)
 
-            for i,(tag,el) in enumerate(model["assembly"].items()):
-                if not _is_frame(el):
+            for tag in model.iter_cell_tags():
+                if not model.cell_matches(tag, "frame"):
                     triangles.extend(model.cell_triangles(tag))
 
         if len(triangles) > 0:
-            self.canvas.plot_mesh(nodes, np.array(triangles), style=config["plane"]["style"])
+            mesh = self.canvas.plot_mesh(nodes, np.array(triangles), style=config["plane"]["style"])
+
+            if field is not None:
+                if isinstance(field, dict):
+                    field = np.array([field[node] for node in model.iter_node_tags()])
+                self.canvas.plot_mesh_field(mesh, field=field)
 
         return
 
-    def draw_nodes(self, state=None, data=None, label=None, config=None):
+    def draw_nodes(self, state=None, data=None, label=None, config=None, size=None):
+        from veux.config import SketchConfig
+        config = {type: conf["marker"] for type, conf in SketchConfig().items() if "marker" in conf}
+
         if state is not None and state.rotation is not None and self.model.ndm == 3:
             rotations = self.model.node_rotation(state=state)
         else:
@@ -423,18 +430,23 @@ class FrameArtist:
                                        for i,k in enumerate(self.model.iter_node_tags())])
 
     def draw_axes(self, state=None, config=None):
-        ne = len(self.model["assembly"])
+        ne = sum(1 for tag in self.model.iter_cell_tags() if self.model.cell_matches(tag, "frame"))
         xyz, uvw = np.nan*np.zeros((2, ne, 3, 3))
+        i = 0
+        for _,tag in enumerate(self.model.iter_cell_tags()):
 
-        for i,el in enumerate(self.model["assembly"].values()):
-            axes = self.model.frame_orientation(el["name"])
+            axes = self.model.frame_orientation(tag)
             if axes is None or not config["frame"]["show"]:
                 continue
-            crd = self.model.cell_position(el["name"], state=state) #el["crd"]
+            if not self.model.cell_matches(tag, "frame"):
+                continue
+            
+            crd = self.model.cell_position(tag, state=state) #el["crd"]
             scale = np.linalg.norm(crd[-1] - crd[0])/10
-            coord = sum(i for i in crd)/len(el["nodes"])
+            coord = sum(i for i in crd)/len(self.model.cell_indices(tag))
             xyz[i,:,:] = np.array([coord]*3)
             uvw[i,:,:] = scale*axes
+            i += 1
 
         self.canvas.plot_vectors(xyz.reshape(ne*3,3), uvw.reshape(ne*3,3))
 
@@ -446,7 +458,7 @@ class FrameArtist:
         default = self.config["sketches"]["default"]
         if "origin" in default and default["origin"]["axes"]["show"]:
             origin = default["origin"]
-            self.plot_origin(line_style=origin["axes"]["style"],
+            self.draw_origin(line_style=origin["axes"]["style"],
                                   scale=origin["axes"]["scale"],
                                   label=origin["axes"]["label"])
 
