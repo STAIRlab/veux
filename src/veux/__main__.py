@@ -34,6 +34,7 @@ def main(argv):
             artist.canvas.popup()
 
         elif hasattr(artist.canvas, "to_glb"):
+            import veux.server
             viewer = config["viewer_config"].get("name", None)
             port = config["server_config"].get("port", None)
             server = veux.server.Server(glb=artist.canvas.to_glb(),

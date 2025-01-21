@@ -76,21 +76,43 @@ def _create_canvas(name=None, config=None):
     else:
         raise ValueError("Unknown canvas name " + str(name))
 
-def render(sam_file, res_file=None, ndf=6,
-           canvas=None,
-           show=None,
-           hide=None,
-           verbose=False,
+
+def _create_model(sam_file):
+
+    import veux.model
+
+    if isinstance(sam_file, (str, Path)):
+        model_data = veux.model.read_model(sam_file)
+
+    elif hasattr(sam_file, "asdict"):
+        # Assuming an opensees.openseespy.Model
+        model_data = sam_file.asdict()
+
+    elif hasattr(sam_file, "read"):
+        model_data = veux.model.read_model(sam_file)
+
+    elif isinstance(sam_file, tuple):
+        from veux.plane import PlaneModel
+        return PlaneModel(sam_file)
+
+    elif not isinstance(sam_file, dict):
+        model_data = veux.model.FrameModel(sam_file)
+
+    else:
+        model_data = sam_file
+
+    return model_data
+
+def create_artist(
+           sam_file, ndf=6,
+           canvas="gltf",
            vertical=2,
-           displaced=None,
-           reference=None,
            **opts):
     """
-    Primary rendering function.
 
-    To render a model directly from Python::
+    To create an artist for a model::
 
-        artist = veux.render(model, canvas=canvas)
+        artist = veux.create_artist(model, canvas=canvas)
 
     Parameters
     ----------
@@ -132,25 +154,83 @@ def render(sam_file, res_file=None, ndf=6,
     --------------------
     Use the ``artist.save()`` method to write the rendering to a file. The file format depends on the selected canvas:
 
-    - **gltf**: Files are saved in the glTF format with a ``.glb`` extension::
 
-        artist.save("model.glb")
-
-    - **plotly**: Files are saved as ``.html``::
-
-        artist.save("model.html")
-
-    - **matplotlib**: Files are saved as ``.png``::
-
-        artist.save("model.png")
-
-    Note
-    ----
-    Renderings produced with the ``"matplotlib"`` canvas are typically of poor quality. For high-quality images, use the ``"gltf"`` canvas and take screen captures.
     """
 
+    # Configuration is determined by successively layering
+    # from sources with the following priorities:
+    #      defaults < file configs < kwds 
 
-    import veux.model
+    if sam_file is None:
+        raise RenderError("Expected required argument <sam-file>")
+
+    model_data = _create_model(sam_file)
+
+    # Setup config
+    config = Config()
+
+    if isinstance(model_data, dict) and "RendererConfiguration" in model_data:
+        apply_config(model_data["RendererConfiguration"], config)
+
+    config["artist_config"]["vertical"] = vertical
+    apply_config(opts, config)
+
+    #
+    # Create Artist
+    #
+    # A Model is created from model_data by the artist
+    # so that the artist can inform it how to transform
+    # things if neccessary.
+    artist = FrameArtist(model_data, ndf=ndf,
+                         config=config["artist_config"],
+                         model_config=config["model_config"],
+                         canvas=_create_canvas(canvas or config["canvas_config"]["type"],
+                                               config=config["canvas_config"]))
+
+
+    return artist
+
+
+def render(sam_file, res_file=None, ndf=6,
+           canvas=None,
+           show=None,
+           hide=None,
+           verbose=False,
+           vertical=2,
+           displaced=None,
+           reference=None,
+           **opts):
+    """
+    Primary rendering function.
+
+    To render a model directly from Python::
+
+        artist = veux.render(model, canvas=canvas)
+
+    Parameters
+    ----------
+    model : str, dict, or Model
+        The ``model`` parameter can be of several types:
+
+        - **str**: Treated as a file path. Supported file formats are ``.json`` and ``.tcl``.
+        - **dict**: A dictionary representation of the model.
+        - **Model**: An instance of the ``Model`` class from the `sees <https://pypi.org/project/sees>`_ Python package. See the `documentation <https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html>`_ 
+          for details.
+
+    canvas : str, optional
+        The rendering backend to use. Options are:
+
+        - ``"gltf"`` (default): Produces high-quality renderings. Files can be saved as ``.html`` or ``.glb``. ``.glb`` is recommended for 3D object portability.
+        - ``"plotly"``: Best for model debugging. Includes detailed annotations (e.g., node/element numbers, properties) but lower visual quality than  ``gltf``.
+        - ``"matplotlib"``: Generates ``.png`` files programmatically. Note that renderings are lower quality compared to ``gltf``.
+
+    Returns
+    -------
+    artist : Artist
+        An object representing the rendered model. Can be used to view or save the rendering.
+
+
+    """
 
     # Configuration is determined by successively layering
     # from sources with the following priorities:
@@ -162,34 +242,20 @@ def render(sam_file, res_file=None, ndf=6,
     #
     # Read model data
     #
-    if isinstance(sam_file, (str, Path)):
-        model_data = veux.model.read_model(sam_file)
-
-    elif hasattr(sam_file, "asdict"):
-        # Assuming an opensees.openseespy.Model
-        model_data = sam_file.asdict()
-
-    elif hasattr(sam_file, "read"):
-        model_data = veux.model.read_model(sam_file)
-
-    elif isinstance(sam_file, tuple):
-        # TODO: (nodes, cells)
-        pass
-
-    elif not isinstance(sam_file, dict):
-        model_data = veux.model.FrameModel(sam_file)
-
-    else:
-        model_data = sam_file
+    model_data = _create_model(sam_file)
 
     # Setup config
     config = Config()
 
-    if "RendererConfiguration" in model_data:
+    if isinstance(model_data, dict) and "RendererConfiguration" in model_data:
         apply_config(model_data["RendererConfiguration"], config)
 
     config["artist_config"]["vertical"] = vertical
     apply_config(opts, config)
+
+    # TODO: Maybe this be moved after constructing FrameArtist;
+    # that way we can just say 
+    # artist = create_artist(sam_file, vertical=vertical, **)
     if show is not None and reference is None and displaced is None: 
         reference = show 
 
@@ -240,7 +306,7 @@ def render(sam_file, res_file=None, ndf=6,
         # TODO: reimplement point displacements
         # cases = [artist.add_point_displacements(config["displ"], scale=config["scale"])]
 
-    if "Displacements" in model_data:
+    if isinstance(model_data, dict) and "Displacements" in model_data:
         cases.extend(artist.add_state(model_data["Displacements"],
                                         scale=config["scale"],
                                         only=config["mode_num"]))
