@@ -16,14 +16,14 @@ import pygltflib
 from pygltflib import FLOAT
 
 from veux.canvas.gltf import GLTF_T
-from veux.config import MeshStyle
+from veux.config import MeshStyle, LineStyle
 from veux.utility.earcut import earcut
 
 def _append_index(lst, item):
     lst.append(item)
     return len(lst) - 1
 
-def create_extrusion(model, canvas, config=None):
+def skin_frames(model, canvas, config=None):
     """
     Builds a single skinned mesh for all frame elements in the reference (undeformed) configuration.
     Returns a dictionary mapping (element_name, cross_section_index) -> glTF node index,
@@ -36,6 +36,7 @@ def create_extrusion(model, canvas, config=None):
     """
     gltf = canvas.gltf
     scene = gltf.scenes[0]
+    EYE4 = np.eye(4, dtype=canvas.float_t)
 
     if config is None:
         config = {
@@ -79,7 +80,7 @@ def create_extrusion(model, canvas, config=None):
     #    Accumulate geometry into a single big mesh
     #------------------------------------------------------
     for element_name, el in model["assembly"].items():
-        outline_0 = model.cell_section(el["name"], 0)
+        outline_0 = model.cell_section(element_name, 0)
         if outline_0 is None:
             continue
 
@@ -91,7 +92,7 @@ def create_extrusion(model, canvas, config=None):
 
         # Each cross-section j gets its own Node in glTF
         # We'll get a reference orientation from model.frame_orientation(...).T
-        R_all = [model.frame_orientation(el["name"]).T]*nen
+        R_all = [model.frame_orientation(element_name).T]*nen
 
         for j in range(nen):
             # 1A) Create a node for cross section j
@@ -109,16 +110,15 @@ def create_extrusion(model, canvas, config=None):
             skin_nodes[(element_name, j)] = this_node_idx
 
             # 1B) Compute the bind pose for this cross section
-            M_bind    = _make_matrix(X[j,:], rot_mat)
-            M_bind_inv = np.linalg.inv(M_bind)
+            M_bind_inv = np.linalg.inv(_make_matrix(X[j,:], rot_mat))
             # TODO:
-            inverse_bind_matrices.append(np.eye(4, dtype=canvas.float_t)) #(M_bind_inv)
-            joint_nodes.append(this_node_idx)
+            inverse_bind_matrices.append(EYE4) #(M_bind_inv)
+            joint = _append_index(joint_nodes, this_node_idx)
 
             # 1C) Append the ring geometry in local coords
             #     (i.e. how the ring is positioned relative to node’s origin)
             #     For a pure reference, we can treat ring coords as cross-section local
-            outline_j = model.cell_section(el["name"], j).copy()
+            outline_j = model.cell_section(element_name, j).copy()
             outline_j[:,1:] *= outline_scale
 
             for k, edge in enumerate(outline_j):
@@ -126,7 +126,7 @@ def create_extrusion(model, canvas, config=None):
                 positions.append(edge.astype(canvas.float_t))
 
                 # JOINTS_0 & WEIGHTS_0: rigidly bound to this cross-section's node
-                joints_0.append([len(joint_nodes)-1, 0, 0, 0])  # Single joint index
+                joints_0.append( [joint, 0, 0, 0])  # Single joint index
                 weights_0.append([1.0, 0.0, 0.0, 0.0])
 
                 # Optional: store a cheap local texcoord
@@ -162,7 +162,7 @@ def create_extrusion(model, canvas, config=None):
                     ])
 
         # End for j in range(nen)
-        if False:
+        if True:
             # Earcut-based end caps for j=0 and j=nen-1
             try:
                 front_outline = model.cell_section(el["name"], 0)[:,1:]
@@ -194,7 +194,7 @@ def create_extrusion(model, canvas, config=None):
         global_vertex_offset += nen * noe
 
         # Combine side + cap indices
-        if False:
+        if True:
             indices.extend(cap_indices)
 
     if len(positions)==0 or len(indices)==0:
@@ -209,8 +209,10 @@ def create_extrusion(model, canvas, config=None):
     #---------------------------------------------
     # 3) Build the Mesh with {POSITION, JOINTS_0, WEIGHTS_0, TEXCOORD_0}
     #---------------------------------------------
-    _create_mesh(canvas, skin, positions, texcoords, joints_0,  weights_0, indices,
-                 material=canvas._get_material(config["style"]))
+    _create_mesh(canvas, positions, texcoords, joints_0,  weights_0, indices,
+                 skin_idx=skin,
+                 material=canvas._get_material(config["style"])
+    )
     return skin_nodes
 
 
@@ -225,7 +227,7 @@ def _create_skin(canvas, ibms, joint_nodes, skeleton):
     skin = pygltflib.Skin(
         inverseBindMatrices=_append_index(gltf.accessors, pygltflib.Accessor(
             bufferView=canvas._push_data(ibm_array.tobytes(), target=None),
-            componentType=FLOAT,
+            componentType=GLTF_T[canvas.float_t],
             count=len(ibms),
             type="MAT4"
         )),
@@ -240,12 +242,13 @@ def _create_skin(canvas, ibms, joint_nodes, skeleton):
     return _append_index(gltf.skins, skin)
 
 
-def _create_mesh(canvas, skin_idx,
+def _create_mesh(canvas,
                   positions,
                   texcoords,
                   joints_0,
                   weights_0,
                   indices,
+                  skin_idx=None,
                   material=None):
     
     gltf = canvas.gltf
@@ -258,9 +261,9 @@ def _create_mesh(canvas, skin_idx,
 
     # Accessors
     positions = np.array(positions, dtype=canvas.float_t)
-    pos_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
+    ver_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
         bufferView=canvas._push_data(positions.tobytes(), pygltflib.ARRAY_BUFFER),
-        componentType=FLOAT,
+        componentType=GLTF_T[canvas.float_t],
         count=len(positions),
         type="VEC3",
         min=positions.min(axis=0).tolist(),
@@ -270,7 +273,7 @@ def _create_mesh(canvas, skin_idx,
     texcoords = np.array(texcoords, dtype=canvas.float_t)
     tex_accessor = _append_index(gltf.accessors, pygltflib.Accessor(
         bufferView=canvas._push_data(texcoords.tobytes(), pygltflib.ARRAY_BUFFER),
-        componentType=FLOAT,
+        componentType=GLTF_T[canvas.float_t],
         count=len(texcoords),
         type="VEC2"
     ))
@@ -304,7 +307,7 @@ def _create_mesh(canvas, skin_idx,
         primitives=[
             pygltflib.Primitive(
                 attributes=pygltflib.Attributes(
-                    POSITION=pos_accessor,
+                    POSITION=ver_accessor,
                     JOINTS_0=jnt_accessor,
                     WEIGHTS_0=wts_accessor,
                     TEXCOORD_0=tex_accessor
@@ -314,23 +317,19 @@ def _create_mesh(canvas, skin_idx,
                 mode=pygltflib.TRIANGLES
             )
         ],
-        name="FrameExtrusionMesh"
+        name="FrameSkinMesh"
     )
-
-    if not gltf.meshes:
-        gltf.meshes = []
 
     mesh_idx = _append_index(gltf.meshes, mesh)
 
     #---------------------------------------------
     # 4) Create a Node referencing the mesh + skin
     #---------------------------------------------
-    gltf.nodes.append(pygltflib.Node(
+    mesh_node_idx = _append_index(gltf.nodes, pygltflib.Node(
         mesh=mesh_idx,
         skin=skin_idx,
-        name="FrameExtrusionMeshNode"
+        name="FrameSkinMeshNode"
     ))
-    mesh_node_idx = len(gltf.nodes)-1
 
     # Put it in the scene
     if not gltf.scenes or len(gltf.scenes)==0:
@@ -388,7 +387,7 @@ def deform_extrusion(model, canvas, state, skin_nodes, config=None):
             gltf.nodes[node_idx].rotation = [qx, qy, qz, qw]
 
 
-class VeuxAnimation:
+class Motion:
     """
     A helper class that accumulates multiple "states" (deformed configurations)
     and creates a time-based glTF Animation. Each call to add_state() adds
@@ -409,7 +408,7 @@ class VeuxAnimation:
         self.current_time = 0.0
         self.anim_name = name
 
-        # We'll store keyframes in a dictionary:
+        # Store keyframes in a dictionary:
         #   self._keyframes[node_idx]["translation"] = [(t0, (x,y,z)), (t1, (x,y,z)), ...]
         #   self._keyframes[node_idx]["rotation"]    = [(t0, (qx,qy,qz,qw)), (t1, ...), ...]
         self._keyframes = defaultdict(lambda: {"translation": [], "rotation": []})
@@ -433,13 +432,14 @@ class VeuxAnimation:
 
         self._keyframes[node]["rotation"].append((time, rotation))
 
+    def set_field(self):
+        pass
 
-    def add_skin_state(self, state, skin_nodes, time=None):
+    def set_skin_state(self, state, skin_nodes, time=None):
         """
-        Given a 'state' that has deformed positions & rotations for each element’s cross-section,
-        record a new keyframe at the current time. Then advance self.current_time by self.time_step.
+        Given a 'state' that has deformed positions and rotations for each element’s cross-section,
+        record a new keyframe at the current time.
 
-        :param model:  The same structural model used in draw_extrusions_ref().
         :param state:  Some data structure that can provide displacements & rotations
                        for each (element, cross_section_index).
         """
@@ -473,7 +473,7 @@ class VeuxAnimation:
                 self.set_node_rotation(skin_nodes[key], (qx, qy, qz, qw))
 
 
-    def apply(self, canvas):
+    def add_to(self, canvas):
         """
         Build a glTF Animation from the accumulated keyframes and
         then let the canvas write the final file.
@@ -500,7 +500,7 @@ class VeuxAnimation:
         # 2) Flatten and encode data for each node
         # We do them all in a single big set of buffers—time values and output values.
         # However, each node gets its own Sampler, because it has distinct times/values
-        # in this naive implementation. (We could share times if they match exactly.)
+        # in this implementation. (We could share times if they match exactly.)
         for node_idx, track_dict in self._keyframes.items():
             pos_keyframes = track_dict["translation"]  # list of (time, (x,y,z))
             rot_keyframes = track_dict["rotation"]     # list of (time, (qx,qy,qz,qw))
@@ -547,7 +547,6 @@ class VeuxAnimation:
         # 3) Now create Channels referencing each sampler
         for node_idx in self._keyframes:
             if node_idx in node_position_sampler_index:
-
                 # Create a channel for translation
                 anim.channels.append(pygltflib.AnimationChannel(
                     sampler=node_position_sampler_index[node_idx],
@@ -617,28 +616,28 @@ def create_animation(artist, states, skin_nodes=None):
 
     # 1) Draw reference configuration with extrusions -> returns extrusion
     if skin_nodes is None:
-        skin_nodes = create_extrusion(artist.model, artist.canvas)
+        skin_nodes = skin_frames(artist.model, artist.canvas)
 
     # 2) Create the animation helper
-    animation = VeuxAnimation(artist.model, time_step=1)
+    animation = Motion(artist.model, time_step=1)
 
     # 3) For each state, record a new keyframe
     for time in states.times:
-        animation.add_skin_state(states[time], skin_nodes)
+        animation.set_skin_state(states[time], skin_nodes)
         animation.advance()
 
-    animation.apply(artist.canvas)
+    animation.add_to(artist.canvas)
     return animation
 
 
 
-def _render(sam_file, res_file=None, **opts):
+def animate(sam_file, res_file=None, **opts):
     # Configuration is determined by successively layering
     # from sources with the following priorities:
     #      defaults < file configs < kwds
     from veux.frame import FrameArtist
     import veux.canvas.gltf
-    from veux.model import read_model 
+    from veux.model import read_model
 
     config = veux.config.Config()
 
@@ -646,28 +645,40 @@ def _render(sam_file, res_file=None, **opts):
     if sam_file is None:
         raise RenderError("Expected positional argument <sam-file>")
 
-    # Read and clean model
-    if not isinstance(sam_file, dict):
+    if isinstance(sam_file, (str,)):
         model = read_model(sam_file)
-    else:
-        model = sam_file
+
+    elif hasattr(sam_file, "asdict"):
+        # Assuming an opensees.openseespy.Model
+        model = sam_file.asdict()
+
+    elif hasattr(sam_file, "read"):
+        model = read_model(sam_file)
+
 
     if "RendererConfiguration" in model:
         veux.apply_config(model["RendererConfiguration"], config)
 
     veux.apply_config(opts, config)
 
-#   artist = veux.FrameArtist(model, **config)
     artist = FrameArtist(model, ndf=6,
                          config=config["artist_config"],
                          model_config=config["model_config"],
                          canvas=veux.canvas.gltf.GltfLibCanvas())
 
-    skin_nodes = create_extrusion(artist.model, artist.canvas, 
+    skin_nodes = skin_frames(artist.model, artist.canvas, 
                                   config=artist._config_sketch("default")["surface"]["frame"])
 
     if res_file is not None:
-        soln = veux.state.read_state(res_file, artist.model, **opts["state_config"])
+        if isinstance(res_file, str):
+            soln = veux.state.read_state(res_file, artist.model, **opts["state_config"])
+        else:
+            from veux.state import GroupSeriesSE3, StateSeries
+            series = StateSeries(res_file, artist.model,
+                transform = artist.dofs2plot,
+                recover_rotations="conv"
+            )
+            soln = GroupSeriesSE3(series, artist.model, recover_rotations="conv", transform=artist.dofs2plot)
         if "time" not in opts:
             create_animation(artist, soln, skin_nodes)
         else:
@@ -684,7 +695,7 @@ if __name__ == "__main__":
     config = veux.parser.parse_args(sys.argv)
 
     try:
-        artist = _render(**config)
+        artist = animate(**config)
 
         # write plot to file if output file name provided
         if config["write_file"]:
