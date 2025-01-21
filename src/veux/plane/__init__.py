@@ -1,4 +1,5 @@
 import numpy as np
+from veux.model import Model
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 
@@ -27,21 +28,39 @@ def _quads_to_tris(quads):
         tris[j + 1][2] = quads[i][0]
     return tris
 
-class PlaneModel:
-    def __init__(self, mesh):
+class PlaneModel(Model):
+    ndm = 2
+    def __init__(self, mesh, ndf=2):
         self.recs = []
         self.tris = []
+        self.ndf = ndf
 
         if isinstance(mesh, tuple):
-            self.nodes, elems = mesh
-            self.recs = [
-    #            tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 4
-                tuple(i   for i in elem) for elem in elems.values() if len(elem) == 4
-            ]
+            nodes, elems = mesh
+            if isinstance(nodes, dict):
+                self.nodes = nodes 
+            else:
+                self.nodes = {i: list(coord) for i, coord in enumerate(nodes)}
+
+            if isinstance(elems, dict):
+                self.recs = [
+                    tuple(elem[i]-1 for i in range(4)) for elem in elems.values() if len(elem) >= 4
+                ]
+                self.tris = [
+                    tuple(i-1   for i in elem) for elem in elems.values() if len(elem) == 3
+                ]
+            else:
+                self.recs = [
+        #            tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 4
+                    tuple(elem[i]   for i in range(4)) for elem in elems if len(elem) >= 4
+                ]
+                self.tris = [
+                    tuple(i for i in elem) for elem in elems if len(elem) == 3
+                ]
 
         else:
             # assume mesh is a meshio object
-            self.nodes = {i: list(coord) for i, coord in enumerate(mesh.points)}
+            self.nodes = {i: list(coord)[:2] for i, coord in enumerate(mesh.points)}
             for blk in mesh.cells:
                 if blk.type == "triangle":
                     self.tris = self.tris + [
@@ -51,19 +70,56 @@ class PlaneModel:
                     self.recs = self.recs + [
                         tuple(int(i) for i in elem) for elem in blk.data
                     ]
- 
-    def cell_exterior(self):
-        return self.tris + self.recs 
 
-    def node_position(self, tag=None):
-        return np.array(list(self.nodes.values()))
+    def frame_orientation(self, tag):
+        return None
 
-    def cell_triangles(self):
-        node_tag_to_index = {tag: i for i, tag in enumerate(self.nodes.keys())}
-        return [
-                tuple(node_tag_to_index[tag] for tag in elem)
-                for elem in self.tris + _quads_to_tris(self.recs)
-        ]
+
+    def iter_node_tags(self):
+        for tag in self.nodes:
+            yield tag 
+
+    def iter_cell_tags(self):
+        for tag in range(len(self.tris)+len(self.recs)):
+            yield tag
+
+    def cell_matches(self, tag, type=None):
+        if type == "plane":
+            return True 
+        else:
+            return False
+
+    def cell_exterior(self, tag=None):
+        if tag is None:
+            return self.tris + self.recs 
+        elif tag < len(self.tris):
+            return self.tris[tag]
+        else:
+            return self.recs[tag]
+
+    def node_position(self, tag=None, state=None):
+        xyz = np.zeros((len(self.nodes), 3))
+        xyz[:,[0,2]] = list(self.nodes.values())
+        return xyz
+
+    def cell_triangles(self, tag=None):
+        if tag is None:
+            return [
+                    self.cell_triangles(tag) for tag in range(len(self.recs)+len(self.tris))
+            ]
+#           node_tag_to_index = {tag: i for i, tag in enumerate(self.nodes.keys())}
+#           return [
+#                   tuple(node_tag_to_index[tag] for tag in elem)
+#                   for elem in self.tris + _quads_to_tris(self.recs)
+#           ]
+        elif tag < len(self.tris):
+            return self.tris[tag]
+        else:
+            quad = self.recs[tag]
+            return [
+                [quad[0], quad[1], quad[2]],
+                [quad[2], quad[3], quad[0]]
+            ]
 
 
 class PlaneArtist:
@@ -96,7 +152,7 @@ class PlaneArtist:
         #
         # Plot solution contours
         #
-        nodes_x, nodes_y = self.model.node_position().T
+        nodes_x, _, nodes_y = self.model.node_position().T
 
         triangles = self.model.cell_triangles()
 
@@ -114,93 +170,12 @@ class PlaneArtist:
     def show(self):
         plt.show()
 
-
-def render(mesh, solution, ax=None,
-         # mesh options
-         show_edges=True,
-         # contour options
-         show_scale=True
-    ):
-    #
-    # Extract mesh information
-    #
-    recs = []
-    tris = []
-
-    if isinstance(mesh, tuple):
-        nodes, elems = mesh
-        recs = [
-#            tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 4
-             tuple(i   for i in elem) for elem in elems.values() if len(elem) == 4
-        ]
-
-    else:
-        # assume mesh is a meshio object
-        nodes = {i: list(coord) for i, coord in enumerate(mesh.points)}
-        for blk in mesh.cells:
-            if blk.type == "triangle":
-                tris = tris + [
-                    tuple(int(i) for i in elem) for elem in blk.data
-                ]
-            elif blk.type == "quad":
-                recs = recs + [
-                    tuple(int(i) for i in elem) for elem in blk.data
-                ]
-
-
-    elements = tris + recs
-
-
-    #
-    # Set up canvas
-    #
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.figure
-
-
-    #
-    # plot the finite element mesh
-    #
-    if show_edges:
-        _draw_outlines(nodes, elements, ax=ax)
-
-
-    #
-    # Plot solution contours
-    #
-    nodes_x, nodes_y = zip(*nodes.values())
-
-    # convert all elements into triangles
-    node_tag_to_index = {tag: i for i, tag in enumerate(nodes.keys())}
-    elements_all_tris = [
-            tuple(node_tag_to_index[tag] for tag in elem)
-            for elem in tris + _quads_to_tris(recs)
-    ]
-
-    # create an unstructured triangular grid instance
-    triangulation = tri.Triangulation(nodes_x, nodes_y, elements_all_tris)
-    contours = \
-        ax.tricontourf(triangulation, solution, cmap="twilight", alpha=0.5)
-
-
-    if show_scale:
-        plt.colorbar(contours, ax=ax)
-    ax.axis('equal')
-    return ax
-
-
 def render(mesh, field=None, ax=None,
          # mesh options
          show_edges=True,
          # contour options
          show_scale=True
     ):
-    #
-    # Extract mesh information
-    #
-
     artist = PlaneArtist(PlaneModel(mesh))
 
     #
