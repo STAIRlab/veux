@@ -35,7 +35,7 @@ class Canvas:
         pass
 
     def plot_hover(self, vertices, data=None, text=None, style: NodeStyle=None, label=None, keys=None, html=None):
-        warnings.warn("plot_hover not implemented for chosen canvas")
+        warnings.warn("plot_hover not implemented for chosen canvas; try canvas='plotly'")
 
     def plot_nodes(self, vertices, indices=None, label=None, style: NodeStyle=None, rotate=None, data=None):
         warnings.warn("plot_nodes not implemented for chosen canvas")
@@ -45,6 +45,9 @@ class Canvas:
 
     def plot_mesh(self,  vertices, indices     , label=None, style: MeshStyle=None, local_coords=None):
         warnings.warn("plot_mesh not implemented for chosen canvas")
+
+    def plot_mesh_field(self, mesh, field):
+        warnings.warn("plot_mesh_field not implemented for chosen canvas; try canvas='gltf'")
 
     def plot_vectors(self, locs, vecs, label=None, **kwds):
         ne = vecs.shape[0]
