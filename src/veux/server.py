@@ -20,7 +20,8 @@ class Server:
 
         if glb is not None:
             self._source = "glb"
-            html = Viewer(src="./model.glb",
+            html = Viewer(path="./model.glb",
+                          data=glb,
                           viewer=viewer).get_html()
 
             # Create routes
