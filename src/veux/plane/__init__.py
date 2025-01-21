@@ -13,21 +13,6 @@ def _plot_grid(x,y, ax=None, **kwargs):
     ax.autoscale()
 
 
-# converts quad elements into tri elements
-def _quads_to_tris(quads):
-    tris = [
-        [None for j in range(3)] for i in range(2*len(quads))
-    ]
-    for i in range(len(quads)):
-        j = 2*i
-        tris[j][0] = quads[i][0]
-        tris[j][1] = quads[i][1]
-        tris[j][2] = quads[i][2]
-        tris[j + 1][0] = quads[i][2]
-        tris[j + 1][1] = quads[i][3]
-        tris[j + 1][2] = quads[i][0]
-    return tris
-
 class PlaneModel(Model):
     ndm = 2
     def __init__(self, mesh, ndf=2):
