@@ -6,6 +6,7 @@
 #
 # Claudio Perez
 #
+from .canvas import Line, Mesh, Node
 from .canvas import Canvas, NodeStyle, MeshStyle, LineStyle
 import numpy as np
 
@@ -127,14 +128,28 @@ class PlotlyCanvas(Canvas):
             style = MeshStyle()
 
         if isinstance(vertices, int):
-            x, y, z = self._vertices[vertices]
+            # x, y, z = self._vertices[vertices]
+            x = self.data[vertices]["x"]
+            y = self.data[vertices]["y"]
+            z = self.data[vertices]["z"]
             point_access = vertices
         else:
             x,y,z = zip(*vertices)
-            self._vertices.append(vertices)
-            point_access = len(self._vertices) - 1
+            # self._vertices.append(vertices)
+            point_access = len(self.data)
 
-        i,j,k = zip(*triangles)
+        print(triangles)
+        if isinstance(triangles, int):
+            i = self.data[triangles]["i"]
+            j = self.data[triangles]["j"]
+            k = self.data[triangles]["k"]
+            index_access = triangles
+        else:
+            i,j,k = zip(*triangles)
+            # self._vertices.append(vertices)
+            index_access = len(self.data)
+
+        
         self.data.append({
             #"name": label if label is not None else "",
             "type": "mesh3d",
@@ -146,7 +161,11 @@ class PlotlyCanvas(Canvas):
             "opacity": style.alpha,
             "color":   style.color,
         })
-        return point_access, None
+     
+        return Mesh(id=None,
+                    vertices=point_access, 
+                    indices=index_access)
+
 
     def build(self):
         opts = self.config
@@ -210,6 +229,8 @@ class PlotlyCanvas(Canvas):
           "include_mathjax" : "cdn",
           "full_html"       : True
         }
+        if not hasattr(self, "fit"):
+            self.build()
         return plotly.io.to_html(self.fig,
                                  div_id=str(id(self)),
                                  **options)

@@ -80,7 +80,11 @@ class MatplotlibCanvas(Canvas):
     def plot_mesh(self, vertices, indices, local_coords=None, style=None)->int:
         if style is None:
             style = MeshStyle()
+    
         self.ax.plot_trisurf(*np.array(vertices).T, triangles=indices, color=style.color)
+
+    def plot_mesh_field(self, mesh, field):
+        pass
 
 
     def plot_vectors(self, locs, vecs, alr=0.1, **kwds):
