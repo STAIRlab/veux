@@ -17,78 +17,6 @@ from veux.state  import read_state, State, BasicState
 from veux.config import Config, LineStyle, NodeStyle
 
 
-
-def elastic_curve(x: Array, v: list, L:float)->Array:
-    "compute points along Euler's elastica"
-    if len(v) == 2:
-        ui, uj, (vi, vj) = 0.0, 0.0, v
-    else:
-        ui, vi, uj, vj = v
-    xi = x/L                        # local coordinate
-    N1 = 1.-3.*xi**2+2.*xi**3
-    N2 = L*(xi-2.*xi**2+xi**3)
-    N3 = 3.*xi**2-2*xi**3
-    N4 = L*(xi**3-xi**2)
-    y = ui*N1 + vi*N2 + uj*N3 + vj*N4
-    return y.flatten()
-
-def elastic_tangent(x: Array, v: list, L: float)->Array:
-    if len(v) == 2:
-        ui, uj, (vi, vj) = 0.0, 0.0, v
-    else:
-        ui, vi, uj, vj = v
-    xi = x/L
-    M3 = 1 - xi
-    M4 = 6/L*(xi-xi**2)
-    M5 = 1 - 4*xi+3*xi**2
-    M6 = -2*xi + 3*xi**2
-    return (ui*M3 + vi*M5 + uj*M4 + vj*M6).flatten()
-
-
-def displaced_profile(
-        coord: Array,
-        displ: Array,        #: Displacements
-        vect : Array = None, #: Element orientation vector
-        Q = None,
-        npoints: int = 10,
-        tangent: bool = False
-    ):
-    n = npoints
-    #           (------ndm------)
-    reps = 4 if len(coord[0])==3 else 2
-
-    # 3x3 rotation into local system
-    # Q = rotation(coord, vect)
-    # Local displacements
-    u_local = block_diag(*[Q]*reps)@displ
-    # Element length
-    L = np.linalg.norm(coord[-1] - coord[0])
-
-    # longitudinal, transverse, vertical, section, elevation, plan
-    li, ti, vi, si, ei, pi = u_local[:6]
-    lj, tj, vj, sj, ej, pj = u_local[6:]
-
-    Lnew  = L + lj - li
-    xaxis = np.linspace(0.0, Lnew, n)
-
-    plan_curve = elastic_curve(xaxis, [ti, pi, tj, pj], Lnew)
-    elev_curve = elastic_curve(xaxis, [vi,-ei, vj,-ej], Lnew)
-
-    local_curve = np.stack([xaxis + li, plan_curve, elev_curve])
-
-    if tangent:
-        plan_tang = elastic_tangent(xaxis, [ti, pi, tj, pj], Lnew)
-        elev_tang = elastic_tangent(xaxis, [vi,-ei, vj,-ej], Lnew)
-
-        local_tang = np.stack([np.linspace(0,0,n), plan_tang, elev_tang])
-        return (
-            Q.T@local_curve + coord[0][None,:].T,
-            Q.T@local_tang
-        )
-
-    return Q.T@local_curve + coord[0][None,:].T
-
-
 class FrameArtist:
     ndm:    int
     ndf:    int
@@ -232,29 +160,6 @@ class FrameArtist:
         return name
 
 
-    # def plot_displaced_assembly(self, state=None, label=None):
-    #     model = self.model
-    #     N  = 10 if state is not None else 2
-    #     ne = len(model["assembly"])
-    #     coords = np.zeros((ne*(N+1), 3))
-    #     coords.fill(np.nan)
-
-    #     do_lines = False
-    #     for i,(tag,el) in enumerate(model["assembly"].items()):
-    #         if _is_frame(el) and state is not None:
-    #             do_lines = True
-    #             coords[(N+1)*i:(N+1)*i+N,:] = displaced_profile(model.cell_position(tag),
-    #                                                             state.cell_array(tag).flatten(),
-    #                                                             Q=model.frame_orientation(tag),
-    #                                                             npoints=N).T
-    #         elif len(el["crd"]) == 2:
-    #             do_lines = True
-    #             coords[(N+1)*i:(N+1)*i+N,:] = np.linspace(*el["crd"], N)
-
-    #     if do_lines:
-    #         self.canvas.plot_lines(coords[:, :self.ndm], style=LineStyle(color="red"), label=label)
-
-
     def draw_origin(self, **kwds):
         xyz = np.zeros((3,3))
         uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
@@ -339,12 +244,12 @@ class FrameArtist:
                     if not hasattr(displ, "flatten"):
                         continue
                     do_frames = True
-                    frames[(N+1)*i:(N+1)*i+N,:] = displaced_profile(model.cell_position(tag),
-#                   frames.append (               displaced_profile(model.cell_position(tag),
+#                   frames.append (               _displaced_profile(model.cell_position(tag),
+                    frames[(N+1)*i:(N+1)*i+N,:] = _displaced_profile(model.cell_position(tag),
                                                                     displ.flatten(),
                                                                     Q=model.frame_orientation(tag),
                                                                     npoints=N).T
-#                   )
+
             elif model.cell_matches(tag, "plane") and config["plane"]["show"]:
                 idx = model.cell_exterior(tag)
                 if len(idx) == 4:
@@ -450,9 +355,6 @@ class FrameArtist:
 
         self.canvas.plot_vectors(xyz.reshape(ne*3,3), uvw.reshape(ne*3,3))
 
-
-# PUBLIC
-
     def draw(self):
         # Background
         default = self.config["sketches"]["default"]
@@ -506,4 +408,74 @@ class FrameArtist:
         repl.interp._interp.createcommand("plot", plot)
         # repl.interp._interp.createcommand("show", lambda *args: self.canvas.show())
         repl.repl()
+
+
+def _elastic_curve(x: Array, v: list, L:float)->Array:
+    "compute points along Euler's elastica"
+    if len(v) == 2:
+        ui, uj, (vi, vj) = 0.0, 0.0, v
+    else:
+        ui, vi, uj, vj = v
+    xi = x/L                        # local coordinate
+    N1 = 1.-3.*xi**2+2.*xi**3
+    N2 = L*(xi-2.*xi**2+xi**3)
+    N3 = 3.*xi**2-2*xi**3
+    N4 = L*(xi**3-xi**2)
+    y = ui*N1 + vi*N2 + uj*N3 + vj*N4
+    return y.flatten()
+
+def _elastic_tangent(x: Array, v: list, L: float)->Array:
+    if len(v) == 2:
+        ui, uj, (vi, vj) = 0.0, 0.0, v
+    else:
+        ui, vi, uj, vj = v
+    xi = x/L
+    M3 = 1 - xi
+    M4 = 6/L*(xi-xi**2)
+    M5 = 1 - 4*xi+3*xi**2
+    M6 = -2*xi + 3*xi**2
+    return (ui*M3 + vi*M5 + uj*M4 + vj*M6).flatten()
+
+
+def _displaced_profile(
+        coord: Array,
+        displ: Array,        #: Displacements
+        Q = None,
+        npoints: int = 10,
+        tangent: bool = False
+    ):
+    n = npoints
+    #           (------ndm------)
+    reps = 4 if len(coord[0])==3 else 2
+
+    # 3x3 rotation into local system
+    # Q = rotation(coord, vect)
+    # Local displacements
+    u_local = block_diag(*[Q]*reps)@displ
+    # Element length
+    L = np.linalg.norm(coord[-1] - coord[0])
+
+    # longitudinal, transverse, vertical, section, elevation, plan
+    li, ti, vi, si, ei, pi = u_local[:6]
+    lj, tj, vj, sj, ej, pj = u_local[6:]
+
+    Lnew  = L + lj - li
+    xaxis = np.linspace(0.0, Lnew, n)
+
+    plan_curve = _elastic_curve(xaxis, [ti, pi, tj, pj], Lnew)
+    elev_curve = _elastic_curve(xaxis, [vi,-ei, vj,-ej], Lnew)
+
+    local_curve = np.stack([xaxis + li, plan_curve, elev_curve])
+
+    if tangent:
+        plan_tang = _elastic_tangent(xaxis, [ti, pi, tj, pj], Lnew)
+        elev_tang = _elastic_tangent(xaxis, [vi,-ei, vj,-ej], Lnew)
+
+        local_tang = np.stack([np.linspace(0,0,n), plan_tang, elev_tang])
+        return (
+            Q.T@local_curve + coord[0][None,:].T,
+            Q.T@local_tang
+        )
+
+    return Q.T@local_curve + coord[0][None,:].T
 
