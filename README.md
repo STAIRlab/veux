@@ -179,10 +179,12 @@ Similar packages for OpenSees rendering include:
 
 - [`vfo`](https://vfo.readthedocs.io/en/latest/)
 - [`opsvis`](https://opsvis.readthedocs.io/en/latest/index.html)
+- [OpenSeesPyView](https://github.com/Junjun1guo/OpenSeesPyView)
 
 Other
 
 - [`fapp`](https://github.com/wcfrobert/fapp) 
+
 -->
 
 ## Gallery

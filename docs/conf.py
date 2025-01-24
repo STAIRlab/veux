@@ -34,6 +34,7 @@ root_doc = 'index'
 language = 'en'
 
 # -- Options for HTML output -------------------------------------------------
+html_baseurl = "https://veux.stairlab.io"
 html_title = project
 html_theme = "pydata_sphinx_theme"
 html_static_path = ['_static']
