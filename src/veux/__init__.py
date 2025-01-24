@@ -77,7 +77,7 @@ def _create_canvas(name=None, config=None):
         raise ValueError("Unknown canvas name " + str(name))
 
 
-def _create_model(sam_file):
+def _create_model(sam_file, ndf=None):
 
     import veux.model
 
@@ -93,7 +93,7 @@ def _create_model(sam_file):
 
     elif isinstance(sam_file, tuple):
         from veux.plane import PlaneModel
-        return PlaneModel(sam_file)
+        return PlaneModel(sam_file, ndf=ndf)
 
     elif not isinstance(sam_file, dict):
         model_data = veux.model.FrameModel(sam_file)
@@ -109,8 +109,7 @@ def create_artist(
            vertical=2,
            **opts):
     """
-
-    To create an artist for a model::
+    Create an artist for a model::
 
         artist = veux.create_artist(model, canvas=canvas)
 
@@ -136,25 +135,6 @@ def create_artist(
     artist : Artist
         An object representing the rendered model. Can be used to view or save the rendering.
 
-    Viewing the Rendering
-    ---------------------
-    To view a rendering generated with ``canvas="gltf"`` or ``canvas="plotly"``, use the ``veux.serve()`` function::
-
-        veux.serve(artist)
-
-    This will start a local web server and output a message like::
-
-        Bottle v0.13.1 server starting up (using WSGIRefServer())...
-        Listening on http://localhost:8081/
-        Hit Ctrl-C to quit.
-
-    Open the URL (e.g., http://localhost:8081) in a web browser to interactively view the rendering.
-
-    Saving the Rendering
-    --------------------
-    Use the ``artist.save()`` method to write the rendering to a file. The file format depends on the selected canvas:
-
-
     """
 
     # Configuration is determined by successively layering
@@ -164,7 +144,7 @@ def create_artist(
     if sam_file is None:
         raise RenderError("Expected required argument <sam-file>")
 
-    model_data = _create_model(sam_file)
+    model_data = _create_model(sam_file, ndf=ndf)
 
     # Setup config
     config = Config()
