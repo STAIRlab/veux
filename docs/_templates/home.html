@@ -1,12 +1,10 @@
 <!doctype html>
 <html lang=en>
-
 <head>
   <meta charset=utf-8>
   <meta name=description content="{{ description }}">
   <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
   <meta http-equiv=x-ua-compatible content="ie=edge">
-
   <meta name=twitter:card content="summary_large_image">
   <meta name=twitter:image content="https://numpy.org/images/twitter-image.jpg">
   <meta name=twitter:title content="{{ project }}">
@@ -23,13 +21,22 @@
   {# _webpack.head_js_preload() #}
   <link rel="canonical" href="https://veux.stairlab.io" >
   <link rel="icon" type="image/x-icon" href="_static/images/favicon.ico">
-  <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,900"> -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href=https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css>
+  {% if False %}
+  <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,900"> -->
   <!-- <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/content.css.min.04e1e257bae2de28e38445f3f5d76e28317dc313cb7ead5536bcb52baccf91f9.css"> -->
+    href="{{ pathto('_static/css', 1) }}/theme-css/content.css.min.04e1e257bae2de28e38445f3f5d76e28317dc313cb7ead5536bcb52baccf91f9.css"> 
+  -->
+  <!--
+  <link rel="stylesheet" type=text/css
+    href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
+  <link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet">
+  <script type=text/javascript src=/js/bundle.min.js></script>
+  -->
+  {% endif %}
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/theme-css/panel.css.min.d42639c23c159bedb13ee97ac0c12439a6ff5bf2e557fc976b54856abe4a616b.css">
   <link rel="stylesheet"
@@ -48,12 +55,6 @@
     href="{{ pathto('_static/css', 1) }}/css/vars-override.css.min.ff70feeb43b75e041c44e6aba96a0979ee53f0e959cb0ecf8f4e00c2ec6c9494.css">
 
   <link href="_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet">
-  <!--
-  <link rel="stylesheet" type=text/css
-    href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
-  <link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet">
-  <script type=text/javascript src=/js/bundle.min.js></script>
-  -->
   <link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet">
   <script src=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/js/uikit.min.js></script>
   <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/css/uikit.min.css>
@@ -69,7 +70,8 @@
 </head>
 
 <body>
-  <nav id="navbar-clone" class="nav navbar navbar-nav is-fresh is-transparent" role=navigation aria-label="main navigation">
+  <nav id="navbar-clone" class="nav navbar navbar-nav is-fresh is-transparent" role="navigation" aria-label="main navigation">
+  {% if False %}
     <!--
   <nav class="navbar-nav navbar is-fresh" role="navigation">
   <p class="sidebar-header-items__title"
@@ -86,12 +88,18 @@
     {#- include "sections/header.html" #}
   </nav>
   -->
+  {% endif %}
 
     <div class="container is-max-widescreen">
-      <div class=navbar-brand><a role=button class="navbar-burger" aria-label=menu aria-expanded=false
+      <div class=navbar-brand>
+        <a class=navbar-item href="/"><img class="navbar-logo" src="{{ pathto('_static/images/logo.svg', 1) }}" >
+          <div class=navbar-logo-text></div>
+        </a>
+        <a role=button class="navbar-burger" aria-label=menu aria-expanded=false
           data-target=navbar-menu><span aria-hidden=true></span>
           <span aria-hidden=true></span>
-          <span aria-hidden=true></span></a></div>
+          <span aria-hidden=true></span></a>
+      </div>
       <div id=navbar-menu class="navbar-menu is-static">
         <div class=navbar-end>
           {% if False %}
@@ -113,42 +121,18 @@
     </div>
   </nav>
 
-  <!--
-    <nav id=navbar-clone class="navbar navbar-nav is-fresh is-transparent" role=navigation aria-label="main navigation">
-      <div class="container is-max-widescreen">
-        <div class=navbar-brand>
-          <a class=navbar-item href="/"><img class=navbar-logo src="/_static/images/logo.svg" >
-            <div class=navbar-logo-text></div>
-          </a>
-          <a role=button class=navbar-burger aria-label=menu aria-expanded=false data-target=cloned-navbar-menu><span aria-hidden=true></span>
-      <span aria-hidden=true></span>
-      <span aria-hidden=true></span></a></div>
-        <div id=cloned-navbar-menu class="navbar-menu is-fixed">
-    <div class="navbar-header-items navbar-end">
-          <ul class="navbar-item bd-navbar-elements navbar-nav">
-    {{ generate_header_nav_html(n_links_before_dropdown=theme_header_links_before_dropdown) }}
-          </ul>
-      <a href=/install class="navbar-item is-secondary">Install</a>
-      <a href=https://numpy.org/doc/stable class="navbar-item is-secondary">Documentation</a>
-      <a href=/contribute class="navbar-item is-secondary">Contribute</a>
-      <div class="navbar-item has-dropdown is-hoverable">
-        <a aria-label="Select language" class=navbar-link>English</a><div class=navbar-dropdown><a href=/pt/ class=navbar-item>Português</a>
-        <a href=/ja/ class=navbar-item>日本語 (Japanese)</a>
-    </div></div></div></div></div>
-  </nav>
-  -->
-
-  <section class=hero>
-    <div class=hero-container>
-      <div class=hero-content>
-        <div class=hero-title-content>
-          <div class=hero-title>{{ project }}
-            <img class=hero-logo src="{{ pathto('_static/images/logo.svg', 1) }}" alt="{{ project }} logo. ">
-          </div>
-          <div class=flex-column>
-            <div class=hero-subtitle>{{ description }}</div>
-            <div class=hero-cta><a href="{{ pathto('library/index') }}">
-                <button class=cta-button>Get Started</button></a></div>
+  <section class="hero">
+    <div class="hero-container">
+      <div class="hero-content">
+        <div class="hero-title-content">
+          <div class="flex-column">
+          <div class="hero-title">{{ project }}</div>
+          <div class="hero-subtitle">{{ description }}</div>
+          <div class="hero-cta"><a href="{{ pathto('library/index') }}">
+              <button class="cta-button">Get Started</button></a></div>
+        </div>
+          <div class="flex-column">
+            <img class="header-image" src="{{ pathto('_static/images/hero.png', 1) }}" alt="{{ project }} logo. ">
           </div>
         </div>
       </div>
@@ -158,49 +142,49 @@
   <div class="news-container">
     <div class="news-title">
       {% if False %}
-      <a href=/news>sees has been renamed to <em>veux</em></a>
+      <a href="/news">sees has been renamed to <em>veux</em></a>
       {% endif %}
     </div>
   </div>
 
-  {% if True %}
   <section class=keyfeatures>
     <div class="container is-max-widescreen">
-      <div class=keyfeatures-box-container>
+      <div class="keyfeatures-box-container">
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
-          <div class=keyfeatures-box-title>Fast</div>
-          <div class=keyfeatures-box-text>veux supports highly efficient rendering formats like <a href="https://www.khronos.org/Gltf">glTF</a> which allow for responsive interactive rendering.</div>
+          <div class="keyfeatures-box-title">Fast</div>
+          <div class="keyfeatures-box-text">
+            <em><strong>veux</strong></em> is implemented in lightweight Python and leverages state of the art rendering technologies 
+            like <a href="https://www.khronos.org/Gltf">glTF</a> 
+            to match like the performance metal APIs like VTK and OpenGL, but without the headache of FFIs.
+          </div>
           </p>
         </div>
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
-          <div class=keyfeatures-box-title>Exact</div>
-          <div class=keyfeatures-box-text>veux offers support for geometrically exact simulations,
+          <div class="keyfeatures-box-title">Exact</div>
+          <div class="keyfeatures-box-text">
+            <em><strong>veux</strong></em> offers support for geometrically exact simulations,
             and correctly handles finite rotations.</div>
           </p>
         </div>
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
-          <div class=keyfeatures-box-title>Safe</div>
-          <div class=keyfeatures-box-text>
-            veux is stateless.
+          <div class="keyfeatures-box-title">Safe</div>
+          <div class="keyfeatures-box-text">
+            <em><strong>veux</strong></em> is stateless and modular, letting you plug it into existing workflows without
+            conflict or side effects.
           </div>
           </p>
         </div>
       </div>
     </div>
   </section>
-  {% endif %}
 
-  {% if True %}
-
-  {% endif %}
-
-  <section class=casestudies>
-    <div class=container>
-      <h1 class=casestudies-title>Gallery</h1>
-      <div class=casestudies-box-container>
+  <section class="casestudies">
+    <div class="container">
+      <h2 class="casestudies-title">Gallery</h2>
+      <div class="casestudies-box-container">
         {% for example in examples %}
         <a class="casestudies-box-content casestudies-underline"
           href="{{example.link}}">
@@ -209,6 +193,8 @@
           <div class=casestudies-box-text>{{ example.description }}</div>
         </a>
         {% endfor %}
+      </div>
+    </div>
   </section>
 
   <section class=tabs-section>
@@ -218,7 +204,6 @@
         <ul class="uk-flex-center uk-nav" uk-tab>
           <li class="uk-active"><a href=#>  Other libraries</a></li>
         </ul>
-
         <ul id=tabs-content class="uk-switcher uk-margin">
           <li class=array-libraries>
             <table>
@@ -232,28 +217,28 @@
                   <a href="https://github.com/claudioperez/opensees">
                     <img class=first-column-layout
                          src="{{ pathto('_static/images', 1) }}/content_images/brace/opensees.jpg" alt="opensees"></a></td>
-                <td class=full-center-text><a href="https://pypi.org/project/opensees" />opensees</a></td>
-                <td class=left-text>Fast nonlinear finite element analysis using the
+                <td class="full-center-text"><a href="https://pypi.org/project/opensees" />opensees</a></td>
+                <td class="left-text">Fast nonlinear finite element analysis using the
                   <a href="https://github.com/claudioperez/OpenSeesRT">OpenSeesRT framework</a>.</td>
               </tr>
               <tr>
                 <td style=text-align:center><img class=first-column-layout
                     src="{{ pathto('_static/images', 1) }}/content_images/brace/sdof.svg" alt="sdof"></td>
-                <td class=full-center-text><a href="https://pypi.org/project/sdof" />sdof</a></td>
+                <td class="full-center-text"><a href="https://pypi.org/project/sdof" />sdof</a></td>
                 <td class=left-text>Parallel integration of single degree-of-freedom systems.</td>
               </tr>
               <tr>
                 <td style=text-align:center><img class=first-column-layout
                     src="{{ pathto('_static/images', 1) }}/content_images/brace/mdof.svg" alt="mdof"></td>
                 <td class=full-center-text><a href="https://pypi.org/project/mdof">mdof</a></td>
-                <td class=left-text>Fast and friendly structural system identification.</td>
+                <td class="left-text">Fast and friendly structural system identification.</td>
               </tr>
             </table>
           </li>
           {% if False %}
-          <li class=data-science>
-            <div class=grid-container>
-              <div><a href=/images/content_images/ds-landscape.png target=_blank><img
+          <li class="data-science">
+            <div class="grid-container">
+              <div><a href=/images/content_images/ds-landscape.png target="_blank"><img
                     src="{{ pathto('_static/images', 1) }}/content_images/ds-landscape.png"
                     alt="Diagram of Python Libraries. The five catagories are 'Extract, Transform, Load', 'Data Exploration', 'Data Modeling', 'Data Evaluation' and 'Data Presentation'."
                     align=left></a></div>
@@ -395,26 +380,11 @@
             </ul>
           </div>
         </div>
-        <div class=link-column>
-          <div class=footer-column>
-            <div class=footer-header></div>
-            {% if False %}
-            <ul class=link-list style=padding-left:30px;margin-top:20px>
-              <li class=link-list><a class=footer-link href=/about>About us</a></li>
-              <li class=link-list><a class=footer-link href=/community>Community</a></li>
-              <li class=link-list><a class=footer-link href=/user-surveys>User surveys</a></li>
-              <li class=link-list><a class=footer-link href=/contribute>Contribute</a></li>
-              <li class=link-list><a class=footer-link href=/code-of-conduct>Code of conduct</a></li>
-            </ul>
-            {% endif %}
-          </div>
-        </div>
-        <div class=link-column>
-          <div class=footer-column>
-            <div class=footer-header></div>
-            <ul class=link-list style=padding-left:30px;margin-top:20px>
-              <li class=link-list><a class=footer-link href="https://raw.githubusercontent.com/claudioperez/veux/master/LICENSE.txt">Terms of use</a></li>
-              <!-- <li class=link-list><a class=footer-link href=/press-kit>Press kit</a></li> -->
+        <div class="link-column">
+          <div class="footer-column">
+            <div class="footer-header"></div>
+            <ul class="link-list" style=padding-left:30px;margin-top:20px>
+              <li class="link-list"><a class=footer-link href="https://raw.githubusercontent.com/claudioperez/veux/master/LICENSE.txt">Terms of use</a></li>
             </ul>
           </div>
         </div>
@@ -432,11 +402,11 @@
       </div>
     </div>
   </footer>
-  <!--
+  {% if False %}
   <script src=https://code.jquery.com/jquery-3.6.1.min.js></script>
   <script type=text/javascript>setupShortcuts(maxLevel=2)</script>
   <script defer data-domain=numpy.org src=https://views.scientific-python.org/js/script.js></script>
-  -->
+  {% endif %}
 </body>
 
 </html>
