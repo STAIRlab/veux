@@ -43,6 +43,19 @@ def _is_frame(el):
             or "dfrm"  in name \
             or "frame" in name
 
+def _is_truss(el):
+    name = el["type"].lower()
+    return "truss" in name or "twonodelink" in name
+
+
+def _is_plane(el):
+    name = el["type"].lower()
+    return "quad" in name or "shell" in name or "tri" in name
+
+def _is_solid(el):
+    name = el["type"].lower()
+    return "brick" in name
+
 def read_model(filename:str, shift=None, verbose=False)->dict:
     if isinstance(filename, str) and filename.endswith(".tcl"):
         import opensees.tcl
@@ -62,6 +75,11 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
             model = csi.create_model(csi.load(f), verbose=verbose)
         return model.asdict()
 
+    elif isinstance(filename, str) and filename.endswith(".vtk"):
+        import meshio
+        from .plane import PlaneModel
+        return PlaneModel(meshio.read(filename))
+
     elif isinstance(filename, str) and filename.endswith(".inp"):
         pass
 
@@ -80,21 +98,13 @@ class Model:
         # this method allows: nodes, cells = Model(mesh)
         return iter((self.nodes, self.cells))
 
-    @property
-    def nodes(self)->dict:
-        pass
-
-    @property
-    def cells(self)->dict:
-        pass
-
-    def iter_nodes(self): ...
-
     def node_location(self, tag): ...
 
     def node_information(self, tag): ...
 
-    def iter_cells(self, filt=None): ...
+    def iter_cells_tags(self, filt=None): ...
+
+    def cell_matches(self, tag): ...
 
     def cell_type(self, tag):       ... # line triangle quadrilateral 
 
@@ -136,6 +146,7 @@ class FrameModel:
         self.ndf = self._data["ndf"]
 
     def __getitem__(self, key):
+        # TODO: Remove this method
         return self._data[key]
 
     def cell_nodes(self, tag=None):
@@ -207,13 +218,6 @@ class FrameModel:
         for tag in self["assembly"]:
             yield tag
 
-
-    def iter_nodes(self, keys=None):
-        pass
-
-    def iter_cells(self, keys=None):
-        pass
-
     def node_properties(self, tag=None)->dict:
         return self["nodes"][tag]
 
@@ -245,6 +249,23 @@ class FrameModel:
             pos = pos + state.node_array(tag, dof=state.position)
 
         return pos
+
+    def cell_matches(self, tag, type=None)->bool:
+        elem = self["assembly"][tag]
+
+        if type == "frame":
+            return _is_frame(elem)
+        
+        if type == "truss":
+            return _is_truss(elem)
+
+        if type == "plane":
+            return _is_plane(elem)
+        
+        if type == "solid":
+            return _is_solid(elem) 
+        
+        return False
 
     def cell_position(self, tag, state=None):
         if isinstance(tag, list):
@@ -325,7 +346,7 @@ class FrameModel:
         """
         type = self["assembly"][tag]["type"].lower()
 
-        if "frm" in type or "beamcol" in type:
+        if self.cell_matches(tag, "frame"):
             return []
 
         elif "tri" in type:
@@ -361,7 +382,7 @@ class FrameModel:
         pass
 
     def cell_section(self, tag, coord=None):
-        if not _is_frame(self["assembly"][tag]):
+        if not self.cell_matches(tag, "frame"):
             return None
 
         if self._frame_outlines is None:
@@ -375,7 +396,7 @@ class FrameModel:
             outline = self._frame_outlines[tag]
 
         else:
-            outline = self._extrude_default
+            outline = self._extrude_default*self._extrude_scale
 
 
         if outline is None:
