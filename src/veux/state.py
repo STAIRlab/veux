@@ -116,7 +116,7 @@ class BasicState(State):
             data = {k: scale*np.array(val) for k, val in data.items()}
 
         if transform is not None:
-            data = {k: transform@val for k, val in data.items()}
+            data = {k: transform@np.atleast_1d(val) for k, val in data.items()}
 
         self._data  : dict  = data
         self._scale : float = scale
