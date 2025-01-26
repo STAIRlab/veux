@@ -21,18 +21,15 @@
   {# _webpack.head_pre_icons() #}
   {#- css() #}
   {# _webpack.head_js_preload() #}
-  <!--  -->
-  <!-- <link rel=icon href=/images/favicon.ico> -->
+  <link rel="canonical" href="https://veux.stairlab.io" >
   <link rel="icon" type="image/x-icon" href="_static/images/favicon.ico">
   <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,900"> -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href=https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css>
-  <link rel="stylesheet" type=text/css
-    href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/content.css.min.04e1e257bae2de28e38445f3f5d76e28317dc313cb7ead5536bcb52baccf91f9.css">
+  <!-- <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/theme-css/content.css.min.04e1e257bae2de28e38445f3f5d76e28317dc313cb7ead5536bcb52baccf91f9.css"> -->
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/theme-css/panel.css.min.d42639c23c159bedb13ee97ac0c12439a6ff5bf2e557fc976b54856abe4a616b.css">
   <link rel="stylesheet"
@@ -51,7 +48,12 @@
     href="{{ pathto('_static/css', 1) }}/css/vars-override.css.min.ff70feeb43b75e041c44e6aba96a0979ee53f0e959cb0ecf8f4e00c2ec6c9494.css">
 
   <link href="_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet">
+  <!--
+  <link rel="stylesheet" type=text/css
+    href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
   <link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet">
+  <script type=text/javascript src=/js/bundle.min.js></script>
+  -->
   <link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet">
   <script src=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/js/uikit.min.js></script>
   <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/css/uikit.min.css>
@@ -430,11 +432,11 @@
       </div>
     </div>
   </footer>
+  <!--
   <script src=https://code.jquery.com/jquery-3.6.1.min.js></script>
-
-  <script type=text/javascript src=/js/bundle.min.js></script>
   <script type=text/javascript>setupShortcuts(maxLevel=2)</script>
   <script defer data-domain=numpy.org src=https://views.scientific-python.org/js/script.js></script>
+  -->
 </body>
 
 </html>
