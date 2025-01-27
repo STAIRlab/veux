@@ -35,6 +35,7 @@ root_doc = 'index'
 language = 'en'
 
 # -- Options for HTML output -------------------------------------------------
+sitemap_url_scheme = "{link}"
 html_baseurl = "https://veux.stairlab.io/"
 html_title = project
 html_theme = "pydata_sphinx_theme"
