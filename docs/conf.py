@@ -36,6 +36,9 @@ language = 'en'
 
 # -- Options for HTML output -------------------------------------------------
 sitemap_url_scheme = "{link}"
+sitemap_excludes = [
+    "https://veux.stairlab.io/index.html"
+]
 html_baseurl = "https://veux.stairlab.io/"
 html_title = project
 html_theme = "pydata_sphinx_theme"
