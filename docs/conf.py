@@ -18,7 +18,8 @@ extensions = [
     # 'autoapi.extension',
     'myst_parser',
     'sphinx.ext.mathjax',
-    'sphinx.ext.githubpages'
+    'sphinx.ext.githubpages',
+    'sphinx_sitemap'
 ]
 
 

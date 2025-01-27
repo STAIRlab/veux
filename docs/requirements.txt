@@ -1,5 +1,6 @@
 sphinx
 pydata-sphinx-theme
 veux
+sphinx-sitemap
 myst-parser
 
