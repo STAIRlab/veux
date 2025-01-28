@@ -39,6 +39,7 @@ sitemap_url_scheme = "{link}"
 sitemap_excludes = [
     "https://veux.stairlab.io/index.html"
 ]
+html_extra_path = ["robots.txt"]
 html_baseurl = "https://veux.stairlab.io/"
 html_title = project
 html_theme = "pydata_sphinx_theme"
