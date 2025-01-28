@@ -27,9 +27,31 @@ def __getattr__(name: str):
 
 def serve(thing, viewer="mv", port=None):
     """
-    Start a server displaying `thing`
+    Serve the given thing using the specified viewer and port.
 
-    thing: Canvas or Artist
+    Parameters
+    ----------
+    thing : object
+        The object to be served. It can be an artist with a canvas attribute or a canvas itself.
+    viewer : str, optional
+        The viewer to use for serving the thing. Default is "mv".
+    port : int, optional
+        The port to run the server on. If not specified, a default port will be used.
+
+    Raises
+    ------
+    ValueError
+        If the thing cannot be served because it does not have the required methods.
+
+    Notes
+    -----
+    The function checks the following in order:
+
+    1. If the thing has a 'canvas' attribute, it uses the canvas.
+    2. If the canvas has a 'to_glb' method, it serves using GLB format.
+    3. If the canvas has a 'to_html' method, it serves using HTML format.
+    4. If the canvas has a 'show' method, it calls the show method.
+    5. If none of the above conditions are met, it raises a ValueError.
     """
     import veux.server
 
