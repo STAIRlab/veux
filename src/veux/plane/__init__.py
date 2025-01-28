@@ -85,6 +85,9 @@ class PlaneModel(Model):
     def node_position(self, tag=None, state=None):
         xyz = np.zeros((len(self.nodes), 3))
         xyz[:,[0,2]] = list(self.nodes.values())
+
+        if state is not None:
+            xyz = xyz + state.node_array(tag, dof=state.position)
         return xyz
 
     def cell_triangles(self, tag=None):
