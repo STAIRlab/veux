@@ -411,8 +411,6 @@ class GltfLibCanvas(Canvas):
 
         return nodes
 
-    # def add_joints(self, )
-
     def add_lines(self, lines: list, style=None, skin_nodes=None):
         """
         Add skinned lines to the glTF object that connect pairs of nodes specified in `lines`.
@@ -757,7 +755,7 @@ class GltfLibCanvas(Canvas):
 
 
     def plot_mesh_field(self, mesh_handle, field,
-                        colormap="viridis",
+                        colormap="twilight", #"viridis", 
                         vmin=None, vmax=None,
                         **kwds) -> tuple:
         """
@@ -802,15 +800,11 @@ class GltfLibCanvas(Canvas):
         return mesh_handle
 
 
-    def _map_field_to_colors(self, field, colormap="viridis", vmin=None, vmax=None):
+    def _map_field_to_colors(self, field, 
+                             colormap="twilight", #"viridis", 
+                             vmin=None, vmax=None):
         """
         Convert 1D array of scalar values into Nx4 RGBA array in [0,1].
-        For example, you might rely on matplotlib here, or any
-        color-mapping library. For demonstration, let's assume we have:
-
-        >>> import matplotlib.pyplot as plt
-        >>> cmap = plt.get_cmap(colormap)
-        >>> # we then map normalized values to RGBA
         """
         import matplotlib
         import matplotlib.cm
