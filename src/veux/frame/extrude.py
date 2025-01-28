@@ -62,7 +62,7 @@ def draw_extrusions2(model, canvas, state=None, config=None):
         nen = len(el["nodes"])
 
         # Original coords for this element
-        X_ref = np.array(el["crd"])  # shape (nen, 3)
+        X_ref = model.cell_position(elem_name)  # shape (nen, 3)
 
         if state is not None:
             # Displacements
@@ -170,27 +170,26 @@ def draw_extrusions(model, canvas, state=None, config=None):
     # Track outlines with excessive edges (eg, circles) to later avoid showing
     # their edges
     no_outline = set()
-    for tag,el in enumerate(model["assembly"].items()):
+    for tag in model.iter_cell_tags():
 
-
-        outline = model.cell_section(el["name"])
+        outline = model.cell_section(tag)
         if outline is None:
             continue
 
         outline_scale = scale_section
 
         nen  = len(model.cell_nodes(tag))
-
         noe = len(outline)
 
+        Xi = model.cell_position(tag)
         if state is not None:
             glob_displ = state.cell_array(tag, state.position)
-            X = shps.curve.displace(el["crd"], glob_displ, nen).T
+            X = shps.curve.displace(Xi, glob_displ, nen).T
             R = state.cell_array(tag, state.rotation)
         else:
             outline = outline*0.99
             outline_scale *= 0.99
-            X = np.array(el["crd"])
+            X = np.array(Xi)
             R = [model.frame_orientation(tag).T]*nen
 
 
