@@ -230,6 +230,7 @@ class FrameArtist:
         trians = []
         solids = []
 
+        j = 0 # frame element counter
         for i,tag in enumerate(model.iter_cell_tags()):
             if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"):
                 if not config["frame"]["show"]:
@@ -237,7 +238,7 @@ class FrameArtist:
 
                 if config["frame"]["basis"] is None:
                     do_frames = True
-                    frames[(N+1)*i:(N+1)*i+N,:] = model.cell_position(tag, state)[[0,-1],:]
+                    frames[(N+1)*j:(N+1)*j+N,:] = model.cell_position(tag, state)[[0,-1],:]
 #                   frames.append( model.cell_position(tag, state)[[0,-1],:] )
                 else:
                     displ = state.cell_array(tag)
@@ -245,10 +246,11 @@ class FrameArtist:
                         continue
                     do_frames = True
 #                   frames.append (               _displaced_profile(model.cell_position(tag),
-                    frames[(N+1)*i:(N+1)*i+N,:] = _displaced_profile(model.cell_position(tag),
+                    frames[(N+1)*j:(N+1)*j+N,:] = _displaced_profile(model.cell_position(tag),
                                                                     displ.flatten(),
                                                                     Q=model.frame_orientation(tag),
                                                                     npoints=N).T
+                j += 1
 
             elif model.cell_matches(tag, "plane") and config["plane"]["show"]:
                 idx = model.cell_exterior(tag)
@@ -280,12 +282,19 @@ class FrameArtist:
             self.canvas.plot_lines(nodes, indices=np.array(solids),
                                           style=config["solid"]["style"])
 
-    def draw_surfaces(self, state=None, field=None, layer=None, config=None):
+    def draw_surfaces(self, state=None, field=None, layer=None, config=None, scale=1.0):
         model = self.model
+
+        if state is not None and (isinstance(state, (dict, np.ndarray)) or callable(state)):
+            state = read_state(state,
+                               model=self.model,
+                               scale=scale,
+                               transform=self.dofs2plot)
 
         if config is None:
             from veux.config import SketchConfig
             config = {type: conf["surface"] for type, conf in SketchConfig().items() if "surface" in conf}
+
         # Draw extruded frames
         from veux.frame import extrude
         if "frame" in config and config["frame"]["show"]:
@@ -345,7 +354,7 @@ class FrameArtist:
                 continue
             if not self.model.cell_matches(tag, "frame"):
                 continue
-            
+
             crd = self.model.cell_position(tag, state=state) #el["crd"]
             scale = np.linalg.norm(crd[-1] - crd[0])/10
             coord = sum(i for i in crd)/len(self.model.cell_indices(tag))
