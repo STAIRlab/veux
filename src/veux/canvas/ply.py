@@ -109,7 +109,6 @@ class PlotlyCanvas(Canvas):
 
             color = kwds.get("color", ("red", "blue", "green")[j])
 
-            # _label = label if label is not None else ""
             label = kwds.get("label", "")
             if isinstance(label, list):
                 label = label[j]
@@ -128,17 +127,14 @@ class PlotlyCanvas(Canvas):
             style = MeshStyle()
 
         if isinstance(vertices, int):
-            # x, y, z = self._vertices[vertices]
             x = self.data[vertices]["x"]
             y = self.data[vertices]["y"]
             z = self.data[vertices]["z"]
             point_access = vertices
         else:
             x,y,z = zip(*vertices)
-            # self._vertices.append(vertices)
             point_access = len(self.data)
 
-        print(triangles)
         if isinstance(triangles, int):
             i = self.data[triangles]["i"]
             j = self.data[triangles]["j"]
@@ -146,7 +142,6 @@ class PlotlyCanvas(Canvas):
             index_access = triangles
         else:
             i,j,k = zip(*triangles)
-            # self._vertices.append(vertices)
             index_access = len(self.data)
 
         
@@ -222,14 +217,12 @@ class PlotlyCanvas(Canvas):
 
     def to_html(self):
         import plotly
-        #import plotly.offline
-        #plotly.offline.plot(data, include_plotlyjs=False, output_type='div')
         options = {
           "include_plotlyjs": True,
           "include_mathjax" : "cdn",
           "full_html"       : True
         }
-        if not hasattr(self, "fit"):
+        if not hasattr(self, "fig"):
             self.build()
         return plotly.io.to_html(self.fig,
                                  div_id=str(id(self)),
