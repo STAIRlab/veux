@@ -349,8 +349,9 @@ class FrameModel:
         if self.cell_matches(tag, "frame"):
             return []
 
-        elif "tri" in type:
-            return self.cell_indices(tag)
+        elif ("tri" in type or
+             ("shell" in type and ("dkgt" in type))):
+            return [self.cell_indices(tag)]
 
         elif ("quad" in type or
              ("shell" in type and ("q" in type) or ("mitc" in type))):
