@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -77,6 +77,6 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
-veux = ["assets/*"]
+veux = ["assets/*", "viewer/*"]
 
 
