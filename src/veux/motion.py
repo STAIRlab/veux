@@ -61,7 +61,7 @@ def skin_frames(model, canvas, config=None):
     # We also need to track each cross-section Node (joint) and its inverseBindMatrix
     joint_nodes = skeleton_root_node.children    # glTF node indices
     inverse_bind_matrices = []     # 4x4 float32 arrays (one per joint)
-    skin_nodes = {}                  # (element_name, j) -> glTF node index
+    skin_nodes = {}                # (element_name, j) -> glTF node index
 
     def _make_matrix(translation, rotmat):
         """Build a 4x4 transform from translation + 3x3 rotation matrix."""
@@ -90,8 +90,6 @@ def skin_frames(model, canvas, config=None):
         noe = len(outline_0)  # number of edges in cross-section outline
         outline_scale = config.get("scale", 1.0)
 
-        # Each cross-section j gets its own Node in glTF
-        # We'll get a reference orientation from model.frame_orientation(...).T
         R_all = [model.frame_orientation(element_name).T]*nen
 
         for j in range(nen):
@@ -631,7 +629,7 @@ def create_animation(artist, states, skin_nodes=None):
 
 
 
-def animate(sam_file, res_file=None, **opts):
+def animate(sam_file, res_file=None, vertical=None, **opts):
     # Configuration is determined by successively layering
     # from sources with the following priorities:
     #      defaults < file configs < kwds
@@ -660,6 +658,8 @@ def animate(sam_file, res_file=None, **opts):
         veux.apply_config(model["RendererConfiguration"], config)
 
     veux.apply_config(opts, config)
+    if vertical is not None:
+        config["artist_config"]["vertical"] = vertical
 
     artist = FrameArtist(model, ndf=6,
                          config=config["artist_config"],
