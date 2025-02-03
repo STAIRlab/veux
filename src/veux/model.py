@@ -6,6 +6,7 @@
 #
 # Claudio Perez
 #
+import sys
 from collections import defaultdict
 
 import numpy as np
@@ -45,7 +46,7 @@ def _is_frame(el):
 
 def _is_truss(el):
     name = el["type"].lower()
-    return "truss" in name or "twonodelink" in name
+    return "truss" in name #or "twonodelink" in name
 
 
 def _is_plane(el):
@@ -55,6 +56,46 @@ def _is_plane(el):
 def _is_solid(el):
     name = el["type"].lower()
     return "brick" in name
+
+
+def _orient_frame(xi, xj, angle):
+    """
+    Calculate the coordinate transformation vector.
+    xi is the location of node I, xj node J,
+    and `angle` is the rotation about the local axis in degrees
+
+    By default local axis 2 is always in the 1-Z plane, except if the object
+    is vertical and then it is parallel to the global X axis.
+    The definition of the local axes follows the right-hand rule.
+    """
+
+    # The local 1 axis points from node I to node J
+    dx, dy, dz = e1 = xj - xi
+    # Global z
+    E3 = np.array([0, 0, 1])
+
+    # In Sap2000, if the element is vertical, the local y-axis is the same as the
+    # global x-axis, and the local z-axis can be obtained by cross-multiplying
+    # the local x-axis with the local y-axis.
+    if dx == 0 and dy == 0:
+        e2 = np.array([1, 0, 0])
+
+    # Otherwise, the plane composed of the local x-axis and the local
+    # y-axis is a vertical plane. In this
+    # case, the local z-axis can be obtained by the cross product of the local
+    # x-axis and the global z-axis.
+    else:
+        e2 = np.cross(E3, e1)
+
+    e3 = np.cross(e1, e2)
+
+    # Rotate the local axis using the Rodrigue rotation formula
+    # convert from degrees to radians
+    angle = angle / 180 * np.pi
+    e3r = e3 * np.cos(angle) + np.cross(e1, e3) * np.sin(angle)
+    # Finally, the normalized local z-axis is returned
+    return e3r / np.linalg.norm(e3r)
+
 
 def read_model(filename:str, shift=None, verbose=False)->dict:
     if isinstance(filename, str) and filename.endswith(".tcl"):
@@ -126,9 +167,30 @@ class FrameModel:
     def __init__(self, sam:dict, shift = None, rot=None,
                  frame_outlines=None, **kwds):
 
-        self._frame_outlines  = frame_outlines
-        self._extrude_default = _OUTLINES[kwds.get("extrude_default", "square")]
-        self._extrude_outline = _OUTLINES[kwds.get("extrude_outline", None)]
+        from .frame._section import SectionGeometry
+        self._frame_outlines = {}
+        if frame_outlines is not None:
+            for key, polygons in frame_outlines.items():
+                if isinstance(polygons, SectionGeometry):
+                    self._frame_outlines[key] = [polygons]
+                elif isinstance(polygons, list) and all(isinstance(i, SectionGeometry) for i in polygons):
+                    self._frame_outlines[key] = polygons
+                elif hasattr(polygons[0][0], "__len__"):
+                    # list of numpy arrays
+                    self._frame_outlines[key] = [SectionGeometry(i) for i in polygons]
+                else:
+                    self._frame_outlines[key] = [SectionGeometry(polygons)]
+
+
+        # self._frame_outlines  = {
+        #     key: [outline] if isinstance(outline, SectionGeometry) else [SectionGeometry(i) for i in outline]
+        #     for key, outline in frame_outlines.items()
+        # }
+        self._extrude_default = SectionGeometry(_OUTLINES[kwds.get("extrude_default", "square")])
+        if "extrude_outline" in kwds:
+            self._extrude_outline = SectionGeometry(_OUTLINES[kwds["extrude_outline"]])
+        else:
+            self._extrude_outline = None
         self._extrude_scale   = kwds.get("extrude_scale",   1.0)
 
         ndm = 3
@@ -174,13 +236,15 @@ class FrameModel:
             return self["assembly"][tag]
 
     def cell_prototypes(self)->"iter":
-        exclude_keys = {"type", "instances", "nodes",
+        exclude_keys = {"type", "instances", # "nodes",
                         "crd", "crdTransformation"}
 
         if not self["prototypes"]:
             elem_types = defaultdict(dict)
 
             for elem in self["assembly"].values():
+                if not self.cell_matches(elem["name"], "frame"):
+                    continue
                 type = elem["type"]
                 if type not in elem_types:
                     elem_types[type]["name"] = type
@@ -277,32 +341,6 @@ class FrameModel:
             return np.array([ self.node_position(node, state)
                               for node in self["assembly"][tag]["nodes"] ])
 
-    def frame_orientation(self, tag, state=None):
-        el  = self["assembly"][tag]
-        xyz = el["crd"]
-
-        v1  = xyz[-1] - xyz[0]
-        L   = np.linalg.norm(v1)
-        e1  = v1/L
-
-        if self.ndm == 2:
-            v2 = np.array([0, 1, 0])
-
-        if "yvec" in el["trsfm"] and el["trsfm"]["yvec"] is not None:
-            v2  = np.array(el["trsfm"]["yvec"])
-
-        elif "vecInLocXZPlane" in el["trsfm"]:
-            v13 =  np.atleast_1d(el["trsfm"]["vecInLocXZPlane"])
-            v2  = -np.cross(e1,v13)
-
-        else:
-            return _EYE3
-
-        e2 = v2 / np.linalg.norm(v2)
-        v3 = np.cross(e1,e2)
-        e3 = v3 / np.linalg.norm(v3)
-        return np.stack([e1,e2,e3])
-
 
     def cell_exterior(self, tag):
         """
@@ -382,35 +420,41 @@ class FrameModel:
     def add_hook():
         pass
 
-    def cell_section(self, tag, coord=None):
+    def frame_section(self, tag, coord=None)->"Section":
+        from .frame._section import SectionGeometry
+
+        if self.cell_matches(tag, "truss"):
+            A = self["assembly"][tag].get("A", 1.0)
+            o = np.sqrt(A)*np.array([[0,-1,-1],[0,1,-1],[0,1,1],[0,-1,1]], dtype=float)
+            return SectionGeometry(o)
+
         if not self.cell_matches(tag, "frame"):
             return None
 
+        # Initialize frame outlines
         if self._frame_outlines is None:
+            # TODO: Make this dict of list of sections
             self._frame_outlines = _get_frame_outlines(self)
 
-
+        sections = []
         if self._extrude_outline is not None:
-            outline = self._extrude_outline*self._extrude_scale
+            sections = [self._extrude_outline]*2 #*self._extrude_scale
 
         elif tag in self._frame_outlines:
-            outline = self._frame_outlines[tag]
+            sections = self._frame_outlines[tag]
 
-        else:
-            outline = self._extrude_default*self._extrude_scale
+        elif self._extrude_default is not None:
+            sections = [self._extrude_default]*2 #*self._extrude_scale
 
-
-        if outline is None:
+        if len(sections) == 0:
+            print(f"Empty sections for {tag}", file=sys.stderr)
             return
 
-        elif isinstance(outline, list):
-            outline = np.array(outline)
-
-        elif len(outline.shape) == 0:
-            return
+        elif len(sections) == 1:
+            return sections[0]
 
         # Interpolate coord
-        if len(outline.shape) > 2:
+        elif len(sections) >= 2:
             def interpolate(values, x):
                 n = len(values) - 1
                 idx = np.clip(int(x * n), 0, n - 1)  # Find the lower bound index
@@ -420,16 +464,39 @@ class FrameModel:
             if coord is None:
                 coord = 0.5
 
-            outline = interpolate(outline, coord)
+            exterior = np.array([s.exterior() for s in sections])
+            interior = np.array([s.interior() for s in sections])
+            return SectionGeometry(
+                interpolate(exterior, coord),
+                interpolate(interior, coord)
+            )
 
+    def frame_orientation(self, tag, state=None):
+        el  = self["assembly"][tag]
+        xyz = el["crd"]
 
-        # 3D
-        if outline.shape[1] == 2:
-            outline_3d = np.zeros((outline.shape[0], 3))
-            outline_3d[:,1:] = outline
-            return outline_3d
+        v1  = xyz[-1] - xyz[0]
+        L   = np.linalg.norm(v1)
+        e1  = v1/L
 
-        return outline
+        if self.ndm == 2:
+            v2 = np.array([0, 1, 0])
+
+        if "yvec" in el["trsfm"] and el["trsfm"]["yvec"] is not None:
+            v2  = np.array(el["trsfm"]["yvec"])
+
+        elif "vecInLocXZPlane" in el["trsfm"]:
+            v13 =  np.atleast_1d(el["trsfm"]["vecInLocXZPlane"])
+            v2  = -np.cross(e1,v13)
+
+        else:
+            v3 = _orient_frame(el["crd"][0], el["crd"][1], 0)
+            v2  = -np.cross(e1,v3)
+
+        e2 = v2 / np.linalg.norm(v2)
+        v3 = np.cross(e1,e2)
+        e3 = v3 / np.linalg.norm(v3)
+        return np.stack([e1,e2,e3])
 
 
 def _from_opensees(sam: dict, shift, R):
@@ -537,18 +604,20 @@ def _get_frame_outlines(model):
               )
     )
 
+    from veux.frame import SectionGeometry
     outlines = {}
     for elem in model["assembly"].values():
         if "sections" in elem:
-            elem_shapes = [shapes[i] for i in elem["sections"] if i in shapes]
+            outlines[elem["name"]] = [SectionGeometry(shapes[i]) for i in elem["sections"] if i in shapes and shapes[i] is not None]
+            continue
             if len(elem_shapes) == 0:
                 continue
-            elif not homogeneous(elem_shapes):
+            if not homogeneous(elem_shapes):
                 elem_shapes = np.array(elem_shapes[0])
             else:
                 elem_shapes = np.array(elem_shapes)
 
-            outlines[elem["name"]] = elem_shapes
+            outlines[elem["name"]] = [SectionGeometry(shape) for shape in elem_shapes]
 
     return outlines
 
