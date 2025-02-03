@@ -34,7 +34,7 @@ def serve(thing, viewer="mv", port=None):
     thing : object
         The object to be served. It can be an artist with a canvas attribute or a canvas itself.
     viewer : str, optional
-        The viewer to use for serving the thing. Default is "mv".
+        The viewer to use for serving the thing. Default is ``"mv"``.
     port : int, optional
         The port to run the server on. If not specified, a default port will be used.
 
