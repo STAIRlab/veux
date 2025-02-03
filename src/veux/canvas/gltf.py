@@ -123,7 +123,7 @@ class GltfLibCanvas(Canvas):
                     doubleSided=True,
                     alphaMode=pygltflib.MASK,
                     pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
-                        baseColorFactor=[0.95, 0.95, 0.95, 1]
+                        baseColorFactor=[0.80, 0.80, 0.80, 1]
                     )
                 ),
                 pygltflib.Material(
@@ -416,7 +416,6 @@ class GltfLibCanvas(Canvas):
         Add skinned lines to the glTF object that connect pairs of nodes specified in `lines`.
         The lines will deform as the corresponding nodes are translated.
 
-        :param gltf: The pygltflib.GLTF2 object to modify.
         :param lines: A list of pairs of indices (i, j), where i and j are node indices.
         :param access_vertices: The accessor index for initial positions of the nodes.
         """
@@ -458,13 +457,13 @@ class GltfLibCanvas(Canvas):
             )
         )
     
-        # Create a root node for the entire skeleton
+        # Create Skeleton
         skeleton_root_node = pygltflib.Node(name="LineSkeleton", 
                                             children=joint_nodes)
         skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
         scene.nodes.append(skeleton_root_idx)
 
-        # Create the inverse bind matrices
+        # Inverse bind matrices
         inverse_bind_matrices = []
         for joint_node in joint_nodes:
             # Compute the transform matrix for the bind pose
@@ -614,7 +613,7 @@ class GltfLibCanvas(Canvas):
             indices_ = list(map(lambda x: np.array(x, dtype=self.index_t), indices))
 
         for indices in indices_:
-            # Here, n adjusts indices by the number of nan rows that were removed so far
+            # `n` adjusts indices by the number of nan rows that were removed so far
             n  = sum(np.isnan(vertices[:indices[0],0]))
             indices_array = indices - np.dtype(self.index_t).type(n)
 
@@ -668,17 +667,35 @@ class GltfLibCanvas(Canvas):
 
         return lines
     
+    def draw_arrow(self, location, rotation, size):
+        from veux.assets import create_arrow
+
+        index = _append_index(self.gltf.nodes, pygltflib.Node(
+                mesh=create_arrow(self, size, DrawStyle(color="red")),
+                rotation=rotation,
+                translation=(self._rotation_matrix@location).tolist(),
+            )
+        )
+        self.gltf.scenes[0].nodes.append(index)
+
+    
     def draw_skin(self, vertices, triangles):
         pass
 
-    def plot_mesh(self, vertices, triangles, local_coords=None, style=None, **kwds) -> tuple:
+    def plot_mesh(self, vertices, triangles, local_coords=None, style=None,
+                  joints_0=None, 
+                  weights_0=None,
+                  skin=None,
+                  node_name=None,
+                  mesh_name=None,
+                  **kwds) -> tuple:
 
         material  = self._get_material(style or MeshStyle())
 
         if isinstance(triangles, int):
             index_access = triangles
         else:
-            triangles = np.array(triangles,dtype=self.index_t)
+            triangles = np.array(triangles, dtype=self.index_t)
             self.gltf.accessors.extend([
                 pygltflib.Accessor(
                     bufferView=self._push_data(triangles.flatten().tobytes(), pygltflib.ELEMENT_ARRAY_BUFFER),
@@ -707,24 +724,45 @@ class GltfLibCanvas(Canvas):
             ])
             point_access = len(self.gltf.accessors)-1
 
-        # Add accessors for (1) point coordinates and (2) indices
 
-        self.gltf.meshes.append(
-               pygltflib.Mesh(
-                 primitives=[
-                     pygltflib.Primitive(
-                         mode=pygltflib.TRIANGLES,
-                         attributes=pygltflib.Attributes(POSITION=point_access),
-                         material=material,
-                         indices=index_access,
-                         targets=[
-                             # TODO: implement morph targets
-#                           pygltflib.Attributes(POSITION=point_access)
-                         ]
+        mesh = pygltflib.Mesh(
+                primitives=[
+                    pygltflib.Primitive(
+                        mode=pygltflib.TRIANGLES,
+                        attributes=pygltflib.Attributes(
+                            POSITION=point_access
+                        ),
+                        material=material,
+                        indices=index_access,
+                        targets=[
+                            # TODO: implement morph targets
+#                          pygltflib.Attributes(POSITION=point_access)
+                        ]
                      )
-                 ]
-               )
-        )
+                ]
+            )
+
+        if mesh_name is not None:
+            mesh.name = mesh_name
+
+        if joints_0 is not None:
+            joints_0  = np.array(joints_0,  dtype=self.index_t)
+            mesh.primitives[0].attributes.JOINTS_0 = _append_index(self.gltf.accessors, pygltflib.Accessor(
+                bufferView=self._push_data(joints_0.tobytes(), pygltflib.ARRAY_BUFFER),
+                componentType=GLTF_T[self.index_t],
+                count=len(joints_0),
+                type="VEC4"
+            ))
+
+        if weights_0 is not None:
+            weights_0 = np.array(weights_0, dtype=self.float_t)
+            mesh.primitives[0].attributes.WEIGHTS_0 = _append_index(self.gltf.accessors, pygltflib.Accessor(
+                bufferView=self._push_data(weights_0.tobytes(), pygltflib.ARRAY_BUFFER),
+                componentType=GLTF_T[self.float_t],
+                count=len(weights_0),
+                type="VEC4"
+            ))
+
 
         if local_coords is not None:
             locoor = np.array(local_coords, dtype=self.float_t)
@@ -738,14 +776,23 @@ class GltfLibCanvas(Canvas):
                     min=locoor.min(axis=0).tolist(),
                 )
             ])
-            self.gltf.meshes[-1].primitives[0].attributes.TEXCOORD_0 = len(self.gltf.accessors) -1
-
+            mesh.primitives[0].attributes.TEXCOORD_0 = len(self.gltf.accessors) -1
+        
+        #
+        # 4) Create a Node referencing the mesh + skin
+        #
         self.gltf.nodes.append(pygltflib.Node(
-                mesh=len(self.gltf.meshes)-1,
+                mesh=_append_index(self.gltf.meshes, mesh),
                 rotation=self._rotation
             )
         )
+        if node_name is not None:
+            self.gltf.nodes[-1].name = node_name
 
+        if skin is not None:
+            self.gltf.nodes[-1].skin = skin
+
+        # Add to scene
         scene_node = len(self.gltf.nodes)-1
         self.gltf.scenes[0].nodes.append(scene_node)
 
