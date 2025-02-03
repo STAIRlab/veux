@@ -37,10 +37,10 @@ language = 'en'
 # -- Options for HTML output -------------------------------------------------
 sitemap_url_scheme = "{link}"
 sitemap_excludes = [
-    "https://veux.stairlab.io/index.html"
+    "https://veux.io/index.html"
 ]
 html_extra_path = ["robots.txt"]
-html_baseurl = "https://veux.stairlab.io/"
+html_baseurl = "https://veux.io/"
 html_title = project
 html_theme = "pydata_sphinx_theme"
 html_static_path = ['_static']
