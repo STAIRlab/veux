@@ -1,5 +1,6 @@
 """
-A direct port of mapbox/earcut
+An adaptation of mapbox/earcut.js, derived from the port
+by joshuaskelly
 
 Adapted from:
   https://github.com/joshuaskelly/earcut-python
@@ -170,21 +171,22 @@ def _split_polygon(a, b):
 
     return b2
 
-def earcut(vertices, holeIndices=None, dim=None):
+def earcut(vertices, holes=None, dimensions=None):
+    # print(vertices, holes, dimensions)
     # Convert to numpy array
     vertices = np.asarray(vertices)
 
     # Remove duplicate last point if it's the same as the first
-    if np.array_equal(vertices[0], vertices[-1]):
+    if len(vertices.shape)>1 and np.array_equal(vertices[0], vertices[-1]):
         vertices = vertices[:-1]
 
-    dim = dim or 2
+    dimensions = dimensions or 2
 
-    data = vertices.flatten() #reshape(-1,2)
+    data = vertices.flatten() # reshape(-1,2) #flatten() #
 
-    hasHoles = holeIndices and len(holeIndices)
-    outerLen =  holeIndices[0] * dim if hasHoles else len(data)
-    outerNode = _create_links(data, 0, outerLen, dim, True)
+    hasHoles = holes and len(holes)
+    outerLen =  holes[0] * dimensions if hasHoles else len(data)
+    outerNode = _create_links(data, 0, outerLen, dimensions, True)
     triangles = []
 
     if not outerNode:
@@ -199,14 +201,14 @@ def earcut(vertices, holeIndices=None, dim=None):
     size = None
 
     if hasHoles:
-        outerNode = _purge_holes(data, holeIndices, outerNode, dim)
+        outerNode = _purge_holes(data, holes, outerNode, dimensions)
 
     # if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
-    if len(data) > 80 * dim:
+    if len(data) > 80 * dimensions:
         minX = maxX = data[0]
         minY = maxY = data[1]
 
-        for i in range(dim, outerLen, dim):
+        for i in range(dimensions, outerLen, dimensions):
             x = data[i]
             y = data[i + 1]
             if x < minX:
@@ -221,7 +223,7 @@ def earcut(vertices, holeIndices=None, dim=None):
         # minX, minY and size are later used to transform coords into integers for z-order calculation
         size = max(maxX - minX, maxY - minY)
 
-    _earcut_links(outerNode, triangles, dim, minX, minY, size)
+    _earcut_links(outerNode, triangles, dimensions, minX, minY, size)
 
     return triangles
 
@@ -728,6 +730,7 @@ def _triangle_area(a, b, c)->float:
     "signed area of a triangle"
     return (b[1] - a[1]) * (c[0] - b[0]) - (b[0] - a[0]) * (c[1] - b[1])
 
+
 def _polygon_area(data, start, end, dim)->float:
     sum = 0.0
     j = end - dim
@@ -752,7 +755,7 @@ def flatten(data):
     for i in range(len(data)):
         for j in range(len(data[i])):
             for d in range(dim):
-                result['vertices'].append(data[i][j][d])
+                result['vertices'].append(float(data[i][j][d]))
 
         if i > 0:
             holeIndex += len(data[i - 1])
