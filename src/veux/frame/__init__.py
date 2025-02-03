@@ -15,7 +15,7 @@ from scipy.linalg import block_diag
 from veux.model  import Model,FrameModel
 from veux.state  import read_state, State, BasicState
 from veux.config import Config, LineStyle, NodeStyle
-
+from ._section import SectionGeometry
 
 class FrameArtist:
     ndm:    int
@@ -212,12 +212,18 @@ class FrameArtist:
             warnings.warn(str(e))
 
     # sketches with or without state
-    def draw_outlines(self, state=None, config=None):
+    def draw_outlines(self, state=None, config=None, scale=1.0):
         model = self.model
 
         if config is None:
             from veux.config import SketchConfig
             config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
+
+        if state is not None and (isinstance(state, (dict, np.ndarray)) or callable(state)):
+            state = read_state(state,
+                               model=self.model,
+                               scale=scale,
+                               transform=self.dofs2plot)
 
         N = 10 if state is not None and config["frame"]["basis"] is not None else 2
         do_frames = False
@@ -236,9 +242,9 @@ class FrameArtist:
                 if not config["frame"]["show"]:
                     continue
 
-                if config["frame"]["basis"] is None:
+                if config["frame"]["basis"] is None or model.cell_matches(tag, "truss"):
                     do_frames = True
-                    frames[(N+1)*j:(N+1)*j+N,:] = model.cell_position(tag, state)[[0,-1],:]
+                    frames[(N+1)*j:(N+1)*j+N,:] = np.linspace(*model.cell_position(tag, state)[[0,-1],:], N)
 #                   frames.append( model.cell_position(tag, state)[[0,-1],:] )
                 else:
                     displ = state.cell_array(tag)
@@ -298,7 +304,7 @@ class FrameArtist:
         # Draw extruded frames
         from veux.frame import extrude
         if "frame" in config and config["frame"]["show"]:
-            extrude.draw_extrusions(model,
+            extrude.draw_extrusions3(model,
                                     canvas=self.canvas,
                                     state=state,
                                     config=config["frame"])
