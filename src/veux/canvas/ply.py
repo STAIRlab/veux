@@ -122,7 +122,14 @@ class PlotlyCanvas(Canvas):
                 "showlegend": False
             })
 
-    def plot_mesh(self, vertices, triangles, style=None, local_coords=None)->tuple:
+    def plot_mesh(self,
+                  vertices,
+                  triangles,
+                  style=None,
+                  skin=None,
+                  joints_0=None,
+                  weights_0=None,
+                  local_coords=None)->tuple:
         if style is None:
             style = MeshStyle()
 
