@@ -5,6 +5,15 @@ import textwrap
 from pathlib import Path
 
 class Viewer:
+    """
+    A class to represent a 3D model viewer.
+
+    Methods:
+    --------
+    __init__(self, viewer=None, path=None, data=None):
+        Initializes the Viewer with optional viewer type, file path, or binary data.
+
+    """
     def __init__(self, viewer=None, path=None, data=None):
         if data is not None:
             data64 = base64.b64encode(data).decode('utf-8')
@@ -33,6 +42,7 @@ class Viewer:
 
         elif self._viewer == "mv":
             return _model_viewer(self._glbsrc, control=False)
+
 
 def _model_viewer(source, control=False):
       library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
