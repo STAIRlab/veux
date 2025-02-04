@@ -6,8 +6,8 @@
 #
 # Claudio Perez
 #
-from .canvas import Line, Mesh, Node
-from .canvas import Canvas, NodeStyle, MeshStyle, LineStyle
+from .canvas import Mesh
+from .canvas import Canvas, MeshStyle, LineStyle
 import numpy as np
 
 class PlotlyCanvas(Canvas):
