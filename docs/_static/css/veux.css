@@ -1,15 +1,16 @@
+/* vars.override... */
+:root{--colorContentLink:rgb(77, 119, 207)}
+
+/* styles. */
 body {
     font-family: var(--fontFamily), sans-serif
 }
-
 em {
     color: var(--colorPrimaryDark) !important
 }
-
 .content-padding a {
     color: var(--colorContentLink)
 }
-
 .flex-row {
     display: flex;
     flex-direction: row
@@ -332,4 +333,33 @@ svg.icon {
 
 .chroma {
     padding: 10px
+}
+
+:root {
+    /* --font-family: 'DM Serif Display', sans-serif; */
+}
+
+
+.navbar-brand img {
+  height: 60%;
+  max-width: 100%;
+  width: auto;
+}
+.navbar-brand svg {
+    fill: #003262;;
+    stroke: currentColor;
+}
+
+
+html[data-theme="light"] {
+    --pst-color-primary: #003262;
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: white;
+}
+
+.hero-title {
+    font-family: 'Inconsolata', sans-serif;
+    font-weight: 200;
 }

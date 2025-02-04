@@ -15,16 +15,16 @@
     document.documentElement.dataset.mode = localStorage.getItem("mode") || "{{ default_mode }}";
     document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
   </script>
-  {# _webpack.head_pre_assets() #}
-  {# _webpack.head_pre_icons() #}
-  {#- css() #}
-  {# _webpack.head_js_preload() #}
+
   <link rel="canonical" href="https://veux.io" >
   <link rel="icon" type="image/x-icon" href="_static/images/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href=https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css>
+  
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css?family=Inconsolata">
+
   {% if False %}
   <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,900"> -->
   <!-- <link rel="stylesheet"
@@ -35,38 +35,28 @@
     href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
   <link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet">
   <script type=text/javascript src=/js/bundle.min.js></script>
-  -->
-  {% endif %}
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/panel.css.min.d42639c23c159bedb13ee97ac0c12439a6ff5bf2e557fc976b54856abe4a616b.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/keyfeatures.css.min.9fa68a6309048c965a6dc7f402cd45cbf0e6cb056ddde59b4e31a0594900caf0.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/news.css.min.4bffc1f3e8e1dfedfa26d21423b0f206b10be408002e80d7628649afd6bb6a9d.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/styles.css.min.e52a9f63524ec98f63a3f6939054fa0313cac0c151de8a2ba4089dc9db834fb2.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/vars.css.min.aad4d4b106de179c549cb071137b8b97c38926db91edaaff08af8ab9055df90e.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/css/casestudies.css.min.6bba5e8b00dd9f04d2fef2e38dd0a840baa2dd8a473df4c24c5913558e805609.css">
   <link rel="stylesheet"
     href="{{ pathto('_static/css', 1) }}/css/tabs.css.min.2774227fab8d6dfd0b5b1c8f06b5abafeaf3d6247bec4efda87ac5a587b3d2bc.css">
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/css/vars-override.css.min.ff70feeb43b75e041c44e6aba96a0979ee53f0e959cb0ecf8f4e00c2ec6c9494.css">
+  -->
+  {% endif %}
 
   <link href="_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet">
   <link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet">
-  <script src=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/js/uikit.min.js></script>
-  <link rel=stylesheet href=https://cdn.jsdelivr.net/npm/uikit@3.16.24/dist/css/uikit.min.css>
-  <style>
-    .nav-item {
-      color: #4a4a4a;
-      display: block;
-      line-height: 1.5;
-      padding: .5rem .75rem;
-      position: relative;
-  }  
-  </style>
+  <link rel="stylesheet" href=https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css>
+  <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/home-css/news.css">
+  <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/home-css/keyfeatures.css">
+  <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/home-css/casestudies.css">
+
+  <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/home-css/vars.css">
+
+  <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/veux.css">
+  <link rel="stylesheet"
+    href="{{ pathto('_static/css', 1) }}/home-css/home.css">
 </head>
 
 <body>
@@ -92,7 +82,7 @@
 
     <div class="container is-max-widescreen">
       <div class=navbar-brand>
-        <a class=navbar-item href="/"><img class="navbar-logo" src="{{ pathto('_static/images/logo.svg', 1) }}" >
+        <a class=navbar-item href="/"><img class="navbar-logo" src="{{ pathto('_static/images/veux.svg', 1) }}" >
           <div class=navbar-logo-text></div>
         </a>
         <a role=button class="navbar-burger" aria-label=menu aria-expanded=false
@@ -122,7 +112,7 @@
   </nav>
 
   <section class="hero">
-    <div class="hero-container">
+    <div class="container hero-container">
       <div class="hero-content">
         <div class="hero-title-content">
           <div class="flex-column">
@@ -147,7 +137,7 @@
     </div>
   </div>
 
-  <section class=keyfeatures>
+  <section class="keyfeatures">
     <div class="container is-max-widescreen">
       <div class="keyfeatures-box-container">
         <div class="keyfeatures-box-content keyfeatures-underline">
@@ -183,7 +173,7 @@
 
   <section class="casestudies">
     <div class="container">
-      <h2 class="casestudies-title">Gallery</h2>
+      <h2 class="">Gallery</h2>
       <div class="casestudies-box-container">
         {% for example in examples %}
         <a class="casestudies-box-content casestudies-underline"
@@ -197,180 +187,20 @@
     </div>
   </section>
 
-  <section class=tabs-section>
-    <div class=container>
-      <h1 class=tabs-title>Ecosystem</h1>
-      <div class=uikit-tab-wrapper>
-        <ul class="uk-flex-center uk-nav" uk-tab>
-          <li class="uk-active"><a href=#>  Other libraries</a></li>
-        </ul>
-        <ul id=tabs-content class="uk-switcher uk-margin">
-          <li class=array-libraries>
-            <table>
-              <tr class=highlight-th>
-                <td class=bold-text></td>
-                <td class=bold-text>Package</td>
-                <td class=bold-text>Description</td>
-              </tr>
-              <tr>
-                <td style=text-align:center>
-                  <a href="https://github.com/claudioperez/opensees">
-                    <img class=first-column-layout
-                         src="{{ pathto('_static/images', 1) }}/content_images/brace/opensees.jpg" alt="opensees"></a></td>
-                <td class="full-center-text"><a href="https://pypi.org/project/opensees" />opensees</a></td>
-                <td class="left-text">Fast nonlinear finite element analysis using the
-                  <a href="https://github.com/claudioperez/OpenSeesRT">OpenSeesRT framework</a>.</td>
-              </tr>
-              <tr>
-                <td style=text-align:center><img class=first-column-layout
-                    src="{{ pathto('_static/images', 1) }}/content_images/brace/sdof.svg" alt="sdof"></td>
-                <td class="full-center-text"><a href="https://pypi.org/project/sdof" />sdof</a></td>
-                <td class=left-text>Parallel integration of single degree-of-freedom systems.</td>
-              </tr>
-              <tr>
-                <td style=text-align:center><img class=first-column-layout
-                    src="{{ pathto('_static/images', 1) }}/content_images/brace/mdof.svg" alt="mdof"></td>
-                <td class=full-center-text><a href="https://pypi.org/project/mdof">mdof</a></td>
-                <td class="left-text">Fast and friendly structural system identification.</td>
-              </tr>
-            </table>
-          </li>
-          {% if False %}
-          <li class="data-science">
-            <div class="grid-container">
-              <div><a href=/images/content_images/ds-landscape.png target="_blank"><img
-                    src="{{ pathto('_static/images', 1) }}/content_images/ds-landscape.png"
-                    alt="Diagram of Python Libraries. The five catagories are 'Extract, Transform, Load', 'Data Exploration', 'Data Modeling', 'Data Evaluation' and 'Data Presentation'."
-                    align=left></a></div>
-              <div>
-                <p>sdof lies at the core of a rich ecosystem of data science libraries. A typical exploratory data
-                  science workflow might look like:
-                <ul class=content-tab>
-                  <li><b>Extract, Transform, Load: </b><a href=https://pandas.pydata.org>Pandas</a>, <a
-                      href=https://intake.readthedocs.io>Intake</a>, <a
-                      href=https://pyjanitor.readthedocs.io />PyJanitor</a></li>
-                  <li><b>Exploratory analysis: </b><a href=https://jupyter.org>Jupyter</a>, <a
-                      href=https://seaborn.pydata.org>Seaborn</a>, <a href=https://matplotlib.org>Matplotlib</a>, <a
-                      href=https://altair-viz.github.io>Altair</a></li>
-                  <li><b>Model and evaluate: </b><a href=https://scikit-learn.org>scikit-learn</a>, <a
-                      href=https://www.statsmodels.org/stable/index.html>statsmodels</a>, <a
-                      href=https://docs.pymc.io>PyMC3</a>, <a href=https://spacy.io>spaCy</a></li>
-                  <li><b>Report in a dashboard: </b><a href=https://plotly.com/dash>Dash</a>, <a
-                      href=https://panel.holoviz.org>Panel</a>, <a
-                      href=https://github.com/voila-dashboards/voila>Voila</a></li>
-                </ul>
-                </p>
-              </div>
-            </div>
-            <div class=grid-container>
-              <div>
-                <p></p>
-                <p>For high data volumes, <a href=https://dask.org>Dask</a> and <a href=https://ray.io />Ray</a> are
-                  designed to scale. Stable deployments rely on data versioning (<a href=https://dvc.org>DVC</a>),
-                  experiment tracking (<a href=https://mlflow.org>MLFlow</a>), and workflow automation (<a
-                    href=https://airflow.apache.org>Airflow</a>, <a href=https://dagster.io>Dagster</a> and <a
-                    href=https://www.prefect.io>Prefect</a>).</p>
-                </p>
-              </div>
-              <div><img src="{{ pathto('_static/images', 1) }}/content_images/data-science.png"
-                  alt="Diagram of three overlapping circles. The circles are labeled 'Mathematics', 'Computer Science' and 'Domain Expertise'. In the middle of the diagram, which has the three circles overlapping it, is an area labeled 'Data Science'."
-                  align=centre width=75%></a></div>
-            </div>
-          </li>
-          <li class=machine-learning>
-            <div class=grid-container>
-              <div class=animation-holder><a
-                  href=https://ai.googleblog.com/2016/12/open-sourcing-embedding-projector-tool.html><img
-                    src="{{ pathto('_static/images', 1) }}/content_images/ml_img/tensorflow-ml-anim.gif"
-                    alt="An animated gif showing a three-dimensional graph of embeddings made in Tensorflow."
-                    align=middle class=animation-img></a>
-                <p><i style=font-size:80%><a
-                      href=https://ai.googleblog.com/2016/12/open-sourcing-embedding-projector-tool.html>Source: Google
-                      AI Blog</a></i></p>
-              </div>
-              <div>
-                <p>sdof forms the basis of powerful machine learning libraries like <a
-                    href=https://scikit-learn.org>scikit-learn</a> and <a href=https://www.scipy.org>SciPy</a>. As
-                  machine learning grows, so does the list of libraries built on sdof. <a
-                    href=https://www.tensorflow.org>TensorFlow’s</a> deep learning capabilities have broad applications
-                  — among them speech and image recognition, text-based applications, time-series analysis, and video
-                  detection. <a href=https://pytorch.org>PyTorch</a>, another deep learning library, is popular among
-                  researchers in computer vision and natural language processing. <a
-                    href=https://github.com/apache/incubator-mxnet>MXNet</a> is another AI package, providing blueprints
-                  and templates for deep learning.</p>
-              </div>
-            </div>
-            <div>
-              <div>
-                <p>Statistical techniques called <a
-                    href=https://towardsdatascience.com/ensemble-methods-bagging-boosting-and-stacking-c9214a10a205>ensemble</a>
-                  methods such as binning, bagging, stacking, and boosting are among the ML algorithms implemented by
-                  tools such as <a href=https://github.com/dmlc/xgboost>XGBoost</a>, <a
-                    href=https://lightgbm.readthedocs.io/en/latest />LightGBM</a>, and <a
-                    href=https://catboost.ai>CatBoost</a> — one of the fastest inference engines. <a
-                    href=https://www.scikit-yb.org/en/latest />Yellowbrick</a> and <a
-                    href=https://eli5.readthedocs.io/en/latest />Eli5</a> offer machine learning visualizations.</p>
-              </div>
-            </div>
-          </li>
-          <li class=visualization>
-            <div class=grid-container>
-              <div class=visualization-images>
-                <div class=image-grid>
-                  <div><a href=https://www.fusioncharts.com/blog/best-python-data-visualization-libraries><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_matplotlib.png"
-                        alt="A streamplot made in matplotlib" align=middle></a></div>
-                  <div><a href=https://github.com/yhat/ggpy><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_ggpy.png"
-                        alt="A scatter-plot graph made in ggpy" align=middle></a></div>
-                  <div><a href=https://www.journaldev.com/19692/python-plotly-tutorial><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_plotly.png"
-                        alt="A box-plot made in plotly" align=middle></a></div>
-                  <div><a href=https://altair-viz.github.io/gallery/streamgraph.html><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_altair.png"
-                        alt="A streamgraph made iair" align=middle></a></div>
-                  <div><a href=https://docs.pyvista.org/examples/index.html><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_pyvista.png"
-                        alt="A 3D volume rendering made in PyVista." align=middle></a></div>
-                  <div><a href=https://napari.org><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_napari.png"
-                        alt="A multi-dimensionan image made in napari." align=middle></a></div>
-                  <div><a href=https://vispy.org/gallery/index.html><img
-                        src="{{ pathto('_static/images', 1) }}/content_images/v_vispy.png"
-                        alt="A Voronoi diagram made in vispy." align=middle></a></div>
-                </div>
-              </div>
-              <div>
-                <p>sdof is an essential component in the burgeoning <a
-                    href=https://pyviz.org/overviews/index.html>Python visualization landscape</a>, which includes <a
-                    href=https://matplotlib.org>Matplotlib</a>, <a href=https://seaborn.pydata.org>Seaborn</a>, <a
-                    href=https://plot.ly>Plotly</a>, <a href=https://altair-viz.github.io>Altair</a>, <a
-                    href=https://docs.bokeh.org/en/latest />Bokeh</a>, <a href=https://holoviz.org>Holoviz</a>, <a
-                    href=http://vispy.org>Vispy</a>, <a href=https://github.com/napari/napari>Napari</a>, and <a
-                    href=https://github.com/pyvista/pyvista>PyVista</a>, to name a few.</p>
-                <p>sdof&rsquo;s accelerated processing of large arrays allows researchers to visualize datasets far
-                  larger than native Python could handle.</p>
-              </div>
-              <div></div>
-            </div>
-          </li>
-          {% endif %}
-        </ul> 
-      </div>
+  <section>
+    <div class="container">
+      <h2>Ecosystem</h2>
     </div>
   </section>
 
-
-  <div id=backtotop><a href=# id=backtotop-color></a></div>
-
-  <footer id=footer class=footer>
+  <footer id="footer" class="footer">
     <div class="container is-max-widescreen">
       <div id=footer-columns class=columns>
         <div class=footer-logo-column>
           <a href="https://stairlab.berkeley.edu"><img id=footer-logo src="{{ pathto('_static/images', 1) }}/stairlab_large.svg"
             alt=" logo. "></a>
         </div>
-        <div class=link-column>
+        <div class="link-column">
           <div class=footer-column>
             <div class=footer-header></div>
             <ul class=link-list style=padding-left:30px;margin-top:20px>

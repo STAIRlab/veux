@@ -46,13 +46,11 @@ html_theme = "pydata_sphinx_theme"
 html_static_path = ['_static']
 html_favicon = './_static/images/favicon.ico'
 html_css_files = [
-    "css/peer.css",
-] + [
     'css/home-css/'+str(file.name) for file in (Path(__file__).parents[0]/"_static/css/home-css/").glob("vars*.css")
 ] + [
      'css/css/'+str(file.name) for file in (Path(__file__).parents[0]/"_static/css/css/").glob("*.css")
 ] + [
-     'css/theme-css/'+str(file.name) for file in (Path(__file__).parents[0]/"_static/css/theme-css/").glob("*.css")
+    "css/veux.css",
 ]
 html_additional_pages = {'index': 'home.html'}
 g = "https://gallery.stairlab.io"
@@ -73,6 +71,12 @@ html_show_sourcelink = False
 html_theme_options = {
     "github_url": f"https://github.com/stairlab/{project}",
     "footer_items": [], #["copyright", "sphinx-version"],
+       "logo": {
+          "text": "veux",
+#         "alt_text": "Veux Documentation - Home",
+#         "image_light": "_static/images/veux.svg",
+#         "image_dark":  "_static/images/veux.svg",
+       }
 }
 
 autodoc_member_order = 'bysource'

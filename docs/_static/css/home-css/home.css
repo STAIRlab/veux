@@ -1,0 +1,20 @@
+h2 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-weight: 400;
+    color: #333;
+
+    /* font-family: "Inconsolata", sans-serif; */
+    display: flex;
+    justify-content: center;
+    letter-spacing: 1.5px;
+    font-size: 35px
+    
+}
+
+.nav-item {
+    color: #4a4a4a;
+    display: block;
+    line-height: 1.5;
+    padding: .5rem .75rem;
+    position: relative;
+}  
