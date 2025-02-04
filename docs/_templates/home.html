@@ -82,11 +82,11 @@
 
     <div class="container is-max-widescreen">
       <div class=navbar-brand>
-        <a class=navbar-item href="/"><img class="navbar-logo" src="{{ pathto('_static/images/veux.svg', 1) }}" >
+        <a class=navbar-item href="/"><img alt="Veux branding" class="navbar-logo" src="{{ pathto('_static/images/veux.svg', 1) }}" >
           <div class=navbar-logo-text></div>
         </a>
-        <a role=button class="navbar-burger" aria-label=menu aria-expanded=false
-          data-target=navbar-menu><span aria-hidden=true></span>
+        <a role=button class="navbar-burger" aria-label="menu" aria-expanded=false
+          data-target="navbar-menu"><span aria-hidden="true"></span>
           <span aria-hidden=true></span>
           <span aria-hidden=true></span></a>
       </div>
@@ -95,13 +95,6 @@
           {% if False %}
           <a href="/install.html" class="navbar-item is-secondary">Install</a>
           <a href=https://numpy.org/doc/stable class="navbar-item is-secondary">Documentation</a>
-          <div class="navbar-item has-dropdown is-hoverable"><a aria-label="Select language"
-            class=navbar-link>English</a>
-            <div class=navbar-dropdown>
-              <a href=/pt/ class=navbar-item>Português</a>
-              <a href=/ja/ class=navbar-item>日本語 (Japanese)</a>
-            </div>
-          </div>
           {% endif %}
           <ul class="navbar-item bd-navbar-elements " style="display: flex; flex-direction: row;">
             {{ generate_header_nav_html(n_links_before_dropdown=theme_header_links_before_dropdown) }}
@@ -182,7 +175,7 @@
         <a class="casestudies-box-content casestudies-underline"
           href="{{example.link}}">
           <div class=casestudies-box-title>{{ example.title }}</div><img
-               src="{{ pathto('_static/../_images', 1) }}/{{ example.image }}" alt="">
+               src="{{ pathto('_static/../_images', 1) }}/{{ example.image }}" alt="rendering from an example">
           <div class=casestudies-box-text>{{ example.description }}</div>
         </a>
         {% endfor %}
@@ -201,9 +194,9 @@
       <table style="width: 83.4204%; height: 221px;"> <!-- -->
         <tbody>
         <tr style="height: 107px;">
-          <td style="height: 107px;"><a href="https://stairlab.berkeley.edu/wp-content/uploads/2025/01/PEER_logo_old.svg"><img decoding="async" class="wp-image-593 size-full aligncenter" src="https://stairlab.berkeley.edu/wp-content/uploads/2025/01/PEER_logo_old.svg" alt=""></a></td>
+          <td style="height: 107px;"><a href="https://peer.berkeley.edu/"><img decoding="async" class="wp-image-593 size-full aligncenter" src="https://stairlab.berkeley.edu/wp-content/uploads/2025/01/PEER_logo_old.svg" alt="PEER logo"></a></td>
           <td style="height: 107px;"><a href="https://dot.ca.gov/" rel="nofollow"><img decoding="async" class="aligncenter" src="https://raw.githubusercontent.com/claudioperez/sdof/master/docs/assets/Caltrans.svg.png" alt="Caltrans Logo" width="100"></a></td>
-          <td style="height: 107px;"><img decoding="async" class="size-medium aligncenter" src="https://www.conservation.ca.gov/_catalogs/masterpage/DOC/images/DOC-logo-mobile.svg" width="300" height="89"></td>
+          <td style="height: 107px;"><a href="https://www.conservation.ca.gov"><img decoding="async" class="size-medium aligncenter" src="https://www.conservation.ca.gov/_catalogs/masterpage/DOC/images/DOC-logo-mobile.svg" width="300" height="89"></a></td>
           <td style="height: 107px;"><img decoding="async" src="https://earimediaprodweb.azurewebsites.net/Api/v1/Multimedia/d4957b87-a007-48a9-8a66-d298a625b80c/Rendition/low-res/Content/Public" alt="Berkeley Lab logo [IMAGE] | EurekAlert! Science News Releases"></td>
         </tr>
         <tr style="height: 114px;">
@@ -222,7 +215,7 @@
       <div id=footer-columns class=columns>
         <div class=footer-logo-column>
           <a href="https://stairlab.berkeley.edu"><img id=footer-logo src="{{ pathto('_static/images', 1) }}/stairlab_large.svg"
-            alt=" logo. "></a>
+            alt="STAIRLab logo."></a>
         </div>
         <div class="link-column">
           <div class=footer-column>
