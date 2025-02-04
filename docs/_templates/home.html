@@ -12,8 +12,8 @@
   <title>{{ project }}</title>
   {%- import "static/webpack-macros.html" as _webpack with context %}
   <script data-cfasync="false">
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "{{ default_mode }}";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+    document.documentElement.dataset.mode  = "light"; // localStorage.getItem("mode") || "{{ default_mode }}";
+    document.documentElement.dataset.theme = "light"; // localStorage.getItem("theme") || "light";
   </script>
 
   <link rel="canonical" href="https://veux.io" >
@@ -122,13 +122,15 @@
               <button class="cta-button">Get Started</button></a></div>
         </div>
           <div class="flex-column">
-            <img class="header-image" src="{{ pathto('_static/images/hero.png', 1) }}" alt="{{ project }} logo. ">
+            <img class="header-image only-light" src="{{ pathto('_static/images/girder-light.png', 1) }}" alt="{{ project }} logo. ">
+            <img class="header-image only-dark" src="{{ pathto('_static/images/girder-dark.png', 1) }}" alt="{{ project }} logo. ">
           </div>
         </div>
       </div>
     </div>
   </section>
 
+{% if False %}
   <div class="news-container">
     <div class="news-title">
       {% if False %}
@@ -136,6 +138,7 @@
       {% endif %}
     </div>
   </div>
+{% endif %}
 
   <section class="keyfeatures">
     <div class="container is-max-widescreen">
@@ -190,6 +193,27 @@
   <section>
     <div class="container">
       <h2>Ecosystem</h2>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <table style="width: 83.4204%; height: 221px;"> <!-- -->
+        <tbody>
+        <tr style="height: 107px;">
+          <td style="height: 107px;"><a href="https://stairlab.berkeley.edu/wp-content/uploads/2025/01/PEER_logo_old.svg"><img decoding="async" class="wp-image-593 size-full aligncenter" src="https://stairlab.berkeley.edu/wp-content/uploads/2025/01/PEER_logo_old.svg" alt=""></a></td>
+          <td style="height: 107px;"><a href="https://dot.ca.gov/" rel="nofollow"><img decoding="async" class="aligncenter" src="https://raw.githubusercontent.com/claudioperez/sdof/master/docs/assets/Caltrans.svg.png" alt="Caltrans Logo" width="100"></a></td>
+          <td style="height: 107px;"><img decoding="async" class="size-medium aligncenter" src="https://www.conservation.ca.gov/_catalogs/masterpage/DOC/images/DOC-logo-mobile.svg" width="300" height="89"></td>
+          <td style="height: 107px;"><img decoding="async" src="https://earimediaprodweb.azurewebsites.net/Api/v1/Multimedia/d4957b87-a007-48a9-8a66-d298a625b80c/Rendition/low-res/Content/Public" alt="Berkeley Lab logo [IMAGE] | EurekAlert! Science News Releases"></td>
+        </tr>
+        <tr style="height: 114px;">
+          <td style="height: 114px; width: 22.6732%;"><a href="https://nsf.gov/" rel="nofollow"><img decoding="async" class="aligncenter" src="https://raw.githubusercontent.com/STAIRlab/.github/master/profile/assets/NSF_4-Color_bitmap_Logo.png" alt="NSF Logo" width="100"></a></td>
+          <td style="height: 114px; width: 19.8796%;"><a href="https://steer.network/" rel="nofollow"><img decoding="async" class="aligncenter" src="https://raw.githubusercontent.com/STAIRlab/.github/master/profile/assets/StEER-logo_thumb-2_lg.png" alt="StEER Logo" width="100"></a></td>
+          <td style="height: 114px; width: 22.6342%;"><a href="https://nsf.gov/" rel="nofollow"><img decoding="async" class="aligncenter" src="https://raw.githubusercontent.com/STAIRlab/.github/master/profile/assets/StEER-logo_words%20only.png" alt="NSF Logo" width="100"></a></td>
+          <td style="width: 17.9355%; height: 107px;"><img decoding="async" class="aligncenter" src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Bart-logo.svg/1280px-Bart-logo.svg.png" alt="File:Bart-logo.svg - Wikipedia"></td>
+        </tr>
+        </tbody>
+        </table>
     </div>
   </section>
 

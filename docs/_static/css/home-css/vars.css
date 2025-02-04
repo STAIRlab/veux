@@ -1,8 +1,7 @@
-/* prettier-ignore */
 :root {
   --fontFamily: 'Libre Bodoni';
 
-  --colorPrimaryDark: #3D576E;
+  --colorPrimaryDark: var(--pst-color-primary); /* #3D576E; */ /*#926452;*/ /*;  */
   --colorPrimary: #52899C;
   --colorPrimaryLight: rgb(77, 171, 207);
 
@@ -29,3 +28,4 @@
   --colorTipHeading: rgba(92, 184, 92, 0.8);
   --colorTipContent: #e6f9e6;
 }
+

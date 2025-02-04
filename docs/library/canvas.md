@@ -5,8 +5,8 @@
 # Canvas
 
 
-
-```{autofunction} create_canvas
+```{eval-rst}  
+.. autofunction:: _create_canvas
 ```
 
 

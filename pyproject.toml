@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.9"
+version = "0.0.10"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -34,7 +34,7 @@ dependencies = [
 # "trimesh",
   "pygltflib",
   "matplotlib",
-  "shps"
+  "shps>=0.0.10"
 ]
 
 classifiers = [

@@ -54,6 +54,7 @@ def serve(thing, viewer="mv", port=None):
     5. If none of the above conditions are met, it raises a ValueError.
     """
     import veux.server
+    from veux.viewer import Viewer
 
     if hasattr(thing, "canvas"):
         # artist was passed
@@ -61,23 +62,35 @@ def serve(thing, viewer="mv", port=None):
     else:
         canvas = thing
 
+    if hasattr(canvas, "show"):
+        canvas.show()
+        return
+
     if hasattr(canvas, "to_glb"):
-        server = veux.server.Server(glb=canvas.to_glb(),
-                                    viewer=viewer)
+        viewer = Viewer(canvas)
+        server = veux.server.Server(viewer=viewer)
         server.run(port=port)
 
     elif hasattr(canvas, "to_html"):
         server = veux.server.Server(html=canvas.to_html())
         server.run(port=port)
 
-    elif hasattr(canvas, "show"):
-        canvas.show()
 
     else:
         raise ValueError("Cannot serve artist")
 
 
 def _create_canvas(name=None, config=None):
+    """
+    Create a canvas object.
+    
+    Parameters
+    ----------
+    name : str, optional
+        The name of the canvas to create. Options are: ``"gltf"``, ``"plotly"``, ``"matplotlib"``, and ``"trimesh"``. Default is ``"gltf"``.
+    config : dict, optional
+        The configuration to use for the canvas.
+    """
     if name is None:
         name = "gltf"
 
@@ -126,7 +139,7 @@ def _create_model(sam_file, ndf=None):
     return model_data
 
 def create_artist(
-           sam_file, ndf=6,
+           model, ndf=6,
            canvas="gltf",
            vertical=2,
            **opts):
@@ -163,10 +176,10 @@ def create_artist(
     # from sources with the following priorities:
     #      defaults < file configs < kwds 
 
-    if sam_file is None:
+    if model is None:
         raise RenderError("Expected required argument <sam-file>")
 
-    model_data = _create_model(sam_file, ndf=ndf)
+    model_data = _create_model(model, ndf=ndf)
 
     # Setup config
     config = Config()
@@ -180,7 +193,7 @@ def create_artist(
     #
     # Create Artist
     #
-    # A Model is created from model_data by the artist
+    # The real Model is created from model_data by the artist
     # so that the artist can inform it how to transform
     # things if neccessary.
     artist = FrameArtist(model_data, ndf=ndf,

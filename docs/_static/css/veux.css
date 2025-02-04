@@ -1,6 +1,14 @@
 /* vars.override... */
 :root{--colorContentLink:rgb(77, 119, 207)}
 
+html[data-theme="light"] {
+    --pst-color-primary: #4a4a4a; /* #926452;*/
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: white;
+}
+
 /* styles. */
 body {
     font-family: var(--fontFamily), sans-serif
@@ -50,7 +58,7 @@ em {
     font-family: var(--font-family);
     font-weight: 900;
     font-size: 6em;
-    color: var(--colorPrimaryDark)
+    color: var(--pst-color-primary)
 }
 
 .hero-logo {
@@ -348,15 +356,6 @@ svg.icon {
 .navbar-brand svg {
     fill: #003262;;
     stroke: currentColor;
-}
-
-
-html[data-theme="light"] {
-    --pst-color-primary: #003262;
-}
-
-html[data-theme="dark"] {
-    --pst-color-primary: white;
 }
 
 .hero-title {
