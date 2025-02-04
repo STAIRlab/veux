@@ -87,8 +87,8 @@ html_static_path = ["_static"]
 def _add_examples(app, pagename, templatename, context, doctree):
     if templatename == "home.html":
         context["examples"] = [
-                {"title": "Basics",      "link": f"{g}/examples/example6/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
-                {"title": "Frames",      "link": f"{g}/examples/example5/",     "image": "../_static/images/gallery/Torsion.png", "description": "Coming soon."},
+                {"title": "Basics",      "link": f"{g}/examples/example5/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
+                {"title": "Frames",      "link": f"{g}/examples/torsion/",      "image": "../_static/images/gallery/Torsion.png", "description": "Solution of the pure Neumann Laplacian on structural cross sections."},
                 {"title": "Sections",    "link": f"{g}/examples/framesections/",     "image": "../_static/images/gallery/HaywardSmall.png", "description": "Coming soon."},
                 {"title": "Detailing",   "link": f"{g}/examples/example7/",     "image": "../_static/images/gallery/safeway.png", "description": "Coming soon."},
                 {"title": "Motions",     "link": f"{g}/examples/framehockle/",  "image": "../_static/images/gallery/sign-light-2800x2558.webp", "description": "Coming soon."},
