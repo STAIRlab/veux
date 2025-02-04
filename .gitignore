@@ -10,3 +10,4 @@ src/sees/canvas/femgl/
 docs/_build
 dist/
 docs/_templates/lilo_pallete.pptx
+docs/library/api/
