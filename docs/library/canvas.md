@@ -40,3 +40,9 @@ Renderings produced with the ``"matplotlib"`` canvas are typically of poor quali
 ```
 
 
+```{eval-rst}
+.. automodule:: veux.canvas
+   :members:
+   :undoc-members:
+   :show-inheritance:
+```

@@ -216,11 +216,9 @@ def render(sam_file, res_file=None, ndf=6,
            reference=None,
            **opts):
     """
-    Primary rendering function.
 
-    To render a model directly from Python::
+    Provides a quick and convenient way to render models.
 
-        artist = veux.render(model, canvas=canvas)
 
     Parameters
     ----------
@@ -232,12 +230,37 @@ def render(sam_file, res_file=None, ndf=6,
         - **Model**: An instance of the ``Model`` class from the `sees <https://pypi.org/project/sees>`_ Python package. See the `documentation <https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html>`_ 
           for details.
 
+    res_file : str, optional
+        Path to the results file for displacements.
+    ndf : int, optional
+        Number of degrees of freedom. Default is ``6``.
+    show : list, optional
+        List of elements to show.
+    hide : list, optional
+        List of elements to hide.
+    verbose : bool, optional
+        If True, prints detailed configuration information. Default is ``False``.
+    vertical : int, optional
+        Vertical configuration parameter. Default is ``2``.
+    displaced : list, optional
+        List of displaced elements.
+    reference : list, optional
+        List of reference elements.
     canvas : str, optional
         The rendering backend to use. Options are:
 
         - ``"gltf"`` (default): Produces high-quality renderings. Files can be saved as ``.html`` or ``.glb``. ``.glb`` is recommended for 3D object portability.
         - ``"plotly"``: Best for model debugging. Includes detailed annotations (e.g., node/element numbers, properties) but lower visual quality than  ``gltf``.
         - ``"matplotlib"``: Generates ``.png`` files programmatically. Note that renderings are lower quality compared to ``gltf``.
+
+
+    Notes
+    -----
+    This function provides a quick and convenient way to render models. For more detailed rendering control, the `create_artist` function should be used.
+
+    To render a model directly from Python::
+
+        artist = veux.render(model, canvas=canvas)
 
     Returns
     -------
@@ -320,11 +343,6 @@ def render(sam_file, res_file=None, ndf=6,
         pass
         # TODO: reimplement point displacements
         # cases = [artist.add_point_displacements(config["displ"], scale=config["scale"])]
-
-    if isinstance(model_data, dict) and "Displacements" in model_data:
-        cases.extend(artist.add_state(model_data["Displacements"],
-                                        scale=config["scale"],
-                                        only=config["mode_num"]))
 
     artist.draw()
 

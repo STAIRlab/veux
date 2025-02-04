@@ -1,18 +1,16 @@
 # Artist
 
-
-```{eval-rst}  
-.. autofunction:: veux.create_artist
-```
-
-<!--
-```{autofunction} veux.create_artist
-```
--->
-
 An ``Artist`` is a class that owns a `Model` and a `Canvas`, and provides a convenient interface for drawing 
 entities associated with the model. That is, rather than manually drawing lines and surfaces
 through the `Canvas`, an artist can be used to draw higher-level entities like frames and shells.
+
+```{toctree}
+:maxdepth: 1
+
+draw_outlines
+draw_surfaces
+```
+
 
 ## Viewing a Rendering
 
@@ -45,4 +43,3 @@ Use the `artist.save(...)` method to write the rendering to a file. The file for
   ```python
   artist.save("model.png")
   ```
-

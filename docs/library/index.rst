@@ -3,13 +3,6 @@ Library
 
 .. currentmodule:: veux
 
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-
-   Library <self>
-   canvas
-   artist
 
 The :mod:`veux` package features the following high-level 
 functions for quickly rendering models:
@@ -22,7 +15,13 @@ functions for quickly rendering models:
    serve
 
 
+.. toctree::
+   :hidden:
+   :maxdepth: 1
 
+   Library <self>
+   canvas
+   artist/index
 
 
 .. top-level functions

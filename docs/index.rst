@@ -1,7 +1,7 @@
 
 
 veux documentation
-================================
+==================
 
 .. toctree::
    :maxdepth: 2
