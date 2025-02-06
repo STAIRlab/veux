@@ -91,7 +91,7 @@ def _add_examples(app, pagename, templatename, context, doctree):
                 {"title": "Fields",      "link": f"{g}/examples/torsion/",      "image": "../_static/images/gallery/Torsion.png", "description": "Solution of the pure Neumann Laplacian on structural cross sections."},
                 {"title": "Interoperability",     "link": f"{g}/examples/cablestayed/",  "image": "../_static/images/gallery/sign-light-2800x2558.webp", "description": "Load models from platforms like Abaqus, CSiBridge, and SAP2000."},
                 {"title": "Detailing",   "link": f"{g}/examples/example7/",     "image": "../_static/images/gallery/safeway.png", "description": "Coming soon."},
-                {"title": "Motions",     "link": f"{g}/examples/framehelix/",  "image": "../_static/images/gallery/sign-light-2800x2558.webp", "description": "Coming soon."},
+#               {"title": "Motions",     "link": f"{g}/examples/framehelix/",  "image": "../_static/images/gallery/sign-light-2800x2558.webp", "description": "Coming soon."},
 #               {"title": "Interoperability", "link": f"{g}/examples/cablestayed/",  "image": "../_static/images/gallery/CableStayed02-576x324.webp", "description": "Coming soon."},
         ]
 
