@@ -40,13 +40,9 @@ Documentation is available at [https://veux.io/](https://veux.io).
 ## Features
 
 - **Detailed** Render frames with extruded cross sections
-- **Persistence**: Save your finite element visualizations as persistent 3D models that can be revisited and analyzed at any time.
-- **Portability**: Share your models effortlessly with colleagues, enabling seamless collaboration and review.
+- **Persistence**: Save  finite element visualizations as persistent 3D models that can be revisited and analyzed at any time.
+- **Portability**: Share renderings effortlessly with colleagues, enabling seamless collaboration and review.
 - **Accessibility**: View and interact with the models using any standard 3D model viewer, eliminating the need for specialized software or Python installation.
-- **Versatility**: A wide selection of rendering backends and output file types, including 
-  optimized 3D web formats like `.glb`. Generated 3D models can be loaded directly into programs like PowerPoint and animated.
-- Correctly render models that treat both `y` or `z` as the
-  vertical coordinate.
 
 -------------------------------------------------------------------- 
 
