@@ -32,6 +32,9 @@ the renderings without needing to install specialized software or even Python.
 Simply open the 3D object with your computer’s 3D viewer (e.g., 3D Viewer on
 Windows) or load it into a free online viewer in like [gltf-viewer](https://gltf-viewer.donmccurdy.com/).
 
+`veux` is further distinguished by its features for geometrically exact simulations
+of constrained bodies like rods and shells.
+
 Documentation is available at [https://veux.io/](https://veux.io).
 
 ## Features
