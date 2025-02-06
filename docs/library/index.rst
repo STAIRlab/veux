@@ -5,7 +5,7 @@ Library
 
 
 The :mod:`veux` package features the following high-level 
-functions for quickly rendering models:
+functions for quickly rendering finite element models:
 
 .. autosummary::
    :toctree: api/
