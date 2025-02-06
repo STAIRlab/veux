@@ -25,7 +25,7 @@ def __getattr__(name: str):
         return opensees.openseespy
 
 
-def serve(thing, viewer="mv", port=None):
+def serve(thing, viewer="mv", port=None, view_options=None):
     """
     Serve the given thing using the specified viewer and port.
 
@@ -56,6 +56,9 @@ def serve(thing, viewer="mv", port=None):
     import veux.server
     from veux.viewer import Viewer
 
+    if view_options is None:
+        view_options = {}
+
     if hasattr(thing, "canvas"):
         # artist was passed
         canvas = thing.canvas
@@ -67,7 +70,7 @@ def serve(thing, viewer="mv", port=None):
         return
 
     if hasattr(canvas, "to_glb"):
-        viewer = Viewer(canvas)
+        viewer = Viewer(canvas, **view_options)
         server = veux.server.Server(viewer=viewer)
         server.run(port=port)
 
