@@ -1,6 +1,6 @@
 <img src="docs/_static/images/veux.svg" >
 
-<img align="left" src="https://stairlab.github.io/opensees-gallery/examples/shellframe/ShellFrame.png" width="350px" alt="SEES Logo">
+<img align="left" src="https://veux.io/_static/images/gallery/ShellFrame.png" width="350px" alt="veux logo">
 
 
 **Web-first finite element visualization framework**
