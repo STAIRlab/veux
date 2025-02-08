@@ -1,6 +1,6 @@
-<img src="docs/_static/images/veux.svg" >
+<img src="https://veux.io/_static/images/veux.svg" alt="veux logo">
 
-<img align="left" src="https://veux.io/_static/images/gallery/ShellFrame.png" width="350px" alt="veux logo">
+<img align="left" src="https://veux.io/_static/images/gallery/ShellFrame.png" width="350px" alt="example structure rendered with veux">
 
 
 **Web-first finite element visualization framework**
