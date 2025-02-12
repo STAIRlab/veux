@@ -4,11 +4,13 @@ authors:
 - family-names: "Perez"
   given-names: "Claudio"
   orcid: "https://orcid.org/0000-0001-8156-2651"
-- family-names: "Chern"
-  given-names: "Chrystal"
-  orcid: "https://orcid.org/0009-0008-1247-1180"
+- family-names: "Vouvakis Manousakis"
+  given-names: "John"
+- family-names: "Mosalam"
+  given-names: "Khalid"
+  orcid: "https://orcid.org/0000-0003-2988-2361"
 title: "veux"
 version: 0.0.2
 doi: 10.5281/zenodo.13367076
 date-released: 2024-07-14
-url: "https://stairlab.berkeley.edu/software/veux"
+url: "https://veux.io/"
