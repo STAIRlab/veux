@@ -201,16 +201,18 @@ p {
     }
 }
 
-#footer {
+/*
+.veux-footer {
     background-color: var(--colorPrimaryDark)
 }
+*/
 
 .footer-logo-column {
     padding: 20px 5vw;
     font-size: 1rem
 }
 
-#footer-logo {
+.veux-footer-logo {
     height: 75px
 }
 
@@ -219,7 +221,7 @@ p {
     margin-top: 20px
 }
 
-#footer-columns>div>div>ul {
+.veux-footer-columns>div>div>ul {
     padding-left: 0
 }
 
@@ -302,38 +304,41 @@ blockquote p {
         width: 100%
     }
 }
-
+/*
 svg.icon {
     height: .75em;
     width: .75em;
     vertical-align: middle
 }
+*/
 
 .navbar svg.icon {
     width: 1.5rem
 }
 
-#footer .social-media-icons {
+.veux-footer .social-media-icons {
     font-size: 2.3em
 }
 
-#footer .social-media-icons a {
+.veux-footer .social-media-icons a {
     display: inline-block
 }
 
-#footer svg.icon {
+.stair-footer svg.icon {
     fill: var(--colorSecondary);
     margin-right: .5rem
 }
 
-#footer svg.icon:hover {
+.veux-footer svg.icon:hover {
     fill: #fff
 }
 
-#footer .icon {
+/*
+.veux-footer .icon {
     font-weight: 900;
     color: var(--colorSecondary)
 }
+*/
 
 .highlight {
     padding: 10px
