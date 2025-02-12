@@ -2,5 +2,6 @@ sphinx
 pydata-sphinx-theme
 veux
 sphinx-sitemap
+sphinx-copybutton
 myst-parser
 
