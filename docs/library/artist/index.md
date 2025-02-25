@@ -9,6 +9,7 @@ through the `Canvas`, an artist can be used to draw higher-level entities like f
 
 draw_outlines
 draw_surfaces
+draw_sections
 ```
 
 
