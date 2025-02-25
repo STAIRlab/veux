@@ -20,8 +20,8 @@ functions for quickly rendering finite element models:
    :maxdepth: 1
 
    Library <self>
-   canvas
    artist/index
+   canvas
 
 
 .. top-level functions
