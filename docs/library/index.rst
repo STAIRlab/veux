@@ -21,6 +21,7 @@ functions for quickly rendering finite element models:
 
    Library <self>
    artist/index
+   model
    canvas
 
 
