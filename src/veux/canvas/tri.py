@@ -10,6 +10,7 @@ import trimesh
 import numpy as np
 
 class TrimeshCanvas(Canvas):
+    vertical = 3
     def __init__(self, config=None):
         self.scene = trimesh.Scene()
         self.config = config
