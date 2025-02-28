@@ -25,21 +25,6 @@
   <link rel="stylesheet"
         href="https://fonts.googleapis.com/css?family=Inconsolata">
 
-  {% if False %}
-  <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,900"> -->
-  <!-- <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/theme-css/content.css.min.04e1e257bae2de28e38445f3f5d76e28317dc313cb7ead5536bcb52baccf91f9.css"> 
-  -->
-  <!--
-  <link rel="stylesheet" type=text/css
-    href="https://numpy.org/css/theme-css/fresh/core.min.3997f86943b5337a6aab5eac5003a41b9a03e1159a7e779d8e99f5c1353ad503.css">
-  <link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet">
-  <script type=text/javascript src=/js/bundle.min.js></script>
-  <link rel="stylesheet"
-    href="{{ pathto('_static/css', 1) }}/css/tabs.css.min.2774227fab8d6dfd0b5b1c8f06b5abafeaf3d6247bec4efda87ac5a587b3d2bc.css">
-  -->
-  {% endif %}
-
   <link href="_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet">
   <link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet">
   <link rel="stylesheet" href=https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css>
@@ -125,24 +110,25 @@
     </div>
   </section>
 
-{% if False %}
-  <div class="news-container">
-    <div class="news-title">
-      {% if False %}
-      <a href="/news">sees has been renamed to <em>veux</em></a>
-      {% endif %}
-    </div>
-  </div>
-{% endif %}
     <pre class=""><div class="text-center">pip install veux</div></pre>
   <section class="keyfeatures">
     <div class="container is-max-widescreen">
       <div class="keyfeatures-box-container">
+        
+        <div class="keyfeatures-box-content keyfeatures-underline">
+          <p>
+          <div class="keyfeatures-box-title">Simple</div>
+          <div class="keyfeatures-box-text">
+            <em><strong>veux</strong></em> provides a simple Python interface that allows you to quickly render and animate complex structural simulations.
+          </div>
+          </p>
+        </div>
+
         <div class="keyfeatures-box-content keyfeatures-underline">
           <p>
           <div class="keyfeatures-box-title">Fast</div>
           <div class="keyfeatures-box-text">
-            <em><strong>veux</strong></em> is implemented in lightweight Python and leverages state of the art rendering technologies 
+            <em><strong>veux</strong></em> leverages state of the art rendering technologies 
             like <a href="https://www.khronos.org/Gltf">glTF</a> 
             to match like the performance metal APIs like VTK and OpenGL, but without the headache of FFIs.
           </div>
@@ -154,15 +140,6 @@
           <div class="keyfeatures-box-text">
             <em><strong>veux</strong></em> offers support for geometrically exact simulations,
             and correctly handles finite rotations.</div>
-          </p>
-        </div>
-        <div class="keyfeatures-box-content keyfeatures-underline">
-          <p>
-          <div class="keyfeatures-box-title">Safe</div>
-          <div class="keyfeatures-box-text">
-            <em><strong>veux</strong></em> is stateless and modular, letting you plug it into existing workflows without
-            conflict or side effects.
-          </div>
           </p>
         </div>
       </div>
