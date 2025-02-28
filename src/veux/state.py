@@ -1,10 +1,6 @@
 # Claudio Perez
 # Summer 2024
-import yaml
-import json
 import numpy as np
-from pathlib import Path
-from urllib.parse import urlparse
 from scipy.spatial.transform import Rotation
 
 from veux.config import LineStyle, MeshStyle
@@ -19,65 +15,6 @@ class so3:
     def exp(cls, vect):
         return Rotation.from_rotvec(vect).as_matrix()
 
-
-def read_state(res_file, model=None, only=None, time=None, scale=None, transform=None, recover=None, **opts):
-
-    if hasattr(res_file, "read"):
-        res = yaml.load(res_file, Loader=yaml.Loader)
-
-    elif isinstance(res_file, (str,Path)):
-        res_path = urlparse(res_file)
-        if "json" in res_path[2]:
-            with open(res_path[2], "r") as f:
-                res = json.loads(f.read())
-        else:
-            with open(res_path[2], "r") as f:
-                res = yaml.load(f, Loader=yaml.Loader)
-
-        if res_path[4]: # query parameters passed
-            res = res[int(res_path[4].split("=")[-1])]
-    else:
-        res = res_file
-
-
-    #
-    # Create the object
-    #
-#   show_objects = opts.get("show_objects", set())
-    recover_rotations = recover # "iter" if "iter" in show_objects else \
-                                # "incr" if "incr" in show_objects else None
-
-
-    if isinstance(res, np.ndarray) or callable(res):
-        return BasicState(res, model, transform=transform, scale=scale, time=time)
-
-    # FEDEAS
-    elif "IterationHistory" in res or "ConvergedHistory" in res:
-
-        history = StateSeries(res, model,
-                    transform =transform,
-                    recover_rotations=recover_rotations
-                  )
-
-        if recover_rotations is not None:
-            history = GroupSeriesSE3(history, model, recover_rotations=recover_rotations, transform=transform)
-
-        if time is not None:
-            return history[time]
-        else:
-            return history
-
-
-    # Dict of state dicts
-    elif isinstance(next(iter(res.values())), dict):
-        return {
-            k: BasicState(v, model, transform=transform, scale=scale)
-                for k,v in res.items()
-        }
-
-    # Dict from node tag to nodal values
-    else:
-        return BasicState(res, model, transform=transform, scale=scale)
 
 
 
@@ -100,12 +37,12 @@ class BasicState(State):
         else:
             self.ndf = model.ndf
 
-        if self.ndf == 2 or (self.model.ndm == 3 == self.ndf):
-            self.rotation = None
-        elif self.model.ndm == 2:
-            self.rotation = 2
-        elif self.model.ndm == 3:
-            self.rotation = slice(3, None)
+        # if self.ndf == 2 or (self.model.ndm == 3 == self.ndf):
+        #     self.rotation = None
+        # elif self.model.ndm == 2:
+        #     self.rotation = 2
+        # elif self.model.ndm == 3:
+        #     self.rotation = slice(3, None)
 
         if callable(data): # OpenSees
             # fn is something like nodeDisp or nodeEigenvector
@@ -158,6 +95,73 @@ class BasicState(State):
         ])
 
 
+class GroupStateSO3(State):
+    def __init__(self, data, model, time=None, transform=None):
+        self.model  = model
+        self.time   = time
+
+        self._data  = data
+        self._qe = Rotation.from_matrix(np.eye(3))
+        if transform is None:
+            transform = np.eye(3)
+        self._R0 = transform # Rotation.from_matrix(transform)
+
+    def cell_array(self, tag=None):
+        raise Exception
+        if tag is None:
+            return np.array([self.cell_array(tag) for tag in self.model.iter_node_tags()])
+
+        Rref = self.model.frame_orientation(tag).T
+
+        return np.array([
+            self.node_array(n)@Rref for n in self.model.cell_nodes(tag)
+        ])
+
+    def node_array(self, tag=None):
+        if tag is None:
+            return np.array([self.node_array(tag) for tag in self.model.iter_node_tags()])
+
+        return self._R0@self._data.get(tag, self._qe).as_matrix()
+
+
+
+class GroupStateSE3(State):
+    def __init__(self, data, model, time=None):
+        self.model  = model
+        self._data  = data
+        self.time   = time
+        self.line_style = LineStyle()
+        self.mesh_style = MeshStyle()
+        # These are enums
+        self.position = 10
+        self.rotation = 20
+
+        if isinstance(data, tuple):
+            self._position = data[0]
+            self._rotation = data[1]
+
+
+    def cell_array(self, tag, dof=None):
+        # Note: cant return numpy array, because
+        # rotation is different from position
+        return [
+                self.node_array(node, dof)
+                for node in self.model.cell_nodes(tag)
+        ]
+
+    def node_array(self, tag, dof):
+        if dof == self.position:
+            return  self._position.node_array(tag, slice(0,3))
+
+        elif dof == self.rotation:
+            return  self._rotation.node_array(tag)
+
+        else:
+            return (self._position.node_array(tag),
+                    self._rotation.node_array(tag))
+
+
+
 class Series:
     @property
     def times(self):
@@ -187,69 +191,6 @@ class GroupSeriesSE3(Series):
                 "converged": GroupStateSE3((position[time], rotation[time]), model, time=time)
             } for time in series.times
         }
-
-
-class GroupStateSE3(State):
-    def __init__(self, data, model, time=None):
-        self.model  = model
-        self._data  = data
-        self.time   = time
-        self.position = 10
-        self.rotation = 20
-        self.line_style = LineStyle()
-        self.mesh_style = MeshStyle()
-
-        if isinstance(data, tuple):
-            self._position = data[0]
-            self._rotation = data[1]
-
-
-    def cell_array(self, tag, dof=None):
-        # Note: cant return numpy array, because
-        # rotation is different from position
-        return [
-                self.node_array(node, dof)
-                for node in self.model.cell_nodes(tag)
-        ]
-
-    def node_array(self, tag, dof):
-        if dof == self.position:
-            return  self._position.node_array(tag, slice(0,3))
-        elif dof == self.rotation:
-            return  self._rotation.node_array(tag)
-        else:
-            return (self._position.node_array(tag),
-                    self._rotation.node_array(tag))
-
-
-class GroupStateSO3(State):
-    def __init__(self, data, model, time=None, transform=None):
-        self.model  = model
-        self.time   = time
-
-        self._data  = data
-
-        if transform is None:
-            transform = np.eye(3)
-        self._R0 = Rotation.from_matrix(transform)
-
-    def cell_array(self, tag=None):
-        if tag is None:
-            return np.array([self.cell_array(tag) for tag in self.model.iter_node_tags()])
-
-        Rref = self.model.frame_orientation(tag).T
-
-        return np.array([
-            self.node_array(n)@Rref for n in self.model.cell_nodes(tag)
-        ])
-
-    def node_array(self, tag=None):
-        if tag is None:
-            return np.array([self.node_array(tag) for tag in self.model.iter_node_tags()])
-
-        return self._data.get(tag, self._R0).as_matrix()
-
-
 
 class StateSeries(Series): # temporal distribution of states
     def __init__(self, soln: "FedeasPost", model, transform=None, scale=None,
