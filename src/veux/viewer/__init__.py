@@ -1,9 +1,55 @@
-# Claudio Perez
+#===----------------------------------------------------------------------===#
+#
+#         STAIRLab -- STructural Artificial Intelligence Laboratory
+#
+#===----------------------------------------------------------------------===#
+#
+# Claudio M. Perez
+#
 # Summer 2024
+#
 import base64
 import textwrap
 from pathlib import Path
+import numpy as np
+import numpy as np
+from io import BytesIO
 
+def _serve_black_ground_hdr():
+    import bottle
+    width, height = 1024, 512
+
+    # Create a blank HDR image
+    hdr_image = np.ones((height, width, 3), dtype=np.float32)  # Start with white
+    horizon = int(height * 0.6)
+    hdr_image[horizon:, :] = 0.0  # Black ground
+
+    # Create the HDR header
+    hdr_header = (
+        "#?RADIANCE\n"
+        "FORMAT=32-bit_rle_rgbe\n\n"
+        f"-Y {height} +X {width}\n"
+    )
+
+    # Convert the RGB values to Radiance RGBE format
+    rgbe_image = np.zeros((height, width, 4), dtype=np.uint8)
+    brightest = np.maximum.reduce(hdr_image, axis=2)
+    nonzero_mask = brightest > 0
+    mantissa, exponent = np.frexp(brightest[nonzero_mask])
+    rgbe_image[nonzero_mask, :3] = (hdr_image[nonzero_mask] / mantissa[:, None] * 255).astype(np.uint8)
+    rgbe_image[nonzero_mask, 3] = (exponent + 128).astype(np.uint8)
+
+    # Encode the HDR data to memory
+    hdr_data = BytesIO()
+    hdr_data.write(hdr_header.encode('ascii'))  # Write the header
+    hdr_data.write(rgbe_image.tobytes())  # Write the pixel data
+
+    # Serve the HDR file
+    return bottle.HTTPResponse(
+        body=hdr_data.getvalue(),
+        status=200,
+        headers={"Content-Type": "image/vnd.radiance"}
+    )
 class Viewer:
     """
     A class to represent a 3D model viewer.
@@ -14,14 +60,43 @@ class Viewer:
         Initializes the Viewer with optional viewer type, file path, or binary data.
 
     """
-    def __init__(self, viewer=None, path=None, data=None):
-        if data is not None:
+    def __init__(self, thing, viewer=None, id=None, path=None, hosted=None,standalone=True,lights=None):
+        self._id = id if id is not None else "veux-viewer"
+        self._viewer = viewer if viewer is not None else "mv"
+        self._lights = lights # light or dark mode
+
+        self._hosted = hosted
+        if hosted is None and self._viewer == "mv":
+            self._hosted = False
+
+        if hasattr(thing, "canvas"):
+            # artist was passed
+            canvas = thing.canvas
+            data = canvas.to_glb()
+        elif hasattr(thing, "to_glb"):
+            canvas = thing
+            data = canvas.to_glb()
+        else:
+            data = thing
+
+        self._standalone = standalone
+
+        if not self._hosted:
+            self._model_data = None
             data64 = base64.b64encode(data).decode('utf-8')
             self._glbsrc=f"data:model/gltf-binary;base64,{data64}"
         else:
-            self._glbsrc = path 
+            self._model_data = data
+            self._glbsrc = "/model.glb" 
 
-        self._viewer = viewer if viewer is not None else "mv"
+
+    def resources(self):
+        if self._hosted:
+            yield ("/model.glb", lambda : self._model_data)
+
+            if self._viewer == "mv":
+                yield ("/black_ground.hdr", _serve_black_ground_hdr)
+
 
     def get_html(self):
         if self._viewer == "babylon":
@@ -41,67 +116,108 @@ class Viewer:
                 return f.read()
 
         elif self._viewer == "mv":
-            return _model_viewer(self._glbsrc, control=False)
+            return _model_viewer(self._glbsrc,
+                                 control=False,
+                                 hosted=self._hosted,
+                                 light_mode=self._lights,
+                                 standalone=self._standalone)
 
 
-def _model_viewer(source, control=False):
-      library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
+def _model_viewer(source, control=False, hosted=False, standalone=True, light_mode=None):
 
-      try:
-          with open(Path(__file__).parents[0]/"controls.css", "r") as f:
-              control_style = f"<style>{f.read()}</style>"
+    if light_mode is None:
+        light_mode = "light"
 
-          with open(Path(__file__).parents[0]/"controls.js", "r") as f:
-              control_code = f"<script>{f.read()}</script>"
-      except:
-          control_code = ""
-          control_style = ""
+    lights = """
+      <style>
+      html {
+        color-scheme: light; /* dark */
+        background-color: #555555;
+        --poster-color: #555555;
+        --progress-bar-color: #fff;
+        --progress-bar-background-color: rgba(255, 255, 255, 0.2);
+      }
+      @media (prefers-color-scheme: dark) {
+        model-viewer {
+          --poster-color: #555555;
+          background-color: #555555;
+        }
+      }
+      </style>
+    """
+    lights = ""
 
-      control_html = """
-        <div class="controls">
-          <!-- <button id="step-backward">Step Left</button> -->
-          <button id="toggle-animation">Pause</button>
-          <!-- <button id="step-forward">Step Right</button> -->
-        </div>
-      """
+    try:
+        with open(Path(__file__).parents[0]/"controls.css", "r") as f:
+            control_style = f"<style>{f.read()}</style>"
 
+        with open(Path(__file__).parents[0]/"controls.js", "r") as f:
+            control_code = f"<script>{f.read()}</script>"
 
-      foot = "</body></html>"
-      head = f"""
-        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-        <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>veux</title>
-          {library}
-          {control_style}
-        </head>
-        <body>
-      """
+    except Exception as e:
+        print(e)
+        control_code = ""
+        control_style = ""
 
-      viewer = f"""
-          <model-viewer id="veux-viewer"
-                        alt="rendering"
-                        src="{source}"
-                        autoplay
-                        style="width: 100%; height: 500px;"
-                        max-pixel-ratio="2"
-                        shadow-intensity="1"
-                        environment-image="/black_ground.hdr"
-                        environment-image="neutral"
-                        shadow-light="10000 10000 10000"
-                        exposure="0.8"
-                        camera-controls
-                        min-camera-orbit="auto auto 0m"
-                        touch-action="pan-y">
+    with open(Path(__file__).parents[0]/"model-viewer.min.js", "r") as f:
+        library = f'<script type="module">{f.read()}</script>'
+#   library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
+
+    control_html = """
+      <div class="controls">
+        <button id="toggle-animation">Pause</button>
+      </div>
+    """
+    if hosted:
+        environment = "/black_ground.hdr"
+    else:
+        environment = "neutral"
+
+    viewer = f"""
+          <model-viewer 
+            id="veux-viewer"
+            alt="rendering"
+            src="{source}"
+            autoplay
+            style="width: 100%; height: 500px;"
+            max-pixel-ratio="2"
+            interaction-prompt="none"
+            shadow-intensity="1"
+            environment-image="{environment}"
+            shadow-light="10000 10000 10000"
+            exposure="0.8"
+            camera-controls
+            min-camera-orbit="auto auto 0m"
+            touch-action="pan-y">
           </model-viewer>
-      """
-      return textwrap.dedent(f"""
-            {head}
-            {viewer}
-            {control_html if control else ""}
-            {control_code if control else ""}
-            {foot}
-      """)
+    """
+
+    if not standalone:
+        page = f"""
+        <div style='display: flex; flex-direction: row;'>
+        {library}
+        {viewer}
+        </div>
+        """
+    else:
+        page = f"""
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+        <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+            <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>veux</title>
+            {library}
+            {lights}
+            {control_style}
+            </head>
+            <body>
+                {viewer}
+                {control_html if control else ""}
+                {control_code if control else ""}
+            </body>
+        </html>"
+        """
+    return textwrap.dedent(page)
+
