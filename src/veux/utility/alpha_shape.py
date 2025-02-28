@@ -65,7 +65,7 @@ def alpha_shape(points, alpha=2.0, only_outer=True):
     edges = set()
     # Loop over triangles:
     # ia, ib, ic = indices of corner points of the triangle
-    for ia, ib, ic in tri.vertices:
+    for ia, ib, ic in tri.simplices:
         pa = points[ia]
         pb = points[ib]
         pc = points[ic]
@@ -81,5 +81,6 @@ def alpha_shape(points, alpha=2.0, only_outer=True):
             add_edge(edges, ia, ib)
             add_edge(edges, ib, ic)
             add_edge(edges, ic, ia)
-    return points[stitch_boundaries(edges)]
+    # return points[stitch_boundaries(edges)]
+    return edges
 
