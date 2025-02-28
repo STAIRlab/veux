@@ -18,7 +18,6 @@
 `veux` is a finite element rendering library that leverages modern 
 web technologies to produce sharable, efficient, and detailed renderings.
 
-
 -------------------------------------------------------------------- 
 
 <br>
