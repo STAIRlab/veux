@@ -38,12 +38,13 @@ def SketchConfig(kwds=None):
           "axes":        {"show": True, "scale": 1.0, "label": [r"$\mathbf{E}_1$", r"$\mathbf{E}_2$", r"$\mathbf{E}_3$"], "style": LineStyle(color="black")},
       },
       "frame": {
-          "outline":     {"show": True,  "style": LineStyle(color="gray"), "basis": None},
+          "outline":     {"show": True,  "style": LineStyle(color="black"), "basis": None},
           "surface":     {"show": False, "style": MeshStyle(),             "basis": None, "scale": 1.0, "outline": "long", "line_style": LineStyle(color="black", width=4)},
           "axes":        {"show": False},
           "contour":     None,
           "marker":      None,
           "info":        None,
+          "hover":       {"show": False} #, "style": TextStyle(hover=True)},
       },
       "plane": {
           "outline":     {"show": True,  "style": LineStyle(), "basis": None},
@@ -94,7 +95,7 @@ Config = lambda : {
   "server_config": {},
 
   "model_config":  {},
-  "state_config":  {"time": None, "recover": None},
+  "state_config":  {},
   "canvas_config": {
       # Canvas
       "type":       "gltf",
