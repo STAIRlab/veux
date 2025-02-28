@@ -88,7 +88,7 @@ def create_arrow(canvas, body_length,
                  body_diameter=None):
     """
     Create an arrow mesh along the +X axis.
-    
+
     Parameters:
         canvas: An object with .gltf, .float_t, .index_t, and _push_data.
         style: An object used for style (e.g., material, scale).
@@ -96,7 +96,7 @@ def create_arrow(canvas, body_length,
         head_length: Length of the arrow head (defaults to 0.25 * body_length).
         head_diameter: Diameter of the arrow head base (defaults to 2 x body_diameter).
         body_diameter: Diameter of the cylindrical body (defaults to 0.05 * body_length).
-    
+
     Returns:
         The index of the new mesh in canvas.gltf.meshes.
     """
@@ -105,10 +105,10 @@ def create_arrow(canvas, body_length,
     if head_length is None:
         head_length = 0.33 * body_length
     if head_diameter is None:
-        head_diameter = 2 * body_diameter
+        head_diameter = 2.5 * body_diameter
 
     # Number of segments around the circle.
-    n_seg = 12
+    n_seg = 40
 
     # Lists to collect vertices and triangle indices.
     vertices = []
