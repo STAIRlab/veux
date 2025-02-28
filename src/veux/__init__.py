@@ -112,7 +112,7 @@ def _create_canvas(name=None, config=None):
         import veux.canvas.tri
         return veux.canvas.tri.TrimeshCanvas(config=config)
     else:
-        raise ValueError("Unknown canvas name " + str(name))
+        raise ValueError(f"Unknown canvas name {name}")
 
 
 def _create_model(sam_file, ndf=None):
@@ -339,7 +339,7 @@ def render(sam_file, res_file=None, ndf=6,
     if res_file is not None:
         artist.add_state(res_file,
                          scale=config["scale"],
-                         only=config["mode_num"],
+#                        only=config["mode_num"],
                          **config["state_config"])
 
     elif config["displ"] is not None:
