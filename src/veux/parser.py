@@ -332,8 +332,8 @@ def parse_args(argv)->dict:
             elif arg == "--time":
                 opts["state_config"]["time"] = json.loads(next(args))
 
-            elif arg == "--recover":
-                opts["state_config"]["recover"] = next(args)
+            elif arg == "--recover-rotations":
+                opts["state_config"]["recover_rotations"] = next(args)
 
             elif arg[:2] == "-d":
                 node_dof = arg[2:] if len(arg) > 2 else next(args)
