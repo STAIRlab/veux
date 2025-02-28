@@ -1,5 +1,6 @@
 import numpy as np
 from veux.model import Model
+from veux.state import BasicState
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 
@@ -9,8 +10,26 @@ def _plot_grid(x,y, ax=None, **kwargs):
     segs2 = segs1.transpose(1,0,2)
     ax.add_collection(LineCollection(segs1, **kwargs))
     ax.add_collection(LineCollection(segs2, **kwargs))
-
     ax.autoscale()
+
+
+def _make_state(res, model=None, time=None, scale=None, transform=None, recover=None, **opts):
+
+
+    if isinstance(res, np.ndarray) or callable(res):
+        return BasicState(res, model, transform=transform, scale=scale, time=time)
+
+
+    # Dict of state dicts
+    elif isinstance(next(iter(res.values())), dict):
+        return {
+            k: BasicState(v, model, transform=transform, scale=scale)
+                for k,v in res.items()
+        }
+
+    # Dict from node tag to nodal values
+    else:
+        return BasicState(res, model, transform=transform, scale=scale)
 
 
 class PlaneModel(Model):
@@ -56,6 +75,17 @@ class PlaneModel(Model):
                         tuple(int(i) for i in elem) for elem in blk.data
                     ]
 
+    def wrap_state(self, state, scale=None, transform=None)->BasicState:
+        """
+        """
+        if not isinstance(state, BasicState):
+            return _make_state(state,
+                            model=self,
+                            scale=scale,
+                            transform=transform)
+        else:
+            return state
+
     def frame_orientation(self, tag):
         return None
 
@@ -83,8 +113,11 @@ class PlaneModel(Model):
             return self.recs[tag]
 
     def node_position(self, tag=None, state=None):
-        xyz = np.zeros((len(self.nodes), 3))
-        xyz[:,[0,2]] = list(self.nodes.values())
+        if tag is None:
+            return np.array([self.node_position(tag, state=state) for tag in self.iter_node_tags()])
+
+        xyz = np.zeros(3)
+        xyz[:2] = self.nodes[tag]
 
         if state is not None:
             xyz = xyz + state.node_array(tag, dof=state.position)
