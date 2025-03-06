@@ -19,7 +19,7 @@ opposed to the interactive html.
 > **Note** Printing depends on the JSON output of a model. Several materials and
 > elements in the OpenSeesPy and upstream OpenSees implementations do not
 > correctly print to JSON. For the most reliable results, use the
-> [`opensees`](https://pypi.org/project/opensees) package.
+> [`OpenSeesRT`](https://opensees.stairlab.io) interpreter.
 
 By default, the rendering treats the $y$ coordinate as vertical.
 In order to manually control this behavior, pass the option 
