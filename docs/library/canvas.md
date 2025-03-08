@@ -19,7 +19,7 @@ The <code>gltf</code> canvas uses <a href="https://www.khronos.org/gltf/">glTF</
 saved to a <b>.glb</b> file and opened in a 3D model viewer, ray tracing can be used to 
 add realistic shadows.
 
-glTF’s internal structure mimics the memory buffers commonly used by graphics chips when rendering in real-time, such that assets can be delivered to desktop, web, or mobile clients and be promptly displayed with minimal processing.
+glTF’s internal structure mimics the memory buffers commonly used by GPUs when rendering in real-time, such that assets can be delivered to desktop, web, or mobile clients and be promptly displayed with minimal processing.
 
 Renderings on the <code>gltf</code> canvas can stored as <b>glb</b> or <b>html</b> files.
 </dd>
