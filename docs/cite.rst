@@ -2,7 +2,8 @@ Citing veux
 ^^^^^^^^^^^
 
 
-`doi: 10.5281/zenodo.13367076 <https://doi.org/10.5281/zenodo.13367076>`_
+**veux** is developed by the `STAIRLab <https://stairlab.berkeley.edu>`_ at UC Berkeley. 
+To cite *veux* in your work, please make reference to `doi: 10.5281/zenodo.13367076 <https://doi.org/10.5281/zenodo.13367076>`_.
 
 
 .. code-block:: bibtex
