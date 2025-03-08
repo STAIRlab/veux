@@ -217,7 +217,7 @@ def _model_viewer(source, control=False, hosted=False, standalone=True, light_mo
                 {control_html if control else ""}
                 {control_code if control else ""}
             </body>
-        </html>"
+        </html>
         """
     return textwrap.dedent(page)
 
