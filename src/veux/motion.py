@@ -23,8 +23,10 @@ def _append_index(lst, item):
     lst.append(item)
     return len(lst) - 1
 
-def skin_frames(model, canvas, config=None):
+def skin_frames_(model, canvas, config=None):
     """
+    ORIGINAL IMPLEMENTATION
+
     Builds a single skinned mesh for all frame elements in the reference (undeformed) configuration.
     Returns a dictionary mapping (element_name, cross_section_index) -> glTF node index,
     so you can update those node transforms later.
@@ -203,8 +205,10 @@ def skin_frames(model, canvas, config=None):
 from veux.frame.extrude import ExtrusionCollection, add_extrusion
 from shps.frame.extrude import FrameMesh
 
-def skin_frames(model, canvas, config=None):
+def skin_frames(model, artist, config=None):
     """
+    REFACTORED TO USE ExtrusionCollection
+
     Builds a skinned mesh for all frame elements in the reference (undeformed) configuration.
     Returns a dictionary mapping (element_name, j) -> glTF node index,
     so you can update those node transforms later.
@@ -220,6 +224,8 @@ def skin_frames(model, canvas, config=None):
             "outline": "",
         }
     scale = config.get("scale", 1.0)
+    canvas = artist.canvas 
+    Ra = artist._plot_rotation
 
 
     #
@@ -234,6 +240,7 @@ def skin_frames(model, canvas, config=None):
     joint_nodes = skeleton_root_node.children
     ibms = []
     skin_nodes = {}
+    joint_elements = []
 
     def _bind_inv(translation, rotmat):
         M = np.eye(4, dtype=canvas.float_t)
@@ -251,8 +258,8 @@ def skin_frames(model, canvas, config=None):
     e = ExtrusionCollection([], [], [], set(), set())
     for tag in model.iter_cell_tags():
 
-        X = model.cell_position(tag)
-        R = [model.frame_orientation(tag).T]*len(X)
+        X = np.array([Ra@model.node_position(n) for n in model.cell_nodes(tag)])
+        R = [Ra@model.frame_orientation(tag).T]*len(X)
 
         sections = [model.frame_section(tag, i) for i in range(len(X))]
 
@@ -263,10 +270,10 @@ def skin_frames(model, canvas, config=None):
                         [s.exterior() for s in sections],
                         scale=scale,
                         do_end_caps=False)
-    
+
         I += add_extrusion(extr, e, X, R, I)
 
-        for (j, start_idx, end_idx) in extr.ring_ranges():
+        for j, start_idx, end_idx in extr.ring_ranges():
             #
             node = pygltflib.Node()
             node.translation =  X[j].tolist()
@@ -276,6 +283,7 @@ def skin_frames(model, canvas, config=None):
 
             # add to skeleton root
             joint = _append_index(joint_nodes, skin_nodes[(tag, j)])
+            joint_elements.append((tag, j))
 
             ibms.append(_bind_inv(X[j], R[j]))
 
@@ -284,23 +292,24 @@ def skin_frames(model, canvas, config=None):
                 joints_0.append( [joint, 0., 0., 0.])
                 weights_0.append([  1.0, 0., 0., 0.])
 
-
     # 4) Create the Skin referencing these joints
     #------------------------------------------------------
     skin = _create_skin(canvas, ibms, joint_nodes, skeleton_root_idx)
 
     # 5) Build the mesh
     #------------------------------------------------------
-    canvas.plot_mesh(e.coords,
-                    [list(reversed(face)) for face in e.triang],
-                    joints_0=joints_0,
-                    weights_0=weights_0,
-                    skin=skin,
-                    mesh_name="FrameSkinMesh",
-                    node_name="FrameSkinMeshNode",
-    )
+    if len(e.coords):
+        canvas.plot_mesh(e.coords,
+                        [list(reversed(face)) for face in e.triang],
+                        joints_0=joints_0,
+                        weights_0=weights_0,
+                        skin=skin,
+                        mesh_name="FrameSkinMesh",
+                        node_name="FrameSkinMeshNode",
+        )
 
-    return skin_nodes
+    return skin_nodes, joint_nodes, joint_elements
+
 
 def _create_skin(canvas, ibms, joint_nodes, skeleton):
     "Create a Skin referencing given joints and add to skeleton"
@@ -449,10 +458,10 @@ def deform_extrusion(model, canvas, state, skin_nodes, config=None):
 
         # Number of cross sections
         nen = len(el["nodes"])
-
+        # TODO: Make these consistent with draw_sections
         # Displacements and rotations from 'state' for each cross-section
-        pos_all = state.cell_array(el["name"], state.position)  # shape (nen, 3?)
-        rot_all = state.cell_array(el["name"], state.rotation)  # shape (nen, 3x3) ?
+        pos_all = state.cell_array(element_name, state.position)  # shape (nen, 3?)
+        rot_all = state.cell_array(element_name, state.rotation)  # shape (nen, 3x3) ?
 
         # Original coordinates
         X_ref = np.array(el["crd"])  # shape (nen, 3)
@@ -475,7 +484,7 @@ class Motion:
     a new keyframe at the next time step.
     """
 
-    def __init__(self, model=None, time_step=1.0, name="BeamDeformations"):
+    def __init__(self, artist=None, time_step=1.0, name="BeamDeformations"):
         """
         :param canvas:   An instance of your GltfCanvas (with .gltf).
         :param extrusion: Dict {(element_name, j): gltf_node_index, ...}
@@ -483,17 +492,24 @@ class Motion:
         :param time_step: The time increment for each added state (seconds, or frames).
         :param name: The name of the final glTF animation.
         """
-        self.model = model
+        self.model = artist.model
+        self.artist = artist
+        self.canvas = artist.canvas
 
         self.time_step = time_step
         self.current_time = 0.0
         self.anim_name = name
 
         self._keyframes = defaultdict(lambda: {"translation": [], "rotation": []})
+
+        self._section_skins = None
     
 
-    def advance(self):
-        self.current_time += self.time_step
+    def advance(self, time=None):
+        if time is None:
+            self.current_time += self.time_step
+        else:
+            self.current_time = time
 
     def set_mode_state():
         pass
@@ -510,10 +526,26 @@ class Motion:
 
         self._keyframes[node]["rotation"].append((time, rotation))
 
-    def set_field(self):
-        pass
 
-    def set_skin_state(self, state, skin_nodes, time=None):
+    def set_field(self, field, time=None):
+        """
+        Record a keyframe for a node scale
+        """
+        if time is None:
+            time = self.current_time
+        if not hasattr(self, '_mesh_morph_keyframes'):
+            self._mesh_morph_keyframes = []
+
+        model = self.model
+
+        self._mesh_morph_keyframes.append((time, [
+            field(model.cell_nodes(element)[j]) for element,j in self._joint_elements
+        ]))
+
+
+    def draw_sections(self,
+                      state=None, rotation=None, position=None, warp=None,
+                      time=None):
         """
         Given a 'state' that has deformed positions and rotations for each element’s cross-section,
         record a new keyframe at the current time.
@@ -521,19 +553,30 @@ class Motion:
         :param state:  Some data structure that can provide displacements & rotations
                        for each (element, cross_section_index).
         """
+        if self._section_skins is None:
+            self._section_skins, self._joint_nodes, self._joint_elements = \
+                skin_frames(self.model, self.artist,
+                            config=self.artist._config_sketch("default")["surface"]["frame"])
+        skin_nodes = self._section_skins
+
+        state = self.model.wrap_state(state, 
+                                rotation=rotation, 
+                                position=position,
+                                transform=self.artist.dofs2plot)
         model = self.model
+        Ra = self.artist._plot_rotation
         # For each element in the model
-        for element_name, el in model["assembly"].items():
+        for element_name in model.iter_cell_tags():
 
-            # number of cross sections
-            nen = len(el["nodes"])
-
-            # Original reference coordinates (before deformation)
-            X_ref = model.cell_position(element_name) 
+            R0 = model.frame_orientation(element_name).T
+            # X_ref = model.cell_position(element_name)
+            nen = len(model.cell_nodes(element_name))
 
             # Displacements & rotations from 'state'
-            pos_all = state.cell_array(element_name, state.position)   # shape (nen,3?)
-            rot_all = state.cell_array(element_name, state.rotation)   # shape (nen,3x3)?
+            pos_all = np.array([
+                Ra@model.node_position(node, state=state) for node in model.cell_nodes(element_name)
+            ])
+            rot_all = [Ra@Ri@R0 for Ri in state.cell_array(element_name, state.rotation)]
 
             for j in range(nen):
                 # look up the glTF node index
@@ -542,7 +585,7 @@ class Motion:
                     continue
 
                 # compute final position for cross section j
-                x_def = X_ref[j] + pos_all[j]
+                x_def = pos_all[j] #X_ref[j] + pos_all[j]
                 # convert rotation matrix -> quaternion
                 qx, qy, qz, qw = Rotation.from_matrix(rot_all[j]).as_quat()
 
@@ -570,7 +613,7 @@ class Motion:
         #   - For each node, we have two samplers (translation, rotation)
         #   - Then two channels referencing those samplers
 
-        # We'll need to record the *sampler index* for each node property as we build them
+        # We'll need to record the sampler index for each node property as we build them
         # so we can attach channels referencing the correct sampler.
         node_position_sampler_index = {}
         node_rotation_sampler_index = {}
@@ -603,7 +646,7 @@ class Motion:
                 # after building all samplers.
                 anim.samplers[sampler_index_t].extras = {
                     "times_array": np.array([k[0] for k in pos_keyframes], dtype=canvas.float_t),
-                    "vals_array":  np.array([k[1] for k in pos_keyframes], dtype=canvas.float_t)  # shape (N,3)
+                    "vals_array":  np.array([k[1] for k in pos_keyframes], dtype=canvas.float_t)
                 }
             
             if rot_keyframes:
@@ -619,13 +662,13 @@ class Motion:
                 # after building all samplers.
                 anim.samplers[sampler_index_r].extras = {
                     "times_array": np.array([k[0] for k in rot_keyframes],   dtype=canvas.float_t),
-                    "vals_array":  np.array([k[1] for k in rot_keyframes],   dtype=canvas.float_t)  # shape (N,4)
+                    "vals_array":  np.array([k[1] for k in rot_keyframes],   dtype=canvas.float_t)
                 }
 
-        # 3) Now create Channels referencing each sampler
+        # 3)
         for node_idx in self._keyframes:
             if node_idx in node_position_sampler_index:
-                # Create a channel for translation
+                # Channel for translation
                 anim.channels.append(pygltflib.AnimationChannel(
                     sampler=node_position_sampler_index[node_idx],
                     target=pygltflib.AnimationChannelTarget(
@@ -635,7 +678,7 @@ class Motion:
                 ))
 
             if node_idx in node_rotation_sampler_index:
-                # Create a channel for rotation
+                # Channel for rotation
                 anim.channels.append(pygltflib.AnimationChannel(
                     sampler=node_rotation_sampler_index[node_idx],
                     target=pygltflib.AnimationChannelTarget(
@@ -645,12 +688,10 @@ class Motion:
                 ))
 
 
-        # 4) Insert the actual time / value data into glTF buffers.
-        #    We'll create BufferViews and Accessors, then fix up each sampler's input/output
+        # 4) Insert the time / value data into buffers.
+        #    Create BufferViews and Accessors, then set up each sampler's input/output
         #    to reference the newly created accessor indices.
-        #    We'll do this "in bulk," iterating over new_animation.samplers
         for sampler in anim.samplers:
-
             # Accessors
             time_accessor_idx = _append_index(gltf.accessors, pygltflib.Accessor(
                 bufferView=canvas._push_data(sampler.extras["times_array"].tobytes()),
@@ -666,6 +707,10 @@ class Motion:
             # But we already know shape from sampler.extras["vals_array"].shape
             val_type = "VEC3" if sampler.extras["vals_array"].shape[1]==3 else "VEC4"
 
+            # For morph weights, glTF expects a VEC? array; since we have one target, it is VEC1.
+            if sampler.extras["vals_array"].shape[1] == 1:
+                val_type = "SCALAR"
+
             vals_accessor_idx = _append_index(gltf.accessors, pygltflib.Accessor(
                 bufferView=canvas._push_data(sampler.extras["vals_array"].tobytes()),
                 byteOffset=0,
@@ -674,42 +719,35 @@ class Motion:
                 type=val_type
             ))
 
-            # Now fix the sampler's input/output
             sampler.input  = time_accessor_idx
             sampler.output = vals_accessor_idx
 
-            # remove extras so it won't try to JSON-serialize large arrays
+            # Remove extras so we dont JSON-serialize large arrays
             del sampler.extras["times_array"]
             del sampler.extras["vals_array"]
-
 
         # 5) Attach this new Animation to the glTF
         if not gltf.animations:
             gltf.animations = []
 
-        i = _append_index(gltf.animations, anim)
+        _append_index(gltf.animations, anim)
 
 
-def create_animation(artist, states, skin_nodes=None):
-
-    # 1) Draw reference configuration with extrusions -> returns extrusion
-    if skin_nodes is None:
-        skin_nodes = skin_frames(artist.model, artist.canvas)
+def create_animation(artist, states=None, skin_nodes=None):
 
     # 2) Create the animation helper
-    animation = Motion(artist.model, time_step=1)
+    animation = Motion(artist)
 
     # 3) For each state, record a new keyframe
     for time in states.times:
-        animation.set_skin_state(states[time], skin_nodes)
+        animation.draw_sections(state=states[time])
         animation.advance()
 
     animation.add_to(artist.canvas)
     return animation
 
 
-
-def animate(sam_file, res_file=None, vertical=None, **opts):
+def _animate(sam_file, res_file=None, vertical=None, **opts):
     # Configuration is determined by successively layering
     # from sources with the following priorities:
     #      defaults < file configs < kwds
@@ -746,12 +784,11 @@ def animate(sam_file, res_file=None, vertical=None, **opts):
                          model_config=config["model_config"],
                          canvas=veux.canvas.gltf.GltfLibCanvas())
 
-    skin_nodes = skin_frames(artist.model, artist.canvas, 
-                                  config=artist._config_sketch("default")["surface"]["frame"])
 
     if res_file is not None:
         if isinstance(res_file, str):
-            soln = veux.state.read_state(res_file, artist.model, **opts["state_config"])
+#           soln = artist.model.wrap_state(res_file)
+            soln = veux.model.read_state(res_file, artist.model, **opts["state_config"])
         else:
             from veux.state import GroupSeriesSE3, StateSeries
             series = StateSeries(res_file, artist.model,
@@ -759,9 +796,12 @@ def animate(sam_file, res_file=None, vertical=None, **opts):
                 recover_rotations="conv"
             )
             soln = GroupSeriesSE3(series, artist.model, recover_rotations="conv", transform=artist.dofs2plot)
+
         if "time" not in opts:
-            create_animation(artist, soln, skin_nodes)
+            create_animation(artist, soln)
         else:
+            skin_nodes,_ = skin_frames(artist.model, artist.canvas,
+                                          config=artist._config_sketch("default")["surface"]["frame"])
             deform_extrusion(artist.model, artist.canvas, soln, skin_nodes)
 
     # artist.draw()
@@ -775,24 +815,29 @@ if __name__ == "__main__":
     config = veux.parser.parse_args(sys.argv)
 
     try:
-        artist = animate(**config)
+        artist = _animate(**config)
 
         # write plot to file if output file name provided
         if config["write_file"]:
             artist.save(config["write_file"])
 
+        # Otherwise either create popup, or start server
+        elif hasattr(artist.canvas, "popup"):
+            artist.canvas.popup()
+
         elif hasattr(artist.canvas, "to_glb"):
-            import veux.server
-            server = veux.server.Server(glb=artist.canvas.to_glb(),
-                                        viewer=config["viewer_config"].get("name", None))
-
-            server.run(config["server_config"].get("port", None))
-
+            from veux.server import Server
+            from veux.viewer import Viewer
+            viewer = Viewer(artist, viewer=config["viewer_config"].get("name", None))
+            port = config["server_config"].get("port", None)
+            server = Server(viewer=viewer)
+            server.run(port=port)
 
         elif hasattr(artist.canvas, "to_html"):
             import veux.server
+            port = config["server_config"].get("port", None)
             server = veux.server.Server(html=artist.canvas.to_html())
-            server.run(config["server_config"].get("port", None))
+            server.run(port=port)
 
     except (FileNotFoundError, RenderError) as e:
         # Catch expected errors to avoid printing an ugly/unnecessary stack trace.
