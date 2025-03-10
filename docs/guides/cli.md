@@ -11,8 +11,8 @@ is the JSON output produced by the OpenSees [`print`](https://opensees.stairlab.
 
 > **Note** Printing depends on the JSON output of a model. Several materials and
 > elements in the OpenSeesPy and upstream OpenSees implementations do not
-> correctly print to JSON. For the most reliable results, use the
-> [`OpenSeesRT`](https://opensees.stairlab.io) interpreter.
+> correctly print to JSON. For the most reliable results, use the newer
+> [`OpenSeesRT`](https://opensees.stairlab.io) distribution.
 
 If you omit the `-o <file.html>` portion, it will plot immediately in a new
 window using the `matplotlib` [canvas](https://veux.io/library/canvas.html). 
