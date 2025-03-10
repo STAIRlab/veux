@@ -2,14 +2,27 @@
 <html lang=en>
 <head>
   <meta charset=utf-8>
+  <title>{{ project }}</title>
   <meta name=description content="{{ description }}">
   <meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no">
   <meta http-equiv=x-ua-compatible content="ie=edge">
   <meta name=twitter:card content="summary_large_image">
-  <meta name=twitter:image content="https://numpy.org/images/twitter-image.jpg">
+  <meta name=twitter:image content="{{html_baseurl}}/{{ pathto(home_image) }}">
   <meta name=twitter:title content="{{ project }}">
   <meta name=twitter:description content="{{ description }}">
-  <title>{{ project }}</title>
+  
+  <meta property="og:locale" content="en_US"  />
+  <meta property="og:type" content="article"  />
+  <meta property="og:title" content="{{ project }} | Home"  />
+  <meta property="og:description" content="{{ description }}"  />
+  <meta property="og:url" content="{{ html_baseurl }}"  />
+  <meta property="og:site_name" content="{{ project }} Documentation"  />
+  <meta property="article:modified_time" content="2025-02-04T21:16:39+00:00"  />
+  <meta property="og:image" content="{{ pathto('_static/images/girder-light.png') }}" />
+  <meta property="og:image:width" content="1447"  />
+  <meta property="og:image:height" content="758"  />
+  <meta property="og:image:type" content="image/png"  />
+
   {%- import "static/webpack-macros.html" as _webpack with context %}
   <script data-cfasync="false">
     document.documentElement.dataset.mode  = "light"; // localStorage.getItem("mode") || "{{ default_mode }}";
@@ -154,8 +167,9 @@
         <a class="casestudies-box-content casestudies-underline"
           href="{{example.link}}">
           <div class=casestudies-box-title>{{ example.title }}</div><img
-               src="{{ pathto('_static/../_images', 1) }}/{{ example.image }}" alt="rendering from an example">
-          <div class=casestudies-box-text>{{ example.description }}</div>
+               src="{{ pathto('_static/../_images', 1) }}/{{ example.image }}" 
+               alt="rendering from an example">
+          <div class="casestudies-box-text">{{ example.description }}</div>
         </a>
         {% endfor %}
       </div>

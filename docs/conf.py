@@ -56,8 +56,8 @@ html_css_files = [
 html_additional_pages = {'index': 'home.html'}
 g = "https://gallery.stairlab.io"
 html_context = {
-    'description': description,
-    'examples': [
+    "description": description,
+    "examples": [
     ],
     **globals()
 }
@@ -81,6 +81,7 @@ html_static_path = ["_static"]
 
 def _add_examples(app, pagename, templatename, context, doctree):
     if templatename == "home.html":
+        context["home_image"] = "_static/images/girder-light.png"
         context["examples"] = [
             {"title": "Basics",      "link": f"{g}/examples/example6/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
             {"title": "Frames",      "link": f"{g}/examples/example5/",     "image": "../_static/images/gallery/Example5.png", "description": "Render structural models with extruded sections."},
