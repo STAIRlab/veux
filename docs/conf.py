@@ -6,9 +6,9 @@ from pathlib import Path
 project = 'veux'
 copyright = '2025, STAIRLab'
 author = 'Claudio Perez'
-description = "GPU accelerated finite element processing for machine learning workflows."
-version = '0.0.6'
-release = '0.0.6'
+description = "GPU accelerated finite element visualization for machine learning workflows."
+version = '0.0.10'
+release = '0.0.10'
 
 # -- General configuration ---------------------------------------------------
 
