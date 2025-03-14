@@ -7,12 +7,12 @@ python -m veux model.json -o model.html
 ```
 
 where `model.json` is a file that defines a finite element model. A common file type
-is the JSON output produced by the OpenSees [`print`](https://opensees.stairlab.io/user/manual/output/print.html) method.
+is the JSON output produced by the OpenSees [`print`](https://xara.so/user/manual/output/print.html) method.
 
 > **Note** Printing depends on the JSON output of a model. Several materials and
 > elements in the OpenSeesPy and upstream OpenSees implementations do not
 > correctly print to JSON. For the most reliable results, use the newer
-> [`OpenSeesRT`](https://opensees.stairlab.io) distribution.
+> [`OpenSeesRT`](https://xara.so) distribution.
 
 If you omit the `-o <file.html>` portion, it will plot immediately in a new
 window using the `matplotlib` [canvas](https://veux.io/library/canvas.html). 
