@@ -1,3 +1,8 @@
+
+```{eval-rst}  
+.. _artist:
+```
+
 # Artist
 
 An ``Artist`` is a class that owns a `Model` and a `Canvas`, and provides a convenient interface for drawing 

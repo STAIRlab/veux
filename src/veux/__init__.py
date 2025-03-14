@@ -147,7 +147,7 @@ def create_artist(
            vertical=2,
            **opts):
     """
-    Create an artist for a model::
+    Create an :ref:`artist` for a model::
 
         artist = veux.create_artist(model, canvas=canvas)
 
