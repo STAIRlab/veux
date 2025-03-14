@@ -23,6 +23,7 @@ functions for quickly rendering finite element models:
    artist/index
    model
    canvas
+   state
 
 
 .. top-level functions

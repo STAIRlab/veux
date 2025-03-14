@@ -158,11 +158,11 @@ def create_artist(
 
         - **str**: Treated as a file path. Supported file formats are ``.json`` and ``.tcl``.
         - **dict**: A dictionary representation of the model.
-        - **Model**: An instance of the ``Model`` class from the `sees <https://pypi.org/project/sees>`_ Python package. See the `documentation <https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html>`_ 
+        - **Model**: An instance of the ``Model`` class from the `xara <https://xara.so>`_ Python package. See the `documentation <https://xara.so/user/manual/model/model_class.html>`_ 
           for details.
 
     canvas : str, optional
-        The rendering backend to use. Options are:
+        The rendering backend to use. Options are (see :ref:`canvas`):
 
         - ``"gltf"`` (default): Produces high-quality renderings. Files can be saved as ``.html`` or ``.glb``. ``.glb`` is recommended for 3D object portability.
         - ``"plotly"``: Best for model debugging. Includes detailed annotations (e.g., node/element numbers, properties) but lower visual quality than  ``gltf``.
@@ -250,7 +250,7 @@ def render(sam_file, res_file=None, ndf=6,
     reference : list, optional
         List of reference elements.
     canvas : str, optional
-        The rendering backend to use. Options are:
+        The rendering backend to use. Options are (see :ref:`canvas`):
 
         - ``"gltf"`` (default): Produces high-quality renderings. Files can be saved as ``.html`` or ``.glb``. ``.glb`` is recommended for 3D object portability.
         - ``"plotly"``: Best for model debugging. Includes detailed annotations (e.g., node/element numbers, properties) but lower visual quality than  ``gltf``.
