@@ -230,7 +230,7 @@ def render(sam_file, res_file=None, ndf=6,
 
         - **str**: Treated as a file path. Supported file formats are ``.json`` and ``.tcl``.
         - **dict**: A dictionary representation of the model.
-        - **Model**: An instance of the ``Model`` class from the `sees <https://pypi.org/project/sees>`_ Python package. See the `documentation <https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html>`_ 
+        - **Model**: An instance of the ``Model`` class from the `xara <https://xara.so>`_ Python package. See the `documentation <https://xara.so/user/manual/model/model_class.html>`__
           for details.
 
     res_file : str, optional
