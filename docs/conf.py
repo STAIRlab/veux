@@ -85,7 +85,7 @@ def _add_examples(app, pagename, templatename, context, doctree):
         context["examples"] = [
             {"title": "Basics",      "link": f"{g}/examples/example6/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
             {"title": "Frames",      "link": f"{g}/examples/example5/",     "image": "../_static/images/gallery/Example5.png", "description": "Render structural models with extruded sections."},
-            {"title": "Sections",    "link": f"{g}/examples/framesections/",     "image": "../_static/images/gallery/Torsion.png", "description": "Detailed analysis of structural cross sections."},
+#           {"title": "Sections",    "link": f"{g}/examples/framesections/",     "image": "../_static/images/gallery/Torsion.png", "description": "Detailed analysis of structural cross sections."},
             {"title": "Detailing",   "link": f"{g}/examples/example7/",     "image": "../_static/images/gallery/ShellFrame.png", "description": "."},
             {"title": "Finite Rotations",  "link": f"{g}/examples/framecircle/",  "image": "../_static/images/gallery/ShellCircle-576x324.webp", "description": "Render finite deformations in constrained members like Cosserat rods and shells."},
             {"title": "Versatility",     "link": f"{g}/examples/cablestayed/",  "image": "../_static/images/gallery/CableStayed02-576x324.webp", "description": "Import models from commercial platforms like ABAQUS."},
