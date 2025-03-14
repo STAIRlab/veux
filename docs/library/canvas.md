@@ -1,4 +1,8 @@
 
+```{eval-rst}  
+.. _canvas:
+```
+
 ```{currentmodule} veux
 ```
 
