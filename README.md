@@ -65,7 +65,7 @@ artist = veux.render(model, canvas=canvas)
 - **model**: the `model` parameter can be of several types
   - `str` (string) variables are treated like file paths. Supported files are `.json` and `.tcl`
   - `dict` variables are treated
-  - [`Model`](https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html) variables from the [`sees`](https://pypi.org/project/sees) Python package can be passed directly
+  - [`Model`](https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html) variables from the [`xara`](https://xara.so) Python package can be passed directly
 - **canvas**: The `canvas` parameter is a string which indicates which "backend" technology to use. The options are:
   - `"gltf"` is the default canvas and produces the highest quality renderings. You can save renderings drawn by this backend to either `.html` or `.glb` files. `.glb` files are preferred as they are a natural format for 3D objects and can be viewed by standard 3D viewing applications.
   - `"plotly"` is best for model debugging as it is able to embed model details like node/element numbers and properties with hover annotations. However, the renderings produced by this backend dont look quite as good as with `gltf`.
@@ -128,7 +128,7 @@ opposed to the interactive html.
 > **Note** Printing depends on the JSON output of a model. Several materials and
 > elements in the OpenSeesPy and upstream OpenSees implementations do not
 > correctly print to JSON. For the most reliable results, use the
-> [`opensees`](https://pypi.org/project/opensees) package.
+> [`xara`](https://pypi.org/project/xara) package for processing OpenSees.
 
 By default, the rendering treats the $y$ coordinate as vertical.
 In order to manually control this behavior, pass the option 
@@ -159,14 +159,6 @@ python -m veux --help
 <br>
 
 ## Related Links
-
-See also
-
-- [`sees`](https://github.com/claudioperez/OpenSeesRT)
-- [`osmg`](https://pypi.org/project/osmg)
-- [`mdof`](https://pypi.org/project/mdof)
-- [`sdof`](https://pypi.org/project/sdof)
-
 
 The `veux` packages was used to generate figures for the following publications:
 
