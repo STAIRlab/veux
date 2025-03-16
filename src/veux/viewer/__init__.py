@@ -179,7 +179,7 @@ def _model_viewer(source, control=False, hosted=False, standalone=True, light_mo
             alt="rendering"
             src="{source}"
             autoplay
-            style="width: 100%; height: 500px;"
+            style="width: 100%; height: 100vh;"
             max-pixel-ratio="2"
             interaction-prompt="none"
             shadow-intensity="1"
