@@ -4,7 +4,7 @@
 #
 #===----------------------------------------------------------------------===#
 #
-# Claudio Perez
+# Claudio M. Perez
 #
 import sys
 import warnings
@@ -55,9 +55,11 @@ def add_extrusion(extr, e, x, R, I, caps=None):
     return len(indices)
 
 
-def draw_extrusions3(model, canvas, state=None, config=None):
+def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
     if config is None:
         config = {"style": MeshStyle(color="gray")}
+    if Ra is None:
+        Ra = np.eye(3)
 
     scale = config.get("scale", 1.0)
 
@@ -67,17 +69,27 @@ def draw_extrusions3(model, canvas, state=None, config=None):
     caps = []
     e = ExtrusionCollection([], [], [], set(), set())
     for tag in model.iter_cell_tags():
+        R0 = model.frame_orientation(tag)
+        if R0 is None:
+            continue
+        else:
+            R0 = R0.T
 
-        X_ref = np.array(model.cell_position(tag))
+        X_ref = np.array([
+            Ra@model.node_position(node) for node in model.cell_nodes(tag)
+        ])
         nen = len(X_ref)
 
         if state is not None:
-            u = state.cell_array(tag, state.position)
-            x = shps.curve.displace(X_ref, u, nen)
-            R = state.cell_array(tag, state.rotation)
+            x = np.array([
+                Ra@model.node_position(node, state=state) for node in model.cell_nodes(tag)
+            ])
+            # u = state.cell_array(tag, state.position)
+            # x = shps.curve.displace(X_ref, u, nen)
+            R = [Ra@Ri@R0 for Ri in state.cell_array(tag, state.rotation)]
         else:
             x = X_ref
-            R = [model.frame_orientation(tag).T]*nen
+            R = [Ra@R0 for _ in range(nen)]
 
         sections = [model.frame_section(tag, i) for i in range(len(x))]
         si = sections[0]
@@ -95,7 +107,7 @@ def draw_extrusions3(model, canvas, state=None, config=None):
 
         ne = add_extrusion(extr, e, x, R, I, [icap, jcap])
 
-        if len(si.exterior()) > 25:
+        if len(si.exterior()) > 35:
             for i in range(ne):
                 e.no_outline.add(I+i)
 
@@ -139,8 +151,9 @@ def draw_extrusions3(model, canvas, state=None, config=None):
 
 
     # Draw mesh
-    mesh = canvas.plot_mesh(e.coords, 
-                     [list(reversed(face)) for face in e.triang], 
+    if e.coords:
+        mesh = canvas.plot_mesh(e.coords,
+                     [list(reversed(face)) for face in e.triang],
                      style=config["style"])
 
     # Draw caps
@@ -161,10 +174,6 @@ def draw_extrusions3(model, canvas, state=None, config=None):
     IDX = np.array(((0,2),(0,1)))
     coords = np.array(e.coords)
 
-    # canvas.plot_lines( np.array([
-    #         coords[idx] if (j+1)%3 else nan
-    #         for j,idx in enumerate(np.array(triang).reshape(-1))
-    # ]))
     if "tran" in config["outline"]:
         tri_points = np.array([
             coords[idx]  if (j+1)%3 else nan
@@ -179,259 +188,10 @@ def draw_extrusions3(model, canvas, state=None, config=None):
     else:
         return
 
-    canvas.plot_lines(tri_points,
+    if len(tri_points):
+        canvas.plot_lines(tri_points,
                       style=config["line_style"])
 
-
-def draw_extrusions(model, canvas, state=None, config=None):
-    ndm = 3
-
-    coords = [] # Global mesh coordinates
-    triang = []
-    caps   = []
-    locoor = [] # Local mesh coordinates, used for textures
-
-    if config is None:
-        config = {
-                "style": MeshStyle(color="gray")
-        }
-
-    scale_section = config["scale"]
-
-
-    I = 0
-    # Track outlines with excessive edges (eg, circles) to later avoid showing
-    # their edges
-    no_outline = set()
-    for tag in model.iter_cell_tags():
-
-        section = model.frame_section(tag)
-        if section is None:
-            continue
-
-        outline_scale = scale_section
-
-        nen  = len(model.cell_nodes(tag))
-
-        Xi = model.cell_position(tag)
-        if state is not None:
-            glob_displ = state.cell_array(tag, state.position)
-            X = shps.curve.displace(Xi, glob_displ, nen).T
-            R = state.cell_array(tag, state.rotation)
-        else:
-            outline_scale *= 0.99
-            X = np.array(Xi)
-            R = [model.frame_orientation(tag).T]*nen
-
-
-        noe = len(section.exterior())
-        try:
-            face_i = model.frame_section(tag, 0).exterior()[:,1:]
-            face_j = model.frame_section(tag, 1).exterior()[:,1:]
-            caps.append(I+np.array(earcut(face_i)))
-            caps.append(I+(nen-1)*noe + np.array(earcut(face_j)))
-        except Exception as e:
-            warnings.warn(f"Earcut failed with message: {e}")
-
-        # Loop over sample points along element length to assemble
-        # `coord` and `triang` arrays
-        for j in range(nen):
-            section = model.frame_section(tag, j) # TODO: Pass float between 0 and 1 instead of j
-            outline = section.exterior().copy()
-            outline[:,1:] *= outline_scale
-            # Loop over section edges
-            for k,edge in enumerate(outline):
-                # Append rotated section coordinates to list of coordinates
-                coords.append(X[j, :] + R[j]@edge)
-                locoor.append([ (j+0)/nen+0.1,  0.1+(k+0)/(noe+0) ])
-
-                if j == 0:
-                    # Skip the first section
-                    continue
-
-                elif k < noe-1:
-                    triang.extend([
-                        [I+    noe*j + k,   I+    noe*j + k + 1,    I+noe*(j-1) + k],
-                        [I+noe*j + k + 1,   I+noe*(j-1) + k + 1,    I+noe*(j-1) + k]
-                    ])
-                else:
-                    # elif j < N-1:
-                    triang.extend([
-                        [I+    noe*j + k,    I + noe*j , I+noe*(j-1) + k],
-                        [      I + noe*j, I + noe*(j-1), I+noe*(j-1) + k]
-                    ])
-
-                if len(outline) > 25:
-                    no_outline.add(len(triang)-1)
-                    no_outline.add(len(triang)-2)
-
-        I += nen*noe
-
-    triang = [list(reversed(i)) for i in triang]
-
-    if len(triang) == 0:
-        return
-
-    mesh = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
-
-    if len(caps) > 0:
-        for cap in caps:
-            try:
-                canvas.plot_mesh(mesh.vertices, cap, style=config["style"])
-            except:
-                pass
-
-
-    IDX = np.array((
-        (0, 2),
-        (0, 1)
-    ))
-
-    triang = [list(reversed(i)) for i in triang]
-
-    nan = np.zeros(ndm)*np.nan
-    coords = np.array(coords)
-    if "tran" in config["outline"]:
-        tri_points = np.array([
-            coords[idx]  if (j+1)%3 else nan
-            for j,idx in enumerate(np.array(triang).reshape(-1))
-        ])
-    elif "long" in config["outline"]:
-        tri_points = np.array([
-            coords[i]  if j%2 else nan
-            for j,idx in enumerate(np.array(triang)) for i in idx[IDX[j%2]] if j not in no_outline
-        ])
-    else:
-        return
-
-    canvas.plot_lines(tri_points,
-                      style=config["line_style"]
-    )
-
-def draw_extrusions(model, canvas, state=None, config=None):
-    ndm = 3
-
-    coords = [] # Global mesh coordinates
-    triang = []
-    caps   = []
-    locoor = [] # Local mesh coordinates, used for textures
-
-    if config is None:
-        config = {
-                "style": MeshStyle(color="gray")
-        }
-
-    scale_section = config["scale"]
-
-
-    I = 0
-    # Track outlines with excessive edges (eg, circles) to later avoid showing
-    # their edges
-    no_outline = set()
-    for tag in model.iter_cell_tags():
-
-        section = model.frame_section(tag)
-        if section is None:
-            continue
-
-        outline_scale = scale_section
-
-        nen  = len(model.cell_nodes(tag))
-
-        Xi = model.cell_position(tag)
-        if state is not None:
-            glob_displ = state.cell_array(tag, state.position)
-            X = shps.curve.displace(Xi, glob_displ, nen).T
-            R = state.cell_array(tag, state.rotation)
-        else:
-            outline_scale *= 0.99
-            X = np.array(Xi)
-            R = [model.frame_orientation(tag).T]*nen
-
-
-        noe = len(section.exterior())
-        try:
-            face_i = model.frame_section(tag, 0).exterior()[:,1:]
-            face_j = model.frame_section(tag, 1).exterior()[:,1:]
-            caps.append(I+np.array(earcut(face_i)))
-            caps.append(I+(nen-1)*noe + np.array(earcut(face_j)))
-        except Exception as e:
-            warnings.warn(f"Earcut failed with message: {e}")
-
-        # Loop over sample points along element length to assemble
-        # `coord` and `triang` arrays
-        for j in range(nen):
-            section = model.frame_section(tag, j) # TODO: Pass float between 0 and 1 instead of j
-            outline = section.exterior().copy()
-            outline[:,1:] *= outline_scale
-            # Loop over section edges
-            for k,edge in enumerate(outline):
-                # Append rotated section coordinates to list of coordinates
-                coords.append(X[j, :] + R[j]@edge)
-                locoor.append([ (j+0)/nen+0.1,  0.1+(k+0)/(noe+0) ])
-
-                if j == 0:
-                    # Skip the first section
-                    continue
-
-                elif k < noe-1:
-                    triang.extend([
-                        [I+    noe*j + k,   I+    noe*j + k + 1,    I+noe*(j-1) + k],
-                        [I+noe*j + k + 1,   I+noe*(j-1) + k + 1,    I+noe*(j-1) + k]
-                    ])
-                else:
-                    # elif j < N-1:
-                    triang.extend([
-                        [I+    noe*j + k,    I + noe*j , I+noe*(j-1) + k],
-                        [      I + noe*j, I + noe*(j-1), I+noe*(j-1) + k]
-                    ])
-
-                if len(outline) > 25:
-                    no_outline.add(len(triang)-1)
-                    no_outline.add(len(triang)-2)
-
-        I += nen*noe
-
-    triang = [list(reversed(i)) for i in triang]
-
-    if len(triang) == 0:
-        return
-
-    mesh = canvas.plot_mesh(coords, triang, local_coords=locoor, style=config["style"])
-
-    if len(caps) > 0:
-        for cap in caps:
-            try:
-                canvas.plot_mesh(mesh.vertices, cap, style=config["style"])
-            except:
-                pass
-
-
-    IDX = np.array((
-        (0, 2),
-        (0, 1)
-    ))
-
-    triang = [list(reversed(i)) for i in triang]
-
-    nan = np.zeros(ndm)*np.nan
-    coords = np.array(coords)
-    if "tran" in config["outline"]:
-        tri_points = np.array([
-            coords[idx]  if (j+1)%3 else nan
-            for j,idx in enumerate(np.array(triang).reshape(-1))
-        ])
-    elif "long" in config["outline"]:
-        tri_points = np.array([
-            coords[i]  if j%2 else nan
-            for j,idx in enumerate(np.array(triang)) for i in idx[IDX[j%2]] if j not in no_outline
-        ])
-    else:
-        return
-
-    canvas.plot_lines(tri_points,
-                      style=config["line_style"]
-    )
 
 class so3:
     @classmethod
@@ -482,12 +242,12 @@ def _render(sam_file, res_file=None, **opts):
 
     # -----------------------------------------------------------
 
-    soln = veux.state.read_state(res_file, artist.model, **opts)
+    soln = veux.model.read_state(res_file, artist.model, **opts)
     if soln is not None:
         if "time" not in opts:
             soln = soln[soln.times[-1]]
 
-        draw_extrusions(artist.model, artist.canvas, soln, opts)
+        draw_extrusions3(artist.model, artist.canvas, soln, opts)
         # -----------------------------------------------------------
         _add_moment(artist,
                     loc  = [1.0, 0.0, 0.0],
