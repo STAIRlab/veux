@@ -68,6 +68,8 @@ class Viewer:
         self._hosted = hosted
         if hosted is None and self._viewer == "mv":
             self._hosted = False
+        elif hosted is None:
+            self._hosted = True
 
         if hasattr(thing, "canvas"):
             # artist was passed
@@ -103,7 +105,7 @@ class Viewer:
             with open(Path(__file__).parents[0]/"babylon.html", "r") as f:
                 return f.read()
 
-        if self._viewer == "three-170":
+        if self._viewer in {"three-170", "three"}:
             with open(Path(__file__).parents[0]/"three-170.html", "r") as f:
                 return f.read()
 

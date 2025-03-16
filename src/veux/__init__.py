@@ -57,7 +57,9 @@ def serve(thing, viewer="mv", port=None, view_options=None):
     from veux.viewer import Viewer
 
     if view_options is None:
-        view_options = {}
+        view_options = {
+            "viewer": viewer
+        }
 
     if hasattr(thing, "canvas"):
         # artist was passed

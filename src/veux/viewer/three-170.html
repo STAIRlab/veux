@@ -84,12 +84,6 @@
       // Load GLTF model
       const loader = new GLTFLoader();
       loader.load('/model.glb', (gltf) => {
-        // Reduce the model size by half
-        gltf.scene.traverse((child) => {
-          if (child.isMesh) {
-            child.scale.set(0.5, 0.5, 0.5);
-          }
-        });
         
         scene.add(gltf.scene);
 
@@ -124,7 +118,9 @@
 
     init();
 
+    //
     // Screenshot functionality
+    //
     document.querySelector('#screenshot').addEventListener('click', () => {
       render();
       canvas.toBlob((blob) => {

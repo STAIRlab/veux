@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>veux - Three.js</title>
+        <title>veux</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
         <link type="text/css" rel="stylesheet" href="main.css">
@@ -9,14 +9,9 @@
 
     <body>
         <div id="info">
-            <code>veux</code> 
-            <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - GLTFLoader<br />
-            <!-- Battle Damaged Sci-fi Helmet by
-            <a href="https://sketchfab.com/theblueturtle_" target="_blank" rel="noopener">theblueturtle_</a><br />
-            <a href="https://hdrihaven.com/hdri/?h=royal_esplanade" target="_blank" rel="noopener">Royal Esplanade</a> from <a href="https://hdrihaven.com/" target="_blank" rel="noopener">HDRI Haven</a>
-            -->
+            <a href="https://veux.io"><code>veux</code></a>
+            <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> Viewer <br />
         </div>
-
         <script type="importmap">
           {
             "imports": {
@@ -86,9 +81,9 @@
              // light4.position.set(-500,300,0);
              // scene.add(light4);
 
-                // model
-
-                // const loader = new GLTFLoader().setPath( 'models/gltf/DamagedHelmet/glTF/' );
+                //
+                // Model
+                //
 
                 renderer = new THREE.WebGLRenderer( { antialias: true } );
                 renderer.setPixelRatio( window.devicePixelRatio );
@@ -115,10 +110,10 @@
 
                     /* await */ renderer.compileAsync( model, camera, scene );
 
-                    gltf.scene.traverse(child => {
-                      // if (child.isMesh)
-                        child.scale.set(0.5, 0.5, 0.5)
-                    });
+                    // gltf.scene.traverse(child => {
+                    //   // if (child.isMesh)
+                    //     child.scale.set(0.5, 0.5, 0.5)
+                    // });
 
                     scene.add( model );
 
@@ -126,8 +121,7 @@
 
                     fitCameraToSelection(camera, controls, [model]);
     
-                } );
-
+                });
             }
 
             function onWindowResize() {
