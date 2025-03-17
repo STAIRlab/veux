@@ -127,7 +127,7 @@ opposed to the interactive html.
 > **Note** Printing depends on the JSON output of a model. Several materials and
 > elements in the OpenSeesPy and upstream OpenSees implementations do not
 > correctly print to JSON. For the most reliable results, use the
-> [`xara`](https://pypi.org/project/xara) package for processing OpenSees.
+> [`xara`](https://pypi.org/project/xara) package for interpreting OpenSees.
 
 By default, the rendering treats the $y$ coordinate as vertical.
 In order to manually control this behavior, pass the option 
