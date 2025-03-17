@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.12"
+version = "0.0.13"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -13,6 +13,7 @@ keywords = [
   "visualization",
   "rendering",
   "seismic",
+  "xara",
   "opensees",
   "nonlinear",
   "finite-rotations",
