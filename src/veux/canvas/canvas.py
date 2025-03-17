@@ -35,7 +35,8 @@ class Canvas:
         pass
 
     def plot_hover(self, vertices, data=None, text=None, style: NodeStyle=None, label=None, keys=None, html=None):
-        warnings.warn("plot_hover not implemented for chosen canvas; try canvas='plotly'")
+        # warnings.warn("plot_hover not implemented for chosen canvas; try canvas='plotly'")
+        pass
 
     def plot_nodes(self, vertices, indices=None, label=None, style: NodeStyle=None, rotate=None, data=None):
         warnings.warn("plot_nodes not implemented for chosen canvas")
