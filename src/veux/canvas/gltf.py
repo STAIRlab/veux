@@ -62,11 +62,11 @@ class GltfLibCanvas(Canvas):
         self.config = config
 
         #                          x, y, z, scalar
-        self._rotation = [-0.7071068, 0, 0, 0.7071068]
+        self._rotation = [0, 0, 0, 1] #[-0.7071068, 0, 0, 0.7071068]
         # equivalent rotation matrix:
-        self._rotation_matrix = np.array([[1,  0, 0],
-                                          [0,  0, 1],
-                                          [0, -1, 0]])
+        self._rotation_matrix = np.eye(3) #np.array([[1,  0, 0],
+                                          #[0,  0, 1],
+                                          #[0, -1, 0]])
 
         self.index_t = "uint16"
         self.float_t = "float32"
@@ -159,6 +159,8 @@ class GltfLibCanvas(Canvas):
         # Map pairs of (color, alpha) to material's index in material list
         self._color = {(m.name,m.pbrMetallicRoughness.baseColorFactor[3]) if m.pbrMetallicRoughness else (m.name, 0): i
                        for i,m in enumerate(self.gltf.materials)}
+        
+        self._arrows = {}
 
         #
         # load assets for steel material
@@ -621,7 +623,7 @@ class GltfLibCanvas(Canvas):
 
             if len(indices_array) <= 1:
                 import warnings
-                warnings.warn(indices_array, file=sys.stderr)
+                warnings.warn(indices_array)
                 continue
 
             self.gltf.accessors.extend([
@@ -667,11 +669,71 @@ class GltfLibCanvas(Canvas):
 
         return lines
     
-    def draw_arrow(self, location, rotation, size):
+    def plot_vectors(self, locs, vecs, label=None, extrude=False, **kwds):
+        ne = vecs.shape[0]
+        if not extrude:
+            for j in range(3):
+                style = kwds.get("line_style", LineStyle(color=("red", "blue", "green")[j]))
+                X = np.zeros((ne*3, 3))*np.nan
+                for i in range(j,ne,3):
+                    X[i*3,:] = locs[i]
+                    X[i*3+1,:] = locs[i] + vecs[i]
+                self.plot_lines(X, style=style, label=label)
+        else:
+            for j in range(3):
+                style = LineStyle(color=("red", "blue", "green")[j])
+                X = np.zeros((ne*3, 3))*np.nan
+                for i in range(j,ne,3):
+                    self.draw_arrow(locs[i], vector=vecs[i], style=style)
+
+
+    def draw_arrow(self, location, rotation=None, size=None, vector=None, style=None):
         from veux.assets import create_arrow
 
+        def quaternion_from_x_to_vec(v):
+            """
+            Returns a rotation that rotates [1,0,0] onto the vector v.
+            """
+            # Convert to float np.array and normalize
+            v = np.array(v, dtype=float)
+            if np.allclose(v, 0):
+                raise ValueError("Target vector must be non-zero.")
+            v_norm = v / np.linalg.norm(v)
+
+            # The reference "from" vector is the unit x-axis
+            x_axis = np.array([1.0, 0.0, 0.0])
+
+            # Check if they are already the same (no rotation) or exactly opposite
+            dot_val = np.dot(x_axis, v_norm)
+            if np.isclose(dot_val, 1.0):
+                # Same direction -> identity quaternion
+                return Rotation.from_quat([0.0, 0.0, 0.0, 1.0])
+            elif np.isclose(dot_val, -1.0):
+                # Opposite direction -> 180 deg rotation about any axis perpendicular to x
+                # e.g., about [0,1,0]
+                return Rotation.from_rotvec(np.pi * np.array([0, 1, 0]))
+
+            # Otherwise, compute rotation axis as cross(x_axis, v_norm) and rotation angle
+            axis = np.cross(x_axis, v_norm)
+            axis /= np.linalg.norm(axis)
+            angle = np.arccos(dot_val)
+
+            return Rotation.from_rotvec(angle * axis)
+
+        if style is None:
+            style = DrawStyle(color="red")
+
+        if vector is not None:
+            size = np.linalg.norm(vector)
+            rotation = quaternion_from_x_to_vec(vector/size).as_quat().tolist()
+
+        if style.color not in self._arrows:
+            self._arrows[style.color] = create_arrow(self, size, style)
+
+        arrow = self._arrows[style.color]
+
         index = _append_index(self.gltf.nodes, pygltflib.Node(
-                mesh=create_arrow(self, size, DrawStyle(color="red")),
+                mesh=arrow,
                 rotation=rotation,
                 translation=(self._rotation_matrix@location).tolist(),
             )
@@ -724,6 +786,24 @@ class GltfLibCanvas(Canvas):
             ])
             point_access = len(self.gltf.accessors)-1
 
+#       # Expecting morph_targets as an iterable of target arrays (each of shape (n,3))
+#       morph_targets = kwds.get("morph_targets", None)
+#       targets = []
+#       if morph_targets is not None:
+#           for mt in morph_targets:
+#               mt_arr = np.array(mt, dtype=self.float_t)
+#               self.gltf.accessors.extend([
+#                   pygltflib.Accessor(
+#                       bufferView=self._push_data(mt_arr.tobytes(), pygltflib.ARRAY_BUFFER),
+#                       componentType=GLTF_T[self.float_t],
+#                       count=len(mt_arr),
+#                       type=pygltflib.VEC3,
+#                       max=mt_arr.max(axis=0).tolist(),
+#                       min=mt_arr.min(axis=0).tolist(),
+#                   )
+#               ])
+#               mt_accessor = len(self.gltf.accessors)-1
+#               targets.append({"POSITION": mt_accessor})
 
         mesh = pygltflib.Mesh(
                 primitives=[
@@ -734,10 +814,6 @@ class GltfLibCanvas(Canvas):
                         ),
                         material=material,
                         indices=index_access,
-                        targets=[
-                            # TODO: implement morph targets
-#                          pygltflib.Attributes(POSITION=point_access)
-                        ]
                      )
                 ]
             )

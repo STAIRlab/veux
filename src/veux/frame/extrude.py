@@ -15,7 +15,6 @@ import shps.curve
 
 import veux
 import veux.frame
-from veux.utility.earcut import earcut, flatten as flatten_earcut
 from veux.model import read_model
 from veux.errors import RenderError
 from veux.config import MeshStyle
@@ -69,8 +68,12 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
     caps = []
     e = ExtrusionCollection([], [], [], set(), set())
     for tag in model.iter_cell_tags():
+        if not model.cell_matches(tag, "frame"):
+            continue
+
         R0 = model.frame_orientation(tag)
         if R0 is None:
+            warnings.warn(f"Frame {tag} has no orientation")
             continue
         else:
             R0 = R0.T
@@ -92,7 +95,6 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
             R = [Ra@R0 for _ in range(nen)]
 
         sections = [model.frame_section(tag, i) for i in range(len(x))]
-        si = sections[0]
         if sections[0] is None or sections[-1] is None:
             continue
 
@@ -107,6 +109,7 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
 
         ne = add_extrusion(extr, e, x, R, I, [icap, jcap])
 
+        si = sections[0]
         if len(si.exterior()) > 35:
             for i in range(ne):
                 e.no_outline.add(I+i)
@@ -163,7 +166,6 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
                 canvas.plot_mesh(mesh.vertices, cap, style=config["style"])
             except Exception as ex:
                 print(ex)
-
 
     # Draw outlines
     if "outline" not in config:
@@ -238,7 +240,7 @@ def _render(sam_file, res_file=None, **opts):
 
     artist = veux.FrameArtist(model, **config)
 
-    draw_extrusions(artist.model, artist.canvas, config=opts)
+    draw_extrusions3(artist.model, artist.canvas, config=opts)
 
     # -----------------------------------------------------------
 

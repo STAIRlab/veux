@@ -101,14 +101,14 @@ def create_arrow(canvas, body_length,
         The index of the new mesh in canvas.gltf.meshes.
     """
     if body_diameter is None:
-        body_diameter = 0.2 * body_length
+        body_diameter = 0.1 * body_length
     if head_length is None:
-        head_length = 0.33 * body_length
+        head_length = 0.5 * body_length
     if head_diameter is None:
         head_diameter = 2.5 * body_diameter
 
     # Number of segments around the circle.
-    n_seg = 40
+    n_seg = 35
 
     # Lists to collect vertices and triangle indices.
     vertices = []
@@ -119,9 +119,9 @@ def create_arrow(canvas, body_length,
         vertices.append(pt)
         return len(vertices) - 1
 
-    # =========
+    #
     # Cylinder (body) along x from 0 to body_length.
-    # =========
+    #
     # Compute radius for the cylinder.
     cyl_radius = body_diameter / 2.0
 
@@ -151,6 +151,7 @@ def create_arrow(canvas, body_length,
         next_i = (i + 1) % n_seg
         # Winding order chosen so that normals point inward (if desired)
         triangles.append((front_center, front_indices[next_i], front_indices[i]))
+
     # Back cap (at x=body_length): triangles fan around back_center.
     for i in range(n_seg):
         next_i = (i + 1) % n_seg

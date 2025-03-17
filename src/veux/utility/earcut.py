@@ -282,7 +282,7 @@ def _earcut_links(ear: "_PointLink", triangles, dim, minX, minY, size, _pass=Non
 
     # interlink polygon nodes in z-order
     if not _pass and size:
-        _index_curve(ear, minX, minY, size)
+        _index_curve(ear, float(minX), float(minY), size)
 
     stop = ear
     prev = None
@@ -545,7 +545,7 @@ def _index_curve(start, minX, minY, size):
         do = False
 
         if p.z == None:
-            p.z = _z_order(p.x, p.y, minX, minY, size)
+            p.z = _z_order(float(p.x), float(p.y), minX, minY, size)
 
         p.prevZ = p.prev
         p.nextZ = p.next
@@ -631,17 +631,17 @@ def _sort_links(L):
 
 
 def _z_order(x, y, minX, minY, size):
-    "z-order of a point given coords and size of the data bounding box"
+    "coordinate on a z-order curve of a point given coords and size of the data bounding box"
 
     # coords are transformed into non-negative 15-bit integer range
-    x = 32767 * (x - minX) // size
-    y = 32767 * (y - minY) // size
+    x = int(32767 * (x - minX) // size)
 
     x = (x | (x << 8)) & 0x00FF00FF
     x = (x | (x << 4)) & 0x0F0F0F0F
     x = (x | (x << 2)) & 0x33333333
     x = (x | (x << 1)) & 0x55555555
 
+    y = int(32767 * (y - minY) // size)
     y = (y | (y << 8)) & 0x00FF00FF
     y = (y | (y << 4)) & 0x0F0F0F0F
     y = (y | (y << 2)) & 0x33333333

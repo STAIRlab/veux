@@ -4,16 +4,16 @@
 #
 #===----------------------------------------------------------------------===#
 #
-# Claudio Perez
+# Claudio M. Perez
 #
 import warnings
-
 import numpy as np
 Array = np.ndarray
 from scipy.linalg import block_diag
 
+import shps.rotor as so3
 from veux.model  import Model,FrameModel
-from veux.state  import read_state, State, BasicState
+from veux.state  import State, BasicState
 from veux.config import Config, LineStyle, NodeStyle
 from ._section import SectionGeometry
 
@@ -51,14 +51,19 @@ class FrameArtist:
 #       elif ndf == 3:
 #           self.ndm = 2
 
-        if vert == 3:
+        if vert == canvas.vertical:
             R = np.eye(3)
-        else:
+        elif vert == 2 and canvas.vertical == 3:
             R = np.array(((1,0, 0),
                           (0,0,-1),
                           (0,1, 0)))
+        elif vert == 3 and canvas.vertical == 2:
+            R = np.array(((1, 0, 0),
+                          (0, 0, 1),
+                          (0,-1, 0)))
 
         self._plot_rotation = R
+        R = np.eye(3)
 
         if not isinstance(model_data, Model):
             if loc is None and isinstance(model_config, dict) and "shift" in model_config:
@@ -123,11 +128,10 @@ class FrameArtist:
         return name
 
 
-    def add_state(self, res_file, scale=1.0, only=None, sketch_config=None, **state_config):
+    def add_state(self, res_file, scale=1.0, sketch_config=None, **state_config):
 
         if not isinstance(res_file, (dict, Array, State)):
-            state = read_state(res_file, only=only,
-                               model=self.model,
+            state = self.model.wrap_state(res_file,
                                scale=scale,
                                transform=self.dofs2plot,
                                **state_config)
@@ -159,18 +163,6 @@ class FrameArtist:
         displ_array[:,:3] *= scale
         return name
 
-
-    def draw_origin(self, **kwds):
-        xyz = np.zeros((3,3))
-        uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
-        off = [[0, -kwds.get("scale", 1.0)/2, 0],
-               [0]*3,
-               [0]*3]
-
-        self.canvas.plot_vectors(xyz, uvw, **kwds)
-
-#       for i,label in enumerate(kwds.get("label", [])):
-#           self.canvas.annotate(label, (xyz+uvw)[i]+off[i])
 
     def add_elem_data(self, config=None):
 
@@ -204,58 +196,87 @@ class FrameArtist:
         if config["axes"] is not None:
             self.draw_axes(state, config=config["axes"])
 
-        if "hover" in config:
+        if True: #"hover" in config:
             try:
-                self.add_elem_data(config=config["hover"])
+                self.add_elem_data(config=None)#config["hover"])
             except Exception as e:
-                raise e
-            warnings.warn(str(e))
+                warnings.warn(str(e))
 
-    # sketches with or without state
+    def draw_contours(self, state=None, field=None, config=None, scale=1.0):
+        pass
+
+    def skin_elements(self, config):
+        pass
+
+    def draw_skeleton(self, skins, state=None, config=None, scale=1.0):
+        pass
+
     def draw_outlines(self, state=None, config=None, scale=1.0):
+        """
+        Draw the outlines of the model elements such as frames, planes, and solids.
+        Interpolate if possible. This is expensive.
+
+        Parameters
+        ----------
+        state : dict, np.ndarray, callable, optional
+            The state of the model, see :ref:`State`. Default is None.
+        config : dict, optional
+            Configuration dictionary for drawing outlines. If None, a default configuration is loaded from SketchConfig. Default is None.
+        scale : float, optional
+            Scaling factor for the model. Default is 1.0.
+        """
+
+        Ra = self._plot_rotation
         model = self.model
 
         if config is None:
             from veux.config import SketchConfig
             config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
 
-        if state is not None and (isinstance(state, (dict, np.ndarray)) or callable(state)):
-            state = read_state(state,
-                               model=self.model,
-                               scale=scale,
-                               transform=self.dofs2plot)
-
+        if state is not None:
+            state = self.model.wrap_state(state, scale=scale, transform=self.dofs2plot)
+            # Because "state" is given as opposed to position/displacement, we assume
+            # linearized rotations for now.
+            config["frame"]["basis"] = "Hermite"
+              
         N = 10 if state is not None and config["frame"]["basis"] is not None else 2
         do_frames = False
-        ne = sum(1 for tag in model.iter_cell_tags() if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"))
+        ne = sum(1 for tag in model.iter_cell_tags() 
+                 if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"))
         frames = np.zeros((ne*(N+1),3))
         frames.fill(np.nan)
-#       frames = []
 
         quadrs = []
         trians = []
         solids = []
 
         j = 0 # frame element counter
-        for i,tag in enumerate(model.iter_cell_tags()):
+        for tag in model.iter_cell_tags():
             if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"):
                 if not config["frame"]["show"]:
                     continue
 
-                if config["frame"]["basis"] is None or model.cell_matches(tag, "truss"):
+                if config["frame"]["basis"] is None or not model.cell_matches(tag, "frame"):
+                    # Draw a straight line between nodes
                     do_frames = True
-                    frames[(N+1)*j:(N+1)*j+N,:] = np.linspace(*model.cell_position(tag, state)[[0,-1],:], N)
-#                   frames.append( model.cell_position(tag, state)[[0,-1],:] )
+                    frames[(N+1)*j:(N+1)*j+N,:] = np.linspace(*[
+                        Ra@xn for xn in model.cell_position(tag, state)[[0,-1],:]
+                    ], N)
+
                 else:
-                    displ = state.cell_array(tag)
-                    if not hasattr(displ, "flatten"):
-                        continue
+                    Q = model.frame_orientation(tag)
+                    X = model.cell_position(tag)
+                    u = [xi - Xi for Xi, xi in zip(X, model.cell_position(tag, state=state))]
+                    R = [model.node_rotation(node, state=state) for node in model.cell_nodes(tag)]
+
+
                     do_frames = True
-#                   frames.append (               _displaced_profile(model.cell_position(tag),
-                    frames[(N+1)*j:(N+1)*j+N,:] = _displaced_profile(model.cell_position(tag),
-                                                                    displ.flatten(),
-                                                                    Q=model.frame_orientation(tag),
-                                                                    npoints=N).T
+                    frames[(N+1)*j:(N+1)*j+N,:] = [Ra@v for v in  
+                                                    _hermite_cubic(X,
+                                                                 Q=Q,
+                                                                 u = [Q@u[0],          Q@u[1]],
+                                                                 v = [Q@so3.log(R[0]), Q@so3.log(R[1])],
+                                                                 npoints=N).T]
                 j += 1
 
             elif model.cell_matches(tag, "plane") and config["plane"]["show"]:
@@ -288,14 +309,35 @@ class FrameArtist:
             self.canvas.plot_lines(nodes, indices=np.array(solids),
                                           style=config["solid"]["style"])
 
-    def draw_surfaces(self, state=None, field=None, layer=None, config=None, scale=1.0):
-        model = self.model
+    def draw_sections(self,
+                      state=None, rotation=None, position=None, scale=1.0,
+                      config=None):
+        """
+        Draw extruded sections
 
-        if state is not None and (isinstance(state, (dict, np.ndarray)) or callable(state)):
-            state = read_state(state,
-                               model=self.model,
-                               scale=scale,
-                               transform=self.dofs2plot)
+        Parameters
+        ----------
+        state : dict, np.ndarray, callable, optional
+            The state of the model, which can be a dictionary, numpy array, or a callable that returns the state. If None, the reference state of the model is used.
+        rotation : np.ndarray, optional
+            A callable that returns a quaternion representing the rotation of a given node. In OpenSeesRT models, the `nodeRotation <https://xara.so/user/manual/output/nodeRotation.html>`_ method of a ``Model`` object is typically used.
+        config : dict, optional
+            Configuration dictionary for drawing surfaces. If None, a default configuration 
+            is used based on the SketchConfig.
+        scale : float, optional
+            Scale factor for the state transformation. Default is 1.0.
+
+
+        """
+        model = self.model
+        Ra = self._plot_rotation
+
+        if state is not None or rotation is not None or position is not None:
+            state = model.wrap_state(state, 
+                                     rotation=rotation, 
+                                     position=position, 
+                                     scale=scale,
+                                     transform=self.dofs2plot)
 
         if config is None:
             from veux.config import SketchConfig
@@ -303,16 +345,55 @@ class FrameArtist:
 
         # Draw extruded frames
         from veux.frame import extrude
+        extrude.draw_extrusions3(model,
+                                canvas=self.canvas,
+                                state=state,
+                                Ra=Ra,
+                                config=config["frame"])
+
+    def draw_surfaces(self,
+                      state=None, field=None,  # States
+                      config=None, scale=1.0): # Drawing
+        """
+        Draws surfaces on the canvas based on the provided state, field, layer, and configuration.
+
+        Parameters
+        ----------
+        state : dict, np.ndarray, callable, optional
+            The state of the model, which can be a dictionary, 
+            numpy array, or a callable that returns the state. If None, the current state of the model is used. See :ref:`State`.
+        field : dict, optional
+            A dictionary representing the field values at each node. If provided, 
+            the field values will be plotted on the mesh.
+        config (dict, optional): Configuration dictionary for drawing surfaces. If None, a default configuration 
+            is used based on the SketchConfig.
+        scale (float, optional): Scale factor for the state transformation. Default is 1.0.
+        """
+
+        model = self.model
+        Ra = self._plot_rotation
+
+        if state is not None:
+            state = model.wrap_state(state, scale=scale, transform=self.dofs2plot)
+
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["surface"] for type, conf in SketchConfig().items() if "surface" in conf}
+            config["frame"]["show"] = True
+
+        # Draw extruded frames
         if "frame" in config and config["frame"]["show"]:
+            from veux.frame import extrude
             extrude.draw_extrusions3(model,
                                     canvas=self.canvas,
                                     state=state,
+                                    Ra = Ra,
                                     config=config["frame"])
 
         # Draw filled mesh for cell-like elements
         triangles = []
         if "plane" in config and config["plane"]["show"]:
-            nodes = model.node_position(state=state)
+            nodes = np.array([Ra@model.node_position(tag,state=state) for tag in model.iter_node_tags()])
 
             for tag in model.iter_cell_tags():
                 if not model.cell_matches(tag, "frame"):
@@ -328,16 +409,28 @@ class FrameArtist:
 
         return
 
-    def draw_nodes(self, state=None, data=None, label=None, config=None, size=None):
-        from veux.config import SketchConfig
-        config = {type: conf["marker"] for type, conf in SketchConfig().items() if "marker" in conf}
+    def draw_nodes(self,
+                   state=None,
+                   data=None, label=None, config=None, size=None, scale=1.0):
+        R = self._plot_rotation 
 
-        if state is not None and state.rotation is not None and self.model.ndm == 3:
-            rotations = self.model.node_rotation(state=state)
+        from veux.config import SketchConfig
+        if config is None:
+            config = {type: conf["marker"] for type, conf in SketchConfig().items() if "marker" in conf}
+        if size is not None:
+            config["node"]["style"].scale = size
+
+        if state is not None:
+            state = self.model.wrap_state(state, scale=scale, transform=self.dofs2plot)
+
+        if state is not None and hasattr(state,"rotation") and state.rotation is not None and self.model.ndm == 3:
+            rotations = [
+                R@self.model.node_rotation(tag, state=state) for tag in self.model.iter_node_tags()
+            ]
         else:
             rotations = None
 
-        coord = self.model.node_position(state=state)
+        coord = np.array([R@self.model.node_position(tag, state=state) for tag in self.model.iter_node_tags()])
         self.canvas.plot_nodes(coord[:,:self.ndm], label=label,
                                rotations=rotations,
                                style=config["node"]["style"])
@@ -346,29 +439,52 @@ class FrameArtist:
             self.canvas.plot_hover(coord[:,:self.ndm],
                                    label="node",
                                    keys=["tag", "crd"],
-                                   data=[[str(k), list(map(str, coord[i]))]
+                                   data=[[str(k), list(map(str, R.T@coord[i]))]
                                        for i,k in enumerate(self.model.iter_node_tags())])
 
-    def draw_axes(self, state=None, config=None):
+    def draw_edges(self, state=None, config=None, scale=1.0):
+        pass
+
+    def draw_axes(self, state=None, config=None, extrude=False):
+        Ra = self._plot_rotation
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["axes"] for type, conf in SketchConfig().items() if "axes" in conf}
+            config["frame"]["show"] = True
+
         ne = sum(1 for tag in self.model.iter_cell_tags() if self.model.cell_matches(tag, "frame"))
         xyz, uvw = np.nan*np.zeros((2, ne, 3, 3))
         i = 0
         for _,tag in enumerate(self.model.iter_cell_tags()):
+            if not self.model.cell_matches(tag, "frame"):
+                continue
 
             axes = self.model.frame_orientation(tag)
             if axes is None or not config["frame"]["show"]:
                 continue
-            if not self.model.cell_matches(tag, "frame"):
-                continue
 
             crd = self.model.cell_position(tag, state=state) #el["crd"]
-            scale = np.linalg.norm(crd[-1] - crd[0])/10
+            scale = np.linalg.norm(crd[-1] - crd[0])/15
             coord = sum(i for i in crd)/len(self.model.cell_indices(tag))
-            xyz[i,:,:] = np.array([coord]*3)
+            xyz[i,:,:] = np.array([Ra@coord]*3)
             uvw[i,:,:] = scale*axes
             i += 1
 
-        self.canvas.plot_vectors(xyz.reshape(ne*3,3), uvw.reshape(ne*3,3))
+        self.canvas.plot_vectors(xyz.reshape(ne*3,3), 
+                                 np.array([Ra@v for v in uvw.reshape(ne*3,3)]),
+                                 extrude=extrude)
+
+    def draw_origin(self, **kwds):
+        xyz = np.zeros((3,3))
+        uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
+        off = [[0, -kwds.get("scale", 1.0)/2, 0],
+               [0]*3,
+               [0]*3]
+
+        self.canvas.plot_vectors(xyz, uvw, **kwds)
+
+#       for i,label in enumerate(kwds.get("label", [])):
+#           self.canvas.annotate(label, (xyz+uvw)[i]+off[i])
 
     def draw(self):
         # Background
@@ -398,6 +514,12 @@ class FrameArtist:
     def save(self, filename):
         self.canvas.write(filename)
 
+    def _repr_html_(self):
+        from veux.viewer import Viewer
+        viewer = Viewer(self,hosted=False,standalone=False)
+        html = viewer.get_html()
+        return html
+
     def repl(self):
         from opensees.repl.__main__ import OpenSeesREPL
         self.canvas.plt.ion()
@@ -425,36 +547,34 @@ class FrameArtist:
         repl.repl()
 
 
-def _elastic_curve(x: Array, v: list, L:float)->Array:
+def _elastic_curve(x: Array, v: list, L:float, tangent=False)->Array:
     "compute points along Euler's elastica"
     if len(v) == 2:
         ui, uj, (vi, vj) = 0.0, 0.0, v
     else:
         ui, vi, uj, vj = v
     xi = x/L                        # local coordinate
-    N1 = 1.-3.*xi**2+2.*xi**3
-    N2 = L*(xi-2.*xi**2+xi**3)
-    N3 = 3.*xi**2-2*xi**3
-    N4 = L*(xi**3-xi**2)
-    y = ui*N1 + vi*N2 + uj*N3 + vj*N4
-    return y.flatten()
+    if not tangent:
+        N1 = 1.-3.*xi**2+2.*xi**3
+        N2 = L*(xi-2.*xi**2+xi**3)
+        N3 = 3.*xi**2-2*xi**3
+        N4 = L*(xi**3-xi**2)
+        y = ui*N1 + vi*N2 + uj*N3 + vj*N4
+        return y.flatten()
 
-def _elastic_tangent(x: Array, v: list, L: float)->Array:
-    if len(v) == 2:
-        ui, uj, (vi, vj) = 0.0, 0.0, v
     else:
-        ui, vi, uj, vj = v
-    xi = x/L
-    M3 = 1 - xi
-    M4 = 6/L*(xi-xi**2)
-    M5 = 1 - 4*xi+3*xi**2
-    M6 = -2*xi + 3*xi**2
-    return (ui*M3 + vi*M5 + uj*M4 + vj*M6).flatten()
+        M3 = 1 - xi
+        M4 = 6/L*(xi-xi**2)
+        M5 = 1 - 4*xi+3*xi**2
+        M6 = -2*xi + 3*xi**2
+        return (ui*M3 + vi*M5 + uj*M4 + vj*M6).flatten()
 
 
-def _displaced_profile(
+def _hermite_cubic(
         coord: Array,
-        displ: Array,        #: Displacements
+        displ: Array = None,        #: Displacements
+        u: Array = None,     #: Displacements at two nodes
+        v: Array = None,     #: Rotation vectors at two nodes
         Q = None,
         npoints: int = 10,
         tangent: bool = False
@@ -465,14 +585,18 @@ def _displaced_profile(
 
     # 3x3 rotation into local system
     # Q = rotation(coord, vect)
-    # Local displacements
-    u_local = block_diag(*[Q]*reps)@displ
     # Element length
     L = np.linalg.norm(coord[-1] - coord[0])
 
-    # longitudinal, transverse, vertical, section, elevation, plan
-    li, ti, vi, si, ei, pi = u_local[:6]
-    lj, tj, vj, sj, ej, pj = u_local[6:]
+    if u is not None:
+        (li, ti, vi), (lj, tj, vj) = u
+        (si, ei, pi), (sj, ej, pj) = v
+    else:
+        # Local displacements
+        u_local = block_diag(*[Q]*reps)@displ
+        # longitudinal, transverse, vertical, section, elevation, plan
+        li, ti, vi, si, ei, pi = u_local[:6]
+        lj, tj, vj, sj, ej, pj = u_local[6:]
 
     Lnew  = L + lj - li
     xaxis = np.linspace(0.0, Lnew, n)
@@ -481,16 +605,6 @@ def _displaced_profile(
     elev_curve = _elastic_curve(xaxis, [vi,-ei, vj,-ej], Lnew)
 
     local_curve = np.stack([xaxis + li, plan_curve, elev_curve])
-
-    if tangent:
-        plan_tang = _elastic_tangent(xaxis, [ti, pi, tj, pj], Lnew)
-        elev_tang = _elastic_tangent(xaxis, [vi,-ei, vj,-ej], Lnew)
-
-        local_tang = np.stack([np.linspace(0,0,n), plan_tang, elev_tang])
-        return (
-            Q.T@local_curve + coord[0][None,:].T,
-            Q.T@local_tang
-        )
 
     return Q.T@local_curve + coord[0][None,:].T
 

@@ -257,6 +257,8 @@ def skin_frames(model, artist, config=None):
     weights_0   = [] #np.zeros((num_vertices,4), dtype=canvas.float_t)
     e = ExtrusionCollection([], [], [], set(), set())
     for tag in model.iter_cell_tags():
+        if not model.cell_matches(tag, "frame"):
+            continue
 
         X = np.array([Ra@model.node_position(n) for n in model.cell_nodes(tag)])
         R = [Ra@model.frame_orientation(tag).T]*len(X)
@@ -277,7 +279,7 @@ def skin_frames(model, artist, config=None):
             #
             node = pygltflib.Node()
             node.translation =  X[j].tolist()
-            node.rotation    =  [*Rotation.from_matrix(R[j]).as_quat()]
+            node.rotation    =  Rotation.from_matrix(R[j]).as_quat().tolist()
 
             skin_nodes[(tag, j)] = _append_index(gltf.nodes, node)
 
@@ -537,10 +539,10 @@ class Motion:
             self._mesh_morph_keyframes = []
 
         model = self.model
-
-        self._mesh_morph_keyframes.append((time, [
+        field = [
             field(model.cell_nodes(element)[j]) for element,j in self._joint_elements
-        ]))
+        ]
+        self._mesh_morph_keyframes.append((time, field))
 
 
     def draw_sections(self,
@@ -566,21 +568,23 @@ class Motion:
         model = self.model
         Ra = self.artist._plot_rotation
         # For each element in the model
-        for element_name in model.iter_cell_tags():
+        for tag in model.iter_cell_tags():
+            if not model.cell_matches(tag, "frame"):
+                continue
 
-            R0 = model.frame_orientation(element_name).T
+            R0 = model.frame_orientation(tag).T
             # X_ref = model.cell_position(element_name)
-            nen = len(model.cell_nodes(element_name))
+            nen = len(model.cell_nodes(tag))
 
             # Displacements & rotations from 'state'
             pos_all = np.array([
-                Ra@model.node_position(node, state=state) for node in model.cell_nodes(element_name)
+                Ra@model.node_position(node, state=state) for node in model.cell_nodes(tag)
             ])
-            rot_all = [Ra@Ri@R0 for Ri in state.cell_array(element_name, state.rotation)]
+            rot_all = [Ra@Ri@R0 for Ri in state.cell_array(tag, state.rotation)]
 
             for j in range(nen):
                 # look up the glTF node index
-                key = (element_name, j)
+                key = (tag, j)
                 if key not in skin_nodes:
                     continue
 
@@ -688,6 +692,16 @@ class Motion:
                 ))
 
 
+        # --- Add Warp Animation Channels for Each Joint ---
+        # This helper repurposes the joint node's scale (using its x-component)
+        # to store the warp value.
+    
+        # If warp keyframes were recorded, add per-joint warp channels.
+        if hasattr(self, '_mesh_morph_keyframes'):
+            # self._joint_nodes should be a list of joint node indices in the same order as the warp values.
+            _add_warp_animation_to_joints(anim, self._joint_nodes, self._mesh_morph_keyframes, canvas)
+
+
         # 4) Insert the time / value data into buffers.
         #    Create BufferViews and Accessors, then set up each sampler's input/output
         #    to reference the newly created accessor indices.
@@ -731,6 +745,39 @@ class Motion:
             gltf.animations = []
 
         _append_index(gltf.animations, anim)
+
+
+def _add_warp_animation_to_joints(anim, joint_nodes, warp_keyframes, canvas):
+    # Sort warp keyframes by time.
+    warp_keyframes.sort(key=lambda x: x[0])
+    num_joints = len(joint_nodes)
+    # Build per-joint keyframe data.
+    joint_keyframes = [[] for _ in range(num_joints)]
+    for t, warp_list in warp_keyframes:
+        # Each warp_list must have num_joints values.
+        for j in range(num_joints):
+            joint_keyframes[j].append((t, warp_list[j]))
+    # For each joint, create an animation channel targeting its scale.
+    for j, node_index in enumerate(joint_nodes):
+        times = np.array([t for t, _ in joint_keyframes[j]], dtype=canvas.float_t)
+        # Pack the warp value in the x-component; keep y and z at 1.
+        scale_values = np.array([[w, 1.0, 1.0] for _, w in joint_keyframes[j]], dtype=canvas.float_t)
+        sampler_index = _append_index(anim.samplers, pygltflib.AnimationSampler(
+            input=-1,
+            output=-1,
+            interpolation="LINEAR"
+        ))
+        anim.samplers[sampler_index].extras = {
+            "times_array": times,
+            "vals_array": scale_values
+        }
+        anim.channels.append(pygltflib.AnimationChannel(
+            sampler=sampler_index,
+            target=pygltflib.AnimationChannelTarget(
+                node=node_index,
+                path="scale"
+            )
+        ))
 
 
 def create_animation(artist, states=None, skin_nodes=None):
