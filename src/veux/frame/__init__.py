@@ -313,7 +313,10 @@ class FrameArtist:
                       state=None, rotation=None, position=None, scale=1.0,
                       config=None):
         """
-        Draw extruded sections
+        Draw beam elements with extruded cross-sections. By default, cross-sectional
+        information is extracted from the model by various means. 
+        For `fiber <https://xara.so/user/manual/section/ShearFiber.html>`__ sections the outline is automatically computed
+        using exterior fibers.
 
         Parameters
         ----------
