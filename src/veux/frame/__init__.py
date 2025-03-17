@@ -318,12 +318,11 @@ class FrameArtist:
         Parameters
         ----------
         state : dict, np.ndarray, callable, optional
-            The state of the model, which can be a dictionary, numpy array, or a callable that returns the state. If None, the reference state of the model is used.
+            The state of the model, see :ref:`State`. Default is None, in which case the reference state of the model is rendered.
         rotation : np.ndarray, optional
             A callable that returns a quaternion representing the rotation of a given node. In OpenSeesRT models, the `nodeRotation <https://xara.so/user/manual/output/nodeRotation.html>`_ method of a ``Model`` object is typically used.
         config : dict, optional
-            Configuration dictionary for drawing surfaces. If None, a default configuration 
-            is used based on the SketchConfig.
+            Configuration dictionary for drawing surfaces. If None, a default configuration is used based on the SketchConfig.
         scale : float, optional
             Scale factor for the state transformation. Default is 1.0.
 
@@ -360,14 +359,13 @@ class FrameArtist:
         Parameters
         ----------
         state : dict, np.ndarray, callable, optional
-            The state of the model, which can be a dictionary, 
-            numpy array, or a callable that returns the state. If None, the current state of the model is used. See :ref:`State`.
+            The state of the model, see :ref:`State`. Default is None, in which case the reference state of the model is rendered.
         field : dict, optional
-            A dictionary representing the field values at each node. If provided, 
-            the field values will be plotted on the mesh.
-        config (dict, optional): Configuration dictionary for drawing surfaces. If None, a default configuration 
-            is used based on the SketchConfig.
-        scale (float, optional): Scale factor for the state transformation. Default is 1.0.
+            A dictionary representing the field values at each node. If provided, the field values will be plotted on the mesh.
+        config : dict, optional 
+            Configuration dictionary for drawing surfaces. If None, a default configuration is used based on the SketchConfig.
+        scale : float, optional 
+            Scale factor for the state transformation. Default is 1.0.
         """
 
         model = self.model

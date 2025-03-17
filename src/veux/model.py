@@ -417,6 +417,12 @@ class FrameModel:
                     recover_rotations=None,
                     **kwds):
         """
+        Parameters
+        ==========
+        state : dict, np.ndarray, callable, optional
+            The state of the model, see :ref:`State`. Default is None, in which case the reference state of the model is rendered.
+        rotation : np.ndarray, optional
+            A callable that returns a quaternion representing the rotation of a given node. In OpenSeesRT models, the `nodeRotation <https://xara.so/user/manual/output/nodeRotation.html>`_ method of a ``Model`` object is typically used.
         """
         if position is not None or rotation is not None or isinstance(state, (dict, np.ndarray)) or callable(state):
             if self.ndm == self.ndf:
