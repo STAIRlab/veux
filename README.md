@@ -3,7 +3,7 @@
 <img align="left" src="https://veux.io/_static/images/gallery/ShellFrame.png" width="350px" alt="example structure rendered with veux">
 
 
-**Web-first finite element visualization framework**
+**Finite element visualization framework**
 
 <br>
 
@@ -22,8 +22,6 @@ web technologies to produce sharable, efficient, and detailed renderings.
 
 <br>
 
-`veux` is a finite element rendering library that leverages modern 
-web technologies to produce sharable, efficient, and detailed renderings.
 Unlike most tools that only provide temporary visualization, `veux` generates
 persistent 3D models that can be stored in files, shared with colleagues, and
 viewed with any standard 3D model viewer. This means anyone can interact with

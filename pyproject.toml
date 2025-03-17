@@ -12,13 +12,12 @@ readme = "README.md"
 keywords = [
   "visualization",
   "rendering",
-  "seismic",
-  "xara",
-  "opensees",
-  "nonlinear",
   "finite-rotations",
   "post-processing",
   "finite-element-analysis",
+  "opensees",
+  "openseespy",
+  "3D",
   "glTF"
 ] 
 
@@ -33,6 +32,7 @@ dependencies = [
   "numpy",
   "plotly",
 # "trimesh",
+  "xara",
   "pygltflib",
   "matplotlib",
   "shps>=0.0.10"
