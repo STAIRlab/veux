@@ -34,7 +34,8 @@ Windows) or load it into a free online viewer in like [gltf-viewer](https://gltf
 `veux` is further distinguished by its features for geometrically exact simulations
 of constrained bodies like rods and shells.
 
-Documentation is available at [https://veux.io/](https://veux.io).
+Documentation is available at [https://veux.io/](https://veux.io) and an extensive set of 
+examples at [https://gallery.stairlab.io](https://gallery.stairlab.io).
 
 ## Features
 
