@@ -1,18 +1,22 @@
 import numpy as np
 from veux.utility.earcut import earcut, flatten as flatten_earcut
 
-def _clean_polygon(polygon):
+def _clean_polygon(polygon, warping=None):
     """
     Remove duplicate points and collinear points from a polygon.
     """
     if polygon.shape[1] == 2:
         outline_3d = np.zeros((polygon.shape[0], 3))
         outline_3d[:,1:] = polygon
-        polygon = outline_3d
+        polygon = outline_3d.copy()
+        if warping is not None:
+            for i,point in enumerate(outline_3d[:,1:]):
+                polygon[i,0] = warping(point)
 
     points = np.unique(polygon, axis=0)
     # Order points by angle from centroid
-    polygon = points[np.argsort(np.arctan2(points[:,2] - points[:,2].mean(), points[:,1] - points[:,1].mean()))]
+    polygon = points[np.argsort( np.arctan2(points[:,2] - points[:,2].mean(), 
+                                            points[:,1] - points[:,1].mean()))]
     return polygon
 
     #
@@ -26,7 +30,7 @@ def _clean_polygon(polygon):
 
 
 class SectionGeometry:
-    def __init__(self, exterior, interior=None):
+    def __init__(self, exterior, interior=None, warping=None):
 
         if interior is None:
             interior = []
@@ -34,11 +38,15 @@ class SectionGeometry:
         for i in range(len(interior)):
             interior[i] = _clean_polygon(interior[i])
         
-        exterior = np.array(exterior)
+        exterior = np.array(exterior)#np.unique(, axis=0)
+        # exterior = _clean_polygon(exterior, warping)
         if exterior.shape[1] == 2:
             outline_3d = np.zeros((exterior.shape[0], 3))
             outline_3d[:,1:] = exterior
-            exterior = outline_3d
+            exterior = outline_3d.copy()
+            if warping is not None:
+                for i,point in enumerate(outline_3d[:,1:]):
+                    exterior[i,0] = warping(point)
 
         self._interior = interior
         self._exterior = exterior

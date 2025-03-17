@@ -4,17 +4,54 @@
 #
 #===----------------------------------------------------------------------===#
 #
-# Claudio Perez
+# Claudio M. Perez
 #
 import sys
 from collections import defaultdict
+from veux.state  import State, StateSeries, BasicState, GroupSeriesSE3, GroupSeriesSO3, GroupStateSE3, GroupStateSO3, Rotation
 
 import numpy as np
 
+from pathlib import Path
+from urllib.parse import urlparse
 try:
     import orjson as json
 except ImportError:
     import json
+
+
+class Model:
+    def __iter__(self):
+        # this method allows: nodes, cells = Model(mesh)
+        return iter((self.nodes, self.cells))
+
+    def make_state(self, state, **kwds):
+        # This just needs to return an opaque object that can be passed into the methods below
+        return state 
+
+    def node_location(self, tag): ...
+
+    def node_information(self, tag): ...
+
+    def iter_cells_tags(self, filt=None): ...
+
+    def cell_matches(self, tag): ...
+
+    def cell_type(self, tag):       ... # line triangle quadrilateral 
+
+    def cell_exterior(self, tag):   ...
+
+    def cell_interior(self, tag):   ...
+
+    def cell_rotation(self, tag, state): raise NotImplementedError
+
+    def cell_position(self, tag, state): raise NotImplementedError
+
+    def cell_outline(self,  tag):   ...
+
+    def cell_information(self, tag): ...
+
+    def cell_triangles(self, tag):  ...
 
 
 # Constants
@@ -25,7 +62,7 @@ _OUTLINES = {
     "square":  np.array([[-1., -1.],
                          [ 1., -1.],
                          [ 1.,  1.],
-                         [-1.,  1.]])/10,
+                         [-1.,  1.]])/4.0,
 
     "tee":     np.array([[ 6.0,  0.0],
                          [ 6.0,  4.0],
@@ -134,70 +171,193 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
     return sam
 
 
-class Model:
-    def __iter__(self):
-        # this method allows: nodes, cells = Model(mesh)
-        return iter((self.nodes, self.cells))
+def read_state(res_file,
+               model=None,
+               rotation=None,
+               position=None,
+               time=None,
+               scale=None,
+               transform=None,
+               recover_rotations=None,
+               **opts):
+    """
+    """
 
-    def node_location(self, tag): ...
+    # Turn res_file into res
+    if hasattr(res_file, "read"):
+        import yaml
+        res = yaml.load(res_file, Loader=yaml.Loader)
 
-    def node_information(self, tag): ...
+    elif isinstance(res_file, (str,Path)):
+        res_path = urlparse(res_file)
+        if "json" in res_path[2]:
+            with open(res_path[2], "r") as f:
+                res = json.loads(f.read())
+        else:
+            with open(res_path[2], "r") as f:
+                res = yaml.load(f, Loader=yaml.Loader)
 
-    def iter_cells_tags(self, filt=None): ...
+        if res_path[4]: # query parameters passed
+            res = res[int(res_path[4].split("=")[-1])]
+    else:
+        res = res_file
 
-    def cell_matches(self, tag): ...
 
-    def cell_type(self, tag):       ... # line triangle quadrilateral 
+    #
+    # Create the object
+    #
+    if model.ndm == model.ndf:
+        if isinstance(res, np.ndarray) and len(res.shape) > 1:
+            vectors = {
+                i: res[i] for i in range(len(res))
+            }
 
-    def cell_exterior(self, tag):   ...
+        elif isinstance(res, np.ndarray) and res.shape[0] == len(model.iter_node_tags()):
+            vectors = {tag: res[i]  for i, tag in enumerate(model.iter_node_tags())}
 
-    def cell_interior(self, tag):   ...
+        elif isinstance(res, np.ndarray):
+            # TODO: need to get node-dof mapping
+            raise NotImplementedError
 
-    def cell_rotation(self, tag, state): ...
+        elif callable(res):
+            vectors = {tag: res(tag) for tag in model.iter_node_tags()}
 
-    def cell_position(self, tag, state):   ...
+        else:
+            vectors = res
 
-    def cell_outline(self,  tag):   ...
+        return BasicState(vectors, model, transform=transform, scale=scale)
 
-    def cell_information(self, tag): ...
+
+    else:
+        # Create a GroupStateSE<n>
+        xdof = slice(0,model.ndm)
+        rdof = 2 if model.ndm == 2 else slice(3, 6)
+        if transform is None:
+            transform = np.eye(6)
+
+        if isinstance(res, np.ndarray):
+            raise NotImplementedError
+
+        elif callable(res):
+            # eg, state=model.nodeDisp
+            position_state = BasicState(
+                {k: transform[:3,:model.ndm]@res(k)[xdof] for k in model.iter_node_tags()},
+                model,
+                time=time,
+                scale=scale
+            )
+            if model.ndm == 2:
+                rotation_state = GroupStateSO3({
+                        k: Rotation.from_rotvec([0, 0, res(k)[rdof]]) 
+                        for k in model.iter_node_tags()
+                    }, 
+                    model, 
+                    # scale=scale, 
+                    transform=transform[3:,3:], 
+                    time=time)
+            else:
+                rotation_state = GroupStateSO3({
+                        k: Rotation.from_rotvec(res(k)[rdof]) 
+                        for k in model.iter_node_tags()
+                    }, 
+                    model, 
+                    # scale=scale, 
+                    transform=transform[3:,3:], 
+                    time=time
+                )
+
+        # FEDEAS
+        elif isinstance(res, dict) and ("IterationHistory" in res or "ConvergedHistory" in res):
+
+            history = StateSeries(res, model,
+                        transform =transform,
+                        recover_rotations=recover_rotations
+                    )
+
+            if recover_rotations is not None:
+                history = GroupSeriesSE3(history, model, recover_rotations=recover_rotations, transform=transform)
+
+            if time is not None:
+                return history[time]
+            else:
+                # TODO: This function should never return a series;
+                # implement create_series for that
+                return history
+
+        # res is a Dict from node tag to nodal values
+        elif isinstance(res, dict):
+            position_state = BasicState(
+                {k: transform[:3,:model.ndm]@v[xdof] for k,v in res.items()}, 
+                model, 
+                time=time,
+                scale=scale
+            )
+            if model.ndm == 2:
+                rotation_state = GroupStateSO3({
+                        k: Rotation.from_rotvec([0, 0, v[rdof]]) if len(v[rdof]) == 1 else Rotation.from_quat(v[rdof])
+                        for k,v in res.items()
+                    },
+                    model, 
+                    scale=scale, 
+                    transform=transform[3:,3:], 
+                    time=time
+                )
+            else:
+                rotation_state = GroupStateSO3(
+                        {
+                            k: Rotation.from_rotvec(v[rdof])
+                            for k,v in res.items()
+                        }, 
+                        model, 
+                        scale=scale,
+                        transform=transform[3:,3:], 
+                        time=time
+                    )
+
+        if callable(position):
+            position_state = BasicState(
+                {k: transform[:3,:model.ndm]@position(k)[xdof] for k in model.iter_node_tags()},
+                model, 
+                time=time,
+                scale=scale
+            )
+
+        if callable(rotation) and model.ndm==2:
+            rotation_state = GroupStateSO3(
+                {k: Rotation.from_rotvect([0,0,rotation(k)]) for k in model.iter_node_tags()},
+                model,
+                transform=transform[3:,3:],
+                time=time,
+                # scale=scale
+            )
+
+        elif callable(rotation) and model.ndm==3:
+            rotation_state = GroupStateSO3(
+                {k: Rotation.from_quat(rotation(k)) for k in model.iter_node_tags()},
+                model, 
+                transform=transform[3:,3:],
+                time=time,
+                # scale=scale
+            )
+
+        return GroupStateSE3((position_state, rotation_state), model)
 
 
 
 class FrameModel:
-    def __init__(self, sam:dict, shift = None, rot=None,
-                 frame_outlines=None, **kwds):
+# rename to SolidModel?
 
-        from .frame._section import SectionGeometry
-        self._frame_outlines = {}
-        if frame_outlines is not None:
-            for key, polygons in frame_outlines.items():
-                if isinstance(polygons, SectionGeometry):
-                    self._frame_outlines[key] = [polygons]
-                elif isinstance(polygons, list) and all(isinstance(i, SectionGeometry) for i in polygons):
-                    self._frame_outlines[key] = polygons
-                elif hasattr(polygons[0][0], "__len__"):
-                    # list of numpy arrays
-                    self._frame_outlines[key] = [SectionGeometry(i) for i in polygons]
-                else:
-                    self._frame_outlines[key] = [SectionGeometry(polygons)]
+    def __init__(self, sam:dict,
+                 shift = None, rot=None, # Coordinate transformation
+                 frame_outlines=None, 
+                 **kwds):
 
-
-        # self._frame_outlines  = {
-        #     key: [outline] if isinstance(outline, SectionGeometry) else [SectionGeometry(i) for i in outline]
-        #     for key, outline in frame_outlines.items()
-        # }
-        self._extrude_default = SectionGeometry(_OUTLINES[kwds.get("extrude_default", "square")])
-        if "extrude_outline" in kwds:
-            self._extrude_outline = SectionGeometry(_OUTLINES[kwds["extrude_outline"]])
-        else:
-            self._extrude_outline = None
-        self._extrude_scale   = kwds.get("extrude_scale",   1.0)
-
-        ndm = 3
-        R = np.eye(ndm) if rot is None else rot
+        # number of dimensions of artist, not model?
+        nda = 3
+        R = np.eye(nda) #if rot is None else rot
 
         if shift is None:
-            shift = np.zeros(ndm)
+            shift = np.zeros(nda)
         else:
             shift = np.asarray(shift)
 
@@ -207,9 +367,77 @@ class FrameModel:
         self.ndm = self._data["ndm"]
         self.ndf = self._data["ndf"]
 
+        #
+        # Section data
+        #
+        from .frame._section import SectionGeometry
+        self._frame_outlines = {}
+        if isinstance(frame_outlines, dict):
+            for key, polygons in frame_outlines.items():
+                if hasattr(polygons, "exterior"):
+                    self._frame_outlines[key] = [polygons]
+                elif isinstance(polygons, list) and all(hasattr(i, "exterior") for i in polygons):
+                    self._frame_outlines[key] = polygons
+                elif hasattr(polygons[0][0], "__len__"):
+                    # list of numpy arrays
+                    self._frame_outlines[key] = [SectionGeometry(i) for i in polygons]
+                else:
+                    self._frame_outlines[key] = [SectionGeometry(polygons)]
+
+        elif frame_outlines is None and "extrude_outline" not in kwds:
+            # TODO: Make this dict of list of sections
+            self._frame_outlines = _get_frame_outlines(self)
+
+        self._extrude_default = SectionGeometry(_OUTLINES[kwds.get("extrude_default", "square")])
+        if "extrude_outline" in kwds:
+            if hasattr(kwds["extrude_outline"], "exterior"):
+                self._extrude_outline = SectionGeometry(
+                                          exterior=kwds["extrude_outline"].exterior(),
+                                          interior=kwds["extrude_outline"].interior(),
+                                          warping=kwds.get("section_warping", None))
+            elif isinstance(kwds["extrude_outline"], str):
+                self._extrude_outline = SectionGeometry(_OUTLINES[kwds["extrude_outline"]])
+            else:
+                raise ValueError("extrude_outline must be a SectionGeometry or a string")
+        else:
+            self._extrude_outline = None
+
+        self._extrude_scale   = kwds.get("extrude_scale",   1.0)
+
     def __getitem__(self, key):
         # TODO: Remove this method
         return self._data[key]
+
+    def wrap_state(self,
+                    state=None,
+                    position=None,
+                    rotation=None,
+                    scale=None, 
+                    transform=None, 
+                    recover_rotations=None,
+                    **kwds):
+        """
+        """
+        if position is not None or rotation is not None or isinstance(state, (dict, np.ndarray)) or callable(state):
+            if self.ndm == self.ndf:
+                # TODO: This should be gurranteed to return a BasicState;
+                # perhaps call the one in plane/__init__.py
+                return read_state(state,
+                                model=self,
+                                scale=scale,
+                                transform=transform)
+            else:
+                # TODO: This should be gurranteed to return a GroupStateSEn
+                return read_state(
+                                state,
+                                position=position,
+                                rotation=rotation,
+                                model=self,
+                                scale=scale,
+                                transform=transform,
+                                recover_rotations=recover_rotations)
+        else:
+            return state
 
     def cell_nodes(self, tag=None):
         if tag is None:
@@ -293,12 +521,16 @@ class FrameModel:
         return self._node_indices[tag]
 
     def node_rotation(self, tag=None, state=None):
+        if self.ndm == self.ndf:
+            return _EYE3
+
         if state is None:
             eye = np.eye(3)
             if tag is None:
                 return [eye for i in self.iter_node_tags()]
             else:
                 return eye
+
         else:
             return state.node_array(tag, dof=state.rotation)
 
@@ -417,10 +649,19 @@ class FrameModel:
 
         return []
 
-    def add_hook():
-        pass
+    def _section_area(self, tag, i):
+        # TODO
+        return 1
+        try:
+            stag = self["assembly"][tag]["sections"][i]
+            try:
+                return self["sections"][int(stag)]["A"]
+            except:
+                return self["sections"][str(stag)]["A"]
+        except Exception as e:
+            return  1.0
 
-    def frame_section(self, tag, coord=None)->"Section":
+    def frame_section(self, tag, coord=None)->"SectionGeometry":
         from .frame._section import SectionGeometry
 
         if self.cell_matches(tag, "truss"):
@@ -431,20 +672,23 @@ class FrameModel:
         if not self.cell_matches(tag, "frame"):
             return None
 
-        # Initialize frame outlines
-        if self._frame_outlines is None:
-            # TODO: Make this dict of list of sections
-            self._frame_outlines = _get_frame_outlines(self)
+        # # Initialize frame outlines
+        # if self._frame_outlines is None:
+        #     # TODO: Make this dict of list of sections
+        #     self._frame_outlines = _get_frame_outlines(self)
 
         sections = []
         if self._extrude_outline is not None:
-            sections = [self._extrude_outline]*2 #*self._extrude_scale
+            sections = [
+                SectionGeometry(self._extrude_outline.exterior()*self._section_area(tag, 0)),
+            ]*2 #*self._extrude_scale
 
         elif tag in self._frame_outlines:
             sections = self._frame_outlines[tag]
 
         elif self._extrude_default is not None:
             sections = [self._extrude_default]*2 #*self._extrude_scale
+
 
         if len(sections) == 0:
             print(f"Empty sections for {tag}", file=sys.stderr)
@@ -470,6 +714,7 @@ class FrameModel:
                 interpolate(exterior, coord),
                 interpolate(interior, coord)
             )
+
 
     def frame_orientation(self, tag, state=None):
         el  = self["assembly"][tag]
@@ -501,6 +746,10 @@ class FrameModel:
 
 def _from_opensees(sam: dict, shift, R):
     # Process OpenSees JSON format
+
+    # TODO?
+    R = np.eye(3)
+    
     try:
         sam = sam["StructuralAnalysisModel"]
     except KeyError:
@@ -564,37 +813,49 @@ def collect_outlines(model):
     return _get_frame_outlines(_from_opensees(model, [0, 0, 0], np.eye(3)))
 
 def _add_section_shape(section, sections, outlines):
-    import scipy.spatial
 
-    # Rotation to change coordinates from x-y to z-y
-    R = np.array(((0,-1),
-                  (1, 0))).T
-
+    tag = int(section["name"])
     if "section" in section:
         # Treat aggregated sections
-        if section["section"] not in outlines:
-            outlines[section["name"]] = _add_section_shape(sections[section["section"]], sections, outlines)
-        else:
-            outlines[section["name"]] = outlines[section["section"]]
+        child_tag = int(section["section"])
+        if child_tag not in outlines:
+            _add_section_shape(sections[section["section"]], sections, outlines)
+
+        outlines[tag] = outlines[child_tag]
 
     elif "bounding_polygon" in section:
-        outlines[section["name"]] = [R@s for s in section["bounding_polygon"]]
+        # Rotation to change coordinates from x-y to z-y
+        R = np.array(((0,-1),
+                      (1, 0))).T
+        outlines[tag] = [R@s for s in section["bounding_polygon"]]
 
     elif "fibers" in section:
-        points = np.array([f["coord"] for f in section["fibers"]])
-        try:
-            outlines[section["name"]] = points[scipy.spatial.ConvexHull(points).vertices]
-        except scipy.spatial._qhull.QhullError as e:
-            import warnings
+        points = np.array([f.get("coord", f["location"]) for f in section["fibers"]])
+        if True:
             from veux.utility.alpha_shape import alpha_shape
-            outlines[section["name"]] = alpha_shape(points, 1)
+            alpha = alpha_shape(points, bound_ratio=0.03)#0.01)
+            outlines[tag] =  alpha
+            # import matplotlib.pyplot as plt
+            # fig, ax = plt.subplots()
+            # ax.scatter(*zip(*points), 0.2, marker=".")
+            # ax.set_aspect("equal")
+            # ax.scatter(*zip(*alpha), 0.2, color="red")
+            # ax.plot([alpha[0,0], alpha[-1,0]], [alpha[0,1], alpha[-1,1]], "x", color="black")
+            # plt.show()
+        try:
+            pass
+        except Exception as e: #scipy.spatial._qhull.QhullError as e:
+            import warnings
             warnings.warn(str(e))
+            import scipy.spatial
+            outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
+
 
 
 def _get_frame_outlines(model):
-    shapes = {}
+    section_outlines = {}
     for name,section in model["sections"].items():
-        _add_section_shape(section, model["sections"], shapes)
+        _add_section_shape(section, model["sections"], section_outlines)
 
     # Function to check if list of lists is homogeneous
     homogeneous = lambda lst: (
@@ -608,7 +869,10 @@ def _get_frame_outlines(model):
     outlines = {}
     for elem in model["assembly"].values():
         if "sections" in elem:
-            outlines[elem["name"]] = [SectionGeometry(shapes[i]) for i in elem["sections"] if i in shapes and shapes[i] is not None]
+            outlines[elem["name"]] = [
+                SectionGeometry(section_outlines[int(i)]) for i in elem["sections"]
+                if i in section_outlines and section_outlines[i] is not None
+            ]
             continue
             if len(elem_shapes) == 0:
                 continue
