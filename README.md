@@ -64,7 +64,7 @@ artist = veux.render(model, canvas=canvas)
 - **model**: the `model` parameter can be of several types
   - `str` (string) variables are treated like file paths. Supported files are `.json` and `.tcl`
   - `dict` variables are treated
-  - [`Model`](https://stairlab.github.io/OpenSeesDocumentation/user/manual/model/model_class.html) variables from the [`xara`](https://xara.so) Python package can be passed directly
+  - [`Model`](https://xara.so/user/manual/model/model_class.html) variables from the [`xara`](https://xara.so) Python package can be passed directly
 - **canvas**: The `canvas` parameter is a string which indicates which "backend" technology to use. The options are:
   - `"gltf"` is the default canvas and produces the highest quality renderings. You can save renderings drawn by this backend to either `.html` or `.glb` files. `.glb` files are preferred as they are a natural format for 3D objects and can be viewed by standard 3D viewing applications.
   - `"plotly"` is best for model debugging as it is able to embed model details like node/element numbers and properties with hover annotations. However, the renderings produced by this backend dont look quite as good as with `gltf`.
