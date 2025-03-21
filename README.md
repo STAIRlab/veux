@@ -3,7 +3,7 @@
 <img align="left" src="https://veux.io/_static/images/gallery/ShellFrame.png" width="350px" alt="example structure rendered with veux">
 
 
-**Finite element visualization framework**
+**Finite element visualization**
 
 <br>
 
@@ -15,7 +15,7 @@
 
 </div>
 
-`veux` is a finite element rendering library that leverages modern 
+`veux` is a finite element visualization library that leverages modern 
 web technologies to produce sharable, efficient, and detailed renderings.
 
 -------------------------------------------------------------------- 
