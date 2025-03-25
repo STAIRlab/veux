@@ -42,7 +42,6 @@ classifiers = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Science/Research',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: BSD License',
     'Programming Language :: C',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
