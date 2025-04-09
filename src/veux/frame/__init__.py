@@ -238,8 +238,8 @@ class FrameArtist:
             # Because "state" is given as opposed to position/displacement, we assume
             # linearized rotations for now.
             config["frame"]["basis"] = "Hermite"
-              
-        N = 10 if state is not None and config["frame"]["basis"] is not None else 2
+
+        N = 20 if state is not None and config["frame"]["basis"] is not None else 2
         do_frames = False
         ne = sum(1 for tag in model.iter_cell_tags() 
                  if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"))

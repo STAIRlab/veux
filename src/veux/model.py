@@ -8,7 +8,7 @@
 #
 import sys
 from collections import defaultdict
-from veux.state  import State, StateSeries, BasicState, GroupSeriesSE3, GroupSeriesSO3, GroupStateSE3, GroupStateSO3, Rotation
+from veux.state  import StateSeries, BasicState, GroupSeriesSE3, GroupStateSE3, GroupStateSO3, Rotation
 
 import numpy as np
 
@@ -566,7 +566,7 @@ class FrameModel:
         
         if type == "solid":
             return _is_solid(elem) 
-        
+
         return False
 
     def cell_position(self, tag, state=None):
@@ -593,7 +593,8 @@ class FrameModel:
 
         elif ("quad" in type or \
               "shell" in type and ("q" in type) or ("mitc" in type)):
-            return self.cell_indices(tag)
+            return self.cell_indices(tag)[:4]
+
 
         elif ("tri" in type or \
               "shell" in type and ("t" in type)):
@@ -636,7 +637,7 @@ class FrameModel:
             if len(nodes) == 3:
                 return nodes
 
-            if len(nodes) == 4:
+            if len(nodes) in {4,8,9}:
                 return [[nodes[0], nodes[1], nodes[2]],
                         [nodes[2], nodes[3], nodes[0]]]
 
@@ -697,7 +698,7 @@ class FrameModel:
 
 
         if len(sections) == 0:
-            print(f"Empty sections for {tag}", file=sys.stderr)
+            # print(f"Empty sections for {tag}", file=sys.stderr)
             return
 
         elif len(sections) == 1:
@@ -736,8 +737,8 @@ class FrameModel:
         if "yvec" in el["trsfm"] and el["trsfm"]["yvec"] is not None:
             v2  = np.array(el["trsfm"]["yvec"])
 
-        elif "vecInLocXZPlane" in el["trsfm"]:
-            v13 =  np.atleast_1d(el["trsfm"]["vecInLocXZPlane"])
+        elif "vecxz" in el["trsfm"]:
+            v13 =  np.atleast_1d(el["trsfm"]["vecxz"])
             v2  = -np.cross(e1,v13)
 
         else:
@@ -782,19 +783,26 @@ def _from_opensees(sam: dict, shift, R):
     trsfm = {}
     for t in sam.get("properties", {}).get("crdTransformations", []):
         trsfm[int(t["name"])] = {
-                k: val for k,val in t.items() if k != "vecInLocXZPlane"
+            k: val for k,val in t.items() if k not in {"vecxz", "vecInLocXZPlane"}
         }
         if ndm == 3:
-            trsfm[int(t["name"])]["vecInLocXZPlane"] = R@t["vecInLocXZPlane"]
+            trsfm[int(t["name"])]["vecxz"] = R@(t.get("vecxz", None) or t["vecInLocXZPlane"])
 
+    def _make_transform(e):
+        if "transform" in e and int(e["transform"]) in trsfm:
+            return trsfm[int(e["transform"])]
+
+        if "crdTransformation" in e and int(e["crdTransformation"]) in trsfm:
+            return trsfm[int(e["crdTransformation"])]
+
+        if "yvec" in e:
+            return dict(yvec=R@e["yvec"])
 
     elems =  {
         e["name"]: dict(
-        **e,
-        crd=np.array([nodes[n]["crd"] for n in e["nodes"]], dtype=float),
-        trsfm=trsfm[int(e["crdTransformation"])]
-            if "crdTransformation" in e and int(e["crdTransformation"]) in trsfm
-            else dict(yvec=R@e["yvec"] if "yvec" in e else None)
+            **e,
+            crd=np.array([nodes[n]["crd"] for n in e["nodes"]], dtype=float),
+            trsfm=_make_transform(e) 
         ) for e in geom["elements"]
     }
 
@@ -836,25 +844,21 @@ def _add_section_shape(section, sections, outlines):
         outlines[tag] = [R@s for s in section["bounding_polygon"]]
 
     elif "fibers" in section:
-        points = np.array([f.get("coord", f["location"]) for f in section["fibers"]])
-        if True:
-            from veux.utility.alpha_shape import alpha_shape
-            alpha = alpha_shape(points, bound_ratio=0.03)#0.01)
-            outlines[tag] =  alpha
-            # import matplotlib.pyplot as plt
-            # fig, ax = plt.subplots()
-            # ax.scatter(*zip(*points), 0.2, marker=".")
-            # ax.set_aspect("equal")
-            # ax.scatter(*zip(*alpha), 0.2, color="red")
-            # ax.plot([alpha[0,0], alpha[-1,0]], [alpha[0,1], alpha[-1,1]], "x", color="black")
-            # plt.show()
         try:
-            pass
-        except Exception as e: #scipy.spatial._qhull.QhullError as e:
-            import warnings
-            warnings.warn(str(e))
-            import scipy.spatial
-            outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
+            points = np.array([
+                f.get("coord", None) or f["location"] for f in section["fibers"]
+            ])
+            try:
+                from veux.utility.alpha_shape import alpha_shape
+                alpha = alpha_shape(points, bound_ratio=0.03)#0.01)
+                outlines[tag] =  alpha
+            except Exception as e: #scipy.spatial._qhull.QhullError as e:
+                import warnings
+                warnings.warn(str(e))
+                import scipy.spatial
+                outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
+        except:
+            return
 
 
 
