@@ -92,7 +92,7 @@ def _is_plane(el):
 
 def _is_solid(el):
     name = el["type"].lower()
-    return "brick" in name
+    return "brick" in name or "tetra" in name
 
 
 def _orient_frame(xi, xj, angle):
@@ -602,12 +602,13 @@ class FrameModel:
 
         elif "tetra" in type:
             indices = self.cell_indices(tag)
+            return [indices[i] for i in [0, 1, 2, 3, 0, 2, 3, 1]]
 
         elif "brick" in type or "hex" in type:
             i = self.cell_indices(tag)
             if len(i) == 8:
                 return [
-                        i[j] for j in (0, 1, 2, 3, 0, 4, 5, 6, 7, 4, 5, 1, 3, 6, 7, 3)
+                    i[j] for j in (0, 1, 2, 3, 0, 4, 5, 6, 7, 4, 5, 1, 2, 6, 7, 3)
                 ]
             else:
                 # TODO: Currently not handling higher-order bricks
@@ -640,6 +641,13 @@ class FrameModel:
             if len(nodes) in {4,8,9}:
                 return [[nodes[0], nodes[1], nodes[2]],
                         [nodes[2], nodes[3], nodes[0]]]
+        
+        elif "tetra" in type:
+            nodes = self.cell_indices(tag)
+            return [[nodes[0], nodes[2], nodes[1]],
+                    [nodes[0], nodes[1], nodes[3]],
+                    [nodes[0], nodes[3], nodes[2]],
+                    [nodes[1], nodes[2], nodes[3]]]
 
         elif "brick" in type:
             nodes = self.cell_indices(tag)
