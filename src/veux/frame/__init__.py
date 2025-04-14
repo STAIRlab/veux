@@ -294,18 +294,16 @@ class FrameArtist:
         if do_frames and config["frame"]["show"]:
             self.canvas.plot_lines(frames[:,:self.ndm], style=config["frame"]["style"])
 
+        nodes = np.array([Ra@x for x in model.node_position(state=state)])
         if len(quadrs) > 0 and config["plane"]["show"]:
-            nodes = model.node_position(state=state)
             self.canvas.plot_lines(nodes, indices=np.array(quadrs),
                                    style=config["plane"]["style"])
 
         if len(trians) > 0 and config["plane"]["show"]:
-            nodes = model.node_position(state=state)
             self.canvas.plot_lines(nodes, indices=np.array(trians),
                                    style=config["plane"]["style"])
 
         if len(solids) > 0 and config["solid"]["show"]:
-            nodes = model.node_position(state=state)
             self.canvas.plot_lines(nodes, indices=np.array(solids),
                                           style=config["solid"]["style"])
 
@@ -471,7 +469,7 @@ class FrameArtist:
             uvw[i,:,:] = scale*axes
             i += 1
 
-        self.canvas.plot_vectors(xyz.reshape(ne*3,3), 
+        self.canvas.plot_vectors(xyz.reshape(ne*3,3),
                                  np.array([Ra@v for v in uvw.reshape(ne*3,3)]),
                                  extrude=extrude)
 
