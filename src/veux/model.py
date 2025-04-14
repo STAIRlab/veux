@@ -858,14 +858,15 @@ def _add_section_shape(section, sections, outlines):
             ])
             try:
                 from veux.utility.alpha_shape import alpha_shape
-                alpha = alpha_shape(points, bound_ratio=0.03)#0.01)
+                alpha = alpha_shape(points, bound_ratio=0.01) #0.03)#0.01)
                 outlines[tag] =  alpha
             except Exception as e: #scipy.spatial._qhull.QhullError as e:
                 import warnings
                 warnings.warn(str(e))
                 import scipy.spatial
                 outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
-        except:
+        except Exception as e:
+            warnings.warn(str(e))
             return
 
 
@@ -874,6 +875,7 @@ def _get_frame_outlines(model):
     section_outlines = {}
     for name,section in model["sections"].items():
         _add_section_shape(section, model["sections"], section_outlines)
+
 
     # Function to check if list of lists is homogeneous
     homogeneous = lambda lst: (
@@ -900,6 +902,7 @@ def _get_frame_outlines(model):
                 elem_shapes = np.array(elem_shapes)
 
             outlines[elem["name"]] = [SectionGeometry(shape) for shape in elem_shapes]
+
 
     return outlines
 
