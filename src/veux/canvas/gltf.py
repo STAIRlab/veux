@@ -668,12 +668,12 @@ class GltfLibCanvas(Canvas):
             ))
 
         return lines
-    
+
     def plot_vectors(self, locs, vecs, label=None, extrude=False, **kwds):
-        ne = vecs.shape[0]
+        ne = len(vecs)
         if not extrude:
             for j in range(3):
-                style = kwds.get("line_style", LineStyle(color=("red", "blue", "green")[j]))
+                style = kwds.get("line_style", LineStyle(color=("red", "green", "blue")[j]))
                 X = np.zeros((ne*3, 3))*np.nan
                 for i in range(j,ne,3):
                     X[i*3,:] = locs[i]
@@ -681,7 +681,7 @@ class GltfLibCanvas(Canvas):
                 self.plot_lines(X, style=style, label=label)
         else:
             for j in range(3):
-                style = LineStyle(color=("red", "blue", "green")[j])
+                style = kwds.get("line_style", LineStyle(color=("red", "green", "blue")[j]))
                 X = np.zeros((ne*3, 3))*np.nan
                 for i in range(j,ne,3):
                     self.draw_arrow(locs[i], vector=vecs[i], style=style)
