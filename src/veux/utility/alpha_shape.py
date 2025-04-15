@@ -169,9 +169,9 @@ def alpha_shape(points, alpha=None, only_outer=True, radius=None, bound_ratio=No
 
     if tri is None:
         tri = Delaunay(points)
-    
+
     if bound_ratio is not None:
-        assert radius is None 
+        assert radius is None
         assert alpha is None
         radius = _max_pairwise_distance(points) * bound_ratio
     if radius is not None:
