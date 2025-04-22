@@ -14,7 +14,7 @@ from scipy.linalg import block_diag
 import shps.rotor as so3
 from veux.model  import Model,FrameModel
 from veux.state  import State, BasicState
-from veux.config import Config, LineStyle, NodeStyle
+from veux.config import Config, LineStyle, NodeStyle, MeshStyle
 from ._section import SectionGeometry
 
 class FrameArtist:
@@ -211,7 +211,85 @@ class FrameArtist:
     def draw_skeleton(self, skins, state=None, config=None, scale=1.0):
         pass
 
-    def draw_outlines(self, state=None, config=None, scale=1.0):
+    def _draw_diagram_x(self, field, scale=1.0, config=None):
+        pass
+
+    def draw_diagrams(self, field, scale=1.0, config=None):
+        """
+        Draws diagram fields on line-like elements (frame and truss) as vertical extrusions.
+
+        Parameters
+        ----------
+        field : callable
+            A function taking (element_tag: int, x: float) and returning a scalar field value.
+            x ∈ [0, 1] is the normalized local coordinate along the element.
+        scale : float, optional
+            Scale factor for the diagram magnitudes (applied vertically). Default is 1.0.
+        config : dict, optional
+            Optional style configuration. Uses 'frame' entry if provided.
+        """
+
+        Ra = self._plot_rotation
+        model = self.model
+
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["surface"] for type, conf in SketchConfig().items() if "surface" in conf}
+            config.setdefault("frame", {})["show"] = True
+
+        if not config.get("frame", {}).get("show", True):
+            return
+
+        N = 20  # divisions per element
+        offset = np.zeros(3)
+        offset[2] = 1.0  # vertical direction
+
+        nodes = []
+        triangles = []
+        node_index = 0
+        Rm = np.array([[0, 0, 0],
+                       [0, 0, 1],
+                       [0,-1, 0]])
+
+        for tag in model.iter_cell_tags():
+            if not model.cell_matches(tag, "frame") and not model.cell_matches(tag, "truss"):
+                continue
+
+            X = model.cell_position(tag)
+            X = np.array([Ra @ x for x in X])  # rotate to view coordinates
+            Re = model.frame_orientation(tag)
+            if Re is None:
+                continue
+
+            # Generate vertices: lower and upper at each division
+            for i in range(N + 1):
+                xi = i / N
+                x = (1 - xi) * X[0] + xi * X[-1]
+                y = np.array(field(tag, xi))*scale
+                nodes.append(x)
+                # nodes.append(x + Ra@y)
+                nodes.append(x + Ra@Re.T@Rm@Re@Ra.T@y)
+                # nodes.append(x + Re.T@val)
+
+            # Add two triangles per segment
+            for i in range(N):
+                n0 = node_index + 2 * i
+                n1 = node_index + 2 * i + 1
+                n2 = node_index + 2 * i + 3
+                n3 = node_index + 2 * i + 2
+
+                triangles.append([n0, n1, n2])
+                triangles.append([n0, n2, n3])
+
+            node_index += 2 * (N + 1)
+
+        if len(triangles) > 0:
+            self.canvas.plot_mesh(np.array(nodes), 
+                                  np.array(triangles), 
+                                  style=MeshStyle(color="red", alpha=0.5))
+        
+
+    def draw_outlines(self, state=None, config=None, scale=1.0, skip=None):
         """
         Draw the outlines of the model elements such as frames, planes, and solids.
         Interpolate if possible. This is expensive.
@@ -232,6 +310,10 @@ class FrameArtist:
         if config is None:
             from veux.config import SketchConfig
             config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
+
+        if skip is not None:
+            for type in skip:
+                config[type]["show"] = False
 
         if state is not None:
             state = self.model.wrap_state(state, scale=scale, transform=self.dofs2plot)
@@ -295,6 +377,7 @@ class FrameArtist:
             self.canvas.plot_lines(frames[:,:self.ndm], style=config["frame"]["style"])
 
         nodes = np.array([Ra@x for x in model.node_position(state=state)])
+
         if len(quadrs) > 0 and config["plane"]["show"]:
             self.canvas.plot_lines(nodes, indices=np.array(quadrs),
                                    style=config["plane"]["style"])
@@ -326,7 +409,6 @@ class FrameArtist:
             Configuration dictionary for drawing surfaces. If None, a default configuration is used based on the SketchConfig.
         scale : float, optional
             Scale factor for the state transformation. Default is 1.0.
-
 
         """
         model = self.model

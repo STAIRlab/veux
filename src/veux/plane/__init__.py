@@ -37,6 +37,8 @@ class PlaneModel(Model):
     def __init__(self, mesh, ndf=2):
         self.recs = []
         self.tris = []
+        self._tri6 = []
+
         self.ndf = ndf
 
         if isinstance(mesh, tuple):
@@ -53,6 +55,9 @@ class PlaneModel(Model):
                 self.tris = [
                     tuple(i-1   for i in elem) for elem in elems.values() if len(elem) == 3
                 ]
+                self._tri6 = [
+                    tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 6
+                ]
             else:
                 self.recs = [
         #            tuple(i-1 for i in elem) for elem in elems.values() if len(elem) == 4
@@ -60,6 +65,9 @@ class PlaneModel(Model):
                 ]
                 self.tris = [
                     tuple(i for i in elem) for elem in elems if len(elem) == 3
+                ]
+                self._tri6 = [
+                    tuple(i for i in elem) for elem in elems if len(elem) == 6
                 ]
 
         else:
@@ -106,9 +114,13 @@ class PlaneModel(Model):
 
     def cell_exterior(self, tag=None):
         if tag is None:
-            return self.tris + self.recs 
+            return [
+                self.cell_exterior(tag) for tag in range(len(self.recs)+len(self.tris)+len(self._tri6))
+            ]
         elif tag < len(self.tris):
             return self.tris[tag]
+        elif tag < len(self.tris) + len(self._tri6):
+            return self._tri6[tag-len(self.tris)][:3]
         else:
             return self.recs[tag]
 
@@ -135,6 +147,8 @@ class PlaneModel(Model):
 #           ]
         elif tag < len(self.tris):
             return self.tris[tag]
+        elif tag < len(self.tris) + len(self._tri6):
+            return self._tri6[tag-len(self.tris)][:3]
         else:
             quad = self.recs[tag]
             return [

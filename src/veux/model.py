@@ -555,6 +555,11 @@ class FrameModel:
     def cell_matches(self, tag, type=None)->bool:
         elem = self["assembly"][tag]
 
+        if type == "prism":
+            return _is_frame(elem) and (
+                "prism" in elem["type"].lower()
+                or "elastic" in elem["type"].lower()
+            )
         if type == "frame":
             return _is_frame(elem)
         
@@ -641,7 +646,7 @@ class FrameModel:
             if len(nodes) in {4,8,9}:
                 return [[nodes[0], nodes[1], nodes[2]],
                         [nodes[2], nodes[3], nodes[0]]]
-        
+
         elif "tetra" in type:
             nodes = self.cell_indices(tag)
             return [[nodes[0], nodes[2], nodes[1]],
@@ -740,7 +745,7 @@ class FrameModel:
         e1  = v1/L
 
         if self.ndm == 2:
-            v2 = np.array([0, 1, 0])
+            v2 = -np.cross(e1, np.array([0, 0, 1]))
 
         if "yvec" in el["trsfm"] and el["trsfm"]["yvec"] is not None:
             v2  = np.array(el["trsfm"]["yvec"])
