@@ -43,6 +43,8 @@ class Model:
 
     def cell_interior(self, tag):   ...
 
+    def cell_quadrature(self, tag):  return []
+
     def cell_rotation(self, tag, state): raise NotImplementedError
 
     def cell_position(self, tag, state): raise NotImplementedError
@@ -620,6 +622,19 @@ class FrameModel:
                 return []
 
         return []
+
+    def cell_quadrature(self, tag):
+        if self.cell_matches(tag, "frame"):
+            if self.cell_matches(tag, "prism"):
+                return []
+            rule = self["assembly"][tag].get("integration", None)
+            if rule is None:
+                return []
+            
+            n = len(self["assembly"][tag]["sections"])
+            from shps.gauss import iquad
+            for xi, wt in zip(*iquad(n=n, rule=rule["type"].lower(), bounds=(0, 1))):
+                yield xi, wt
 
     def cell_interpolation(self, tag):
         pass

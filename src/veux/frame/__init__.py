@@ -240,7 +240,6 @@ class FrameArtist:
         if not config.get("frame", {}).get("show", True):
             return
 
-        N = 20  # divisions per element
         offset = np.zeros(3)
         offset[2] = 1.0  # vertical direction
 
@@ -261,15 +260,31 @@ class FrameArtist:
             if Re is None:
                 continue
 
-            # Generate vertices: lower and upper at each division
-            for i in range(N + 1):
-                xi = i / N
-                x = (1 - xi) * X[0] + xi * X[-1]
-                y = np.array(field(tag, xi))*scale
-                nodes.append(x)
-                # nodes.append(x + Ra@y)
-                nodes.append(x + Ra@Re.T@Rm@Re@Ra.T@y)
-                # nodes.append(x + Re.T@val)
+            if model.cell_matches(tag, "prism"):
+                N = 20  # divisions per element
+                for i in range(N + 1):
+                    xi = i / N
+                    x = (1 - xi) * X[0] + xi * X[-1]
+
+                    y = field(tag, xi)
+                    if y is None:
+                        continue
+                    y = np.array(y)*scale
+                    nodes.append(x)
+                    nodes.append(x + Ra@Re.T@Rm@Re@Ra.T@y)
+            else:
+                N = 0
+                for i,(xi,_) in enumerate(model.cell_quadrature(tag)):
+                    L = np.linalg.norm(X[0] - X[1])
+                    x = (1 - xi) * X[0] + xi * X[1]
+                    y = field(tag, i)
+                    if y is None:
+                        continue
+                    y = np.array(y)*scale
+                    nodes.append(x)
+                    nodes.append(x + Ra@Re.T@Rm@Re@Ra.T@y)
+                    N += 1
+                N -= 1
 
             # Add two triangles per segment
             for i in range(N):
