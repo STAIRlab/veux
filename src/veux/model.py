@@ -9,6 +9,7 @@
 import sys
 from collections import defaultdict
 from veux.state  import StateSeries, BasicState, GroupSeriesSE3, GroupStateSE3, GroupStateSO3, Rotation
+import warnings
 
 import numpy as np
 
@@ -153,6 +154,10 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
         # import veux.reader.csi as csi
         with open(filename, "r") as f:
             model = csi.create_model(csi.load(f), verbose=verbose)
+        return model.asdict()
+    elif isinstance(filename, str) and filename.endswith(".inp"):
+        from openbim import inp
+        model = inp.create_model(inp.parser.load(filename), verbose=verbose, mode="visualize")
         return model.asdict()
 
     elif isinstance(filename, str) and filename.endswith(".vtk"):
@@ -881,10 +886,10 @@ def _add_section_shape(section, sections, outlines):
                 alpha = alpha_shape(points, bound_ratio=0.01) #0.03)#0.01)
                 outlines[tag] =  alpha
             except Exception as e: #scipy.spatial._qhull.QhullError as e:
-                import warnings
                 warnings.warn(str(e))
                 import scipy.spatial
                 outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
+
         except Exception as e:
             warnings.warn(str(e))
             return

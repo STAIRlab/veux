@@ -407,7 +407,7 @@ class FrameArtist:
 
     def draw_sections(self,
                       state=None, rotation=None, position=None, scale=1.0,
-                      config=None):
+                      mesh_style=None, config=None):
         """
         Draw beam elements with extruded cross-sections. By default, cross-sectional
         information is extracted from the model by various means. 
@@ -439,6 +439,9 @@ class FrameArtist:
         if config is None:
             from veux.config import SketchConfig
             config = {type: conf["surface"] for type, conf in SketchConfig().items() if "surface" in conf}
+
+        if mesh_style is not None:
+            config["frame"]["style"] = mesh_style
 
         # Draw extruded frames
         from veux.frame import extrude
