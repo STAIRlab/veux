@@ -14,7 +14,8 @@ from veux.errors import RenderError
 import veux.server
 
 
-def main(argv):
+def main():
+    argv = sys.argv
 
     try:
         config = parse_args(argv)
@@ -55,5 +56,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()
 

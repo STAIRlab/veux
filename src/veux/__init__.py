@@ -17,12 +17,6 @@ assets = Path(__file__).parents[0]/"assets/"
 def Canvas(subplots=None, backend=None):
     pass
 
-def __getattr__(name: str):
-    import opensees.openseespy
-    if name == "Model":
-        return opensees.openseespy.Model
-    elif name == "openseespy":
-        return opensees.openseespy
 
 
 def serve(thing, viewer="mv", port=None, view_options=None):
@@ -127,6 +121,11 @@ def _create_model(sam_file, ndf=None):
     elif hasattr(sam_file, "asdict"):
         # Assuming an opensees.openseespy.Model
         model_data = sam_file.asdict()
+
+    elif hasattr(sam_file, "cells") and hasattr(sam_file, "points"):
+        # meshio; this has to come before hasattr(..., "read")
+        from veux.plane import PlaneModel
+        return PlaneModel(sam_file)
 
     elif hasattr(sam_file, "read"):
         model_data = veux.model.read_model(sam_file)

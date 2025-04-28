@@ -15,41 +15,7 @@ import numpy as np
 import numpy as np
 from io import BytesIO
 
-def _serve_black_ground_hdr():
-    import bottle
-    width, height = 1024, 512
 
-    # Create a blank HDR image
-    hdr_image = np.ones((height, width, 3), dtype=np.float32)  # Start with white
-    horizon = int(height * 0.6)
-    hdr_image[horizon:, :] = 0.0  # Black ground
-
-    # Create the HDR header
-    hdr_header = (
-        "#?RADIANCE\n"
-        "FORMAT=32-bit_rle_rgbe\n\n"
-        f"-Y {height} +X {width}\n"
-    )
-
-    # Convert the RGB values to Radiance RGBE format
-    rgbe_image = np.zeros((height, width, 4), dtype=np.uint8)
-    brightest = np.maximum.reduce(hdr_image, axis=2)
-    nonzero_mask = brightest > 0
-    mantissa, exponent = np.frexp(brightest[nonzero_mask])
-    rgbe_image[nonzero_mask, :3] = (hdr_image[nonzero_mask] / mantissa[:, None] * 255).astype(np.uint8)
-    rgbe_image[nonzero_mask, 3] = (exponent + 128).astype(np.uint8)
-
-    # Encode the HDR data to memory
-    hdr_data = BytesIO()
-    hdr_data.write(hdr_header.encode('ascii'))  # Write the header
-    hdr_data.write(rgbe_image.tobytes())  # Write the pixel data
-
-    # Serve the HDR file
-    return bottle.HTTPResponse(
-        body=hdr_data.getvalue(),
-        status=200,
-        headers={"Content-Type": "image/vnd.radiance"}
-    )
 class Viewer:
     """
     A class to represent a 3D model viewer.
@@ -223,3 +189,39 @@ def _model_viewer(source, control=False, hosted=False, standalone=True, light_mo
         """
     return textwrap.dedent(page)
 
+
+def _serve_black_ground_hdr():
+    import bottle
+    width, height = 1024, 512
+
+    # Create a blank HDR image
+    hdr_image = np.ones((height, width, 3), dtype=np.float32)  # Start with white
+    horizon = int(height * 0.6)
+    hdr_image[horizon:, :] = 0.0  # Black ground
+
+    # Create the HDR header
+    hdr_header = (
+        "#?RADIANCE\n"
+        "FORMAT=32-bit_rle_rgbe\n\n"
+        f"-Y {height} +X {width}\n"
+    )
+
+    # Convert the RGB values to Radiance RGBE format
+    rgbe_image = np.zeros((height, width, 4), dtype=np.uint8)
+    brightest = np.maximum.reduce(hdr_image, axis=2)
+    nonzero_mask = brightest > 0
+    mantissa, exponent = np.frexp(brightest[nonzero_mask])
+    rgbe_image[nonzero_mask, :3] = (hdr_image[nonzero_mask] / mantissa[:, None] * 255).astype(np.uint8)
+    rgbe_image[nonzero_mask, 3] = (exponent + 128).astype(np.uint8)
+
+    # Encode the HDR data to memory
+    hdr_data = BytesIO()
+    hdr_data.write(hdr_header.encode('ascii'))  # Write the header
+    hdr_data.write(rgbe_image.tobytes())  # Write the pixel data
+
+    # Serve the HDR file
+    return bottle.HTTPResponse(
+        body=hdr_data.getvalue(),
+        status=200,
+        headers={"Content-Type": "image/vnd.radiance"}
+    )
