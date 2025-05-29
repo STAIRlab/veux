@@ -6,7 +6,6 @@
 #
 # Claudio M. Perez
 #
-import sys
 from collections import defaultdict
 from veux.state  import StateSeries, BasicState, GroupSeriesSE3, GroupStateSE3, GroupStateSO3, Rotation
 import warnings
@@ -30,13 +29,13 @@ class Model:
         # This just needs to return an opaque object that can be passed into the methods below
         return state 
 
-    def node_location(self, tag): ...
+    def node_position(self, tag, **kwds): ...
 
     def node_information(self, tag): ...
 
     def iter_cells_tags(self, filt=None): ...
 
-    def cell_matches(self, tag): ...
+    def cell_matches(self, tag, type): ...
 
     def cell_type(self, tag):       ... # line triangle quadrilateral 
 
@@ -155,6 +154,7 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
         with open(filename, "r") as f:
             model = csi.create_model(csi.load(f), verbose=verbose)
         return model.asdict()
+
     elif isinstance(filename, str) and filename.endswith(".inp"):
         from openbim import inp
         model = inp.create_model(inp.parser.load(filename), verbose=verbose, mode="visualize")
@@ -784,6 +784,38 @@ class FrameModel:
         return np.stack([e1,e2,e3])
 
 
+class FiberModel(Model):
+    ndm = 2 
+    ndf = 1
+    def __init__(self, fibers, patches=None):
+        self._fibers = fibers
+
+    def iter_cell_tags(self):
+        yield 1
+
+    def cell_exterior(self):
+        return 
+        yield 
+
+    def cell_interior(self):
+        return 
+        yield
+
+    def wrap_state(self, state, **kwds):
+        return state
+
+    def cell_quadrature(self, tag):
+        if tag == 1:
+            for fiber in self._fibers:
+                if "location"  in fiber:
+                    x = fiber["location"]
+                elif "coord" in fiber:
+                    x = fiber["coord"]
+                else:
+                    x = fiber["y"], fiber["z"]
+                yield (*x, 0), fiber["area"]
+
+
 def _from_opensees(sam: dict, shift, R):
     # Process OpenSees JSON format
 
@@ -859,14 +891,14 @@ def _from_opensees(sam: dict, shift, R):
 def collect_outlines(model):
     return _get_frame_outlines(_from_opensees(model, [0, 0, 0], np.eye(3)))
 
-def _add_section_shape(section, sections, outlines):
+def _add_section_shape(section, sections, outlines, ndm):
 
     tag = int(section["name"])
     if "section" in section:
         # Treat aggregated sections
         child_tag = int(section["section"])
         if child_tag not in outlines:
-            _add_section_shape(sections[section["section"]], sections, outlines)
+            _add_section_shape(sections[section["section"]], sections, outlines, ndm)
 
         outlines[tag] = outlines[child_tag]
 
@@ -876,22 +908,22 @@ def _add_section_shape(section, sections, outlines):
                       (1, 0))).T
         outlines[tag] = [R@s for s in section["bounding_polygon"]]
 
-    elif "fibers" in section:
+    elif "fibers" in section and ndm > 2:
         try:
             points = np.array([
                 f.get("coord", None) or f["location"] for f in section["fibers"]
             ])
             try:
                 from veux.utility.alpha_shape import alpha_shape
-                alpha = alpha_shape(points, bound_ratio=0.01) #0.03)#0.01)
+                alpha = alpha_shape(points, bound_ratio=0.0025) #0.01) #0.03)#0.01)
                 outlines[tag] =  alpha
             except Exception as e: #scipy.spatial._qhull.QhullError as e:
-                warnings.warn(str(e))
+                warnings.warn("Failed to compute alpha shape")
                 import scipy.spatial
                 outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
 
         except Exception as e:
-            warnings.warn(str(e))
+            warnings.warn("Failed to find section shape")
             return
 
 
@@ -899,7 +931,7 @@ def _add_section_shape(section, sections, outlines):
 def _get_frame_outlines(model):
     section_outlines = {}
     for name,section in model["sections"].items():
-        _add_section_shape(section, model["sections"], section_outlines)
+        _add_section_shape(section, model["sections"], section_outlines, model.ndm)
 
 
     # Function to check if list of lists is homogeneous
