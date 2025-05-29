@@ -9,7 +9,6 @@
 import warnings
 import numpy as np
 Array = np.ndarray
-from scipy.linalg import block_diag
 
 import shps.rotor as so3
 from veux.model  import Model,FrameModel
@@ -77,6 +76,7 @@ class FrameArtist:
 
         # Define transformation from DOFs in `state` variables to plot
         # coordinates
+        from scipy.linalg import block_diag
         if model.ndf == 1 and model.ndm == 2:
             self.dofs2plot = R@np.array(((0,),
                                          (0,),
@@ -214,7 +214,7 @@ class FrameArtist:
     def _draw_diagram_x(self, field, scale=1.0, config=None):
         pass
 
-    def draw_diagrams(self, field, scale=1.0, config=None):
+    def draw_diagrams(self, field,  scale=1.0, config=None, color=None):
         """
         Draws diagram fields on line-like elements (frame and truss) as vertical extrusions.
 
@@ -250,6 +250,13 @@ class FrameArtist:
                        [0, 0, 1],
                        [0,-1, 0]])
 
+        if hasattr(field, "x"):
+            xe = field.x
+            ye = field.y
+        else:
+            xe = None 
+            ye = None
+
         for tag in model.iter_cell_tags():
             if not model.cell_matches(tag, "frame") and not model.cell_matches(tag, "truss"):
                 continue
@@ -259,32 +266,17 @@ class FrameArtist:
             Re = model.frame_orientation(tag)
             if Re is None:
                 continue
+            
+            N = 0
+            for i,(xi, yi) in enumerate(zip(*field(tag))):
+                L = np.linalg.norm(X[0] - X[1])
+                x_ = (1 - xi) * X[0] + xi * X[1]
+                y_ = np.array(yi)*scale
+                nodes.append(x_)
+                nodes.append(x_ + Ra@Re.T@Rm@Re@Ra.T@y_)
+                N += 1
+            N -= 1
 
-            if model.cell_matches(tag, "prism"):
-                N = 20  # divisions per element
-                for i in range(N + 1):
-                    xi = i / N
-                    x = (1 - xi) * X[0] + xi * X[-1]
-
-                    y = field(tag, xi)
-                    if y is None:
-                        continue
-                    y = np.array(y)*scale
-                    nodes.append(x)
-                    nodes.append(x + Ra@Re.T@Rm@Re@Ra.T@y)
-            else:
-                N = 0
-                for i,(xi,_) in enumerate(model.cell_quadrature(tag)):
-                    L = np.linalg.norm(X[0] - X[1])
-                    x = (1 - xi) * X[0] + xi * X[1]
-                    y = field(tag, i)
-                    if y is None:
-                        continue
-                    y = np.array(y)*scale
-                    nodes.append(x)
-                    nodes.append(x + Ra@Re.T@Rm@Re@Ra.T@y)
-                    N += 1
-                N -= 1
 
             # Add two triangles per segment
             for i in range(N):
@@ -301,10 +293,11 @@ class FrameArtist:
         if len(triangles) > 0:
             self.canvas.plot_mesh(np.array(nodes), 
                                   np.array(triangles), 
-                                  style=MeshStyle(color="red", alpha=0.5))
+                                  style=MeshStyle(color=(color or "red"),
+                                                  alpha=0.5))
         
 
-    def draw_outlines(self, state=None, config=None, scale=1.0, skip=None):
+    def draw_outlines(self, state=None, config=None, scale=1.0, style=None, skip=None):
         """
         Draw the outlines of the model elements such as frames, planes, and solids.
         Interpolate if possible. This is expensive.
@@ -325,6 +318,10 @@ class FrameArtist:
         if config is None:
             from veux.config import SketchConfig
             config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
+            if style is not None:
+                config["frame"]["style"] = style
+                config["plane"]["style"] = style
+                config["solid"]["style"] = style
 
         if skip is not None:
             for type in skip:
@@ -393,6 +390,10 @@ class FrameArtist:
 
         nodes = np.array([Ra@x for x in model.node_position(state=state)])
 
+        # Add a small offset to the lines to avoid z-fighting with any surfaces
+        if self.model.ndm == 2:
+            nodes += Ra@[0, 0, 0.01]
+
         if len(quadrs) > 0 and config["plane"]["show"]:
             self.canvas.plot_lines(nodes, indices=np.array(quadrs),
                                    style=config["plane"]["style"])
@@ -410,7 +411,7 @@ class FrameArtist:
                       mesh_style=None, config=None):
         """
         Draw beam elements with extruded cross-sections. By default, cross-sectional
-        information is extracted from the model by various means. 
+        information is extracted from the model by various means.
         For `fiber <https://xara.so/user/manual/section/ShearFiber.html>`__ sections the outline is automatically computed
         using exterior fibers.
 
@@ -451,9 +452,21 @@ class FrameArtist:
                                 Ra=Ra,
                                 config=config["frame"])
 
+
+    def draw_samples(self, style=None):
+        if style is None :
+            style = NodeStyle(color="blue")
+
+        for tag in self.model.iter_cell_tags():
+            for x, w in self.model.cell_quadrature(tag):
+                # style.scale = np.sqrt(w)*10
+                self.canvas.plot_nodes([x], style=style)
+
+
     def draw_surfaces(self,
                       state=None, field=None,  # States
-                      config=None, scale=1.0): # Drawing
+                      normal=None,
+                      config=None, scale=1.0, style=None): # Drawing
         """
         Draws surfaces on the canvas based on the provided state, field, layer, and configuration.
 
@@ -479,6 +492,9 @@ class FrameArtist:
             from veux.config import SketchConfig
             config = {type: conf["surface"] for type, conf in SketchConfig().items() if "surface" in conf}
             config["frame"]["show"] = True
+            if style is not None:
+                config["frame"]["style"] = style
+                config["plane"]["style"] = style
 
         # Draw extruded frames
         if "frame" in config and config["frame"]["show"]:
@@ -504,6 +520,8 @@ class FrameArtist:
             if field is not None:
                 if isinstance(field, dict):
                     field = np.array([field[node] for node in model.iter_node_tags()])
+                elif callable(field):
+                    field = np.array([field(tag) for tag in model.iter_node_tags()])
                 self.canvas.plot_mesh_field(mesh, field=field)
 
         return
@@ -573,6 +591,7 @@ class FrameArtist:
                                  np.array([Ra@v for v in uvw.reshape(ne*3,3)]),
                                  extrude=extrude)
 
+
     def draw_origin(self, **kwds):
         xyz = np.zeros((3,3))
         uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
@@ -615,7 +634,10 @@ class FrameArtist:
 
     def _repr_html_(self):
         from veux.viewer import Viewer
-        viewer = Viewer(self,hosted=False,standalone=False)
+        viewer = Viewer(self,
+                        size=(800, 600),
+                        hosted=False,
+                        standalone=False)
         html = viewer.get_html()
         return html
 
@@ -682,6 +704,7 @@ def _hermite_cubic(
     #           (------ndm------)
     reps = 4 if len(coord[0])==3 else 2
 
+    from scipy.linalg import block_diag
     # 3x3 rotation into local system
     # Q = rotation(coord, vect)
     # Element length
