@@ -52,12 +52,13 @@ def serve(thing, viewer="mv", port=None, view_options=None):
 
     if view_options is None:
         view_options = {
-            "viewer": viewer
+            "viewer": viewer,
+            "plane": False,
         }
-
     if hasattr(thing, "canvas"):
         # artist was passed
         canvas = thing.canvas
+        view_options["plane"] = thing.model.ndm == 2
     else:
         canvas = thing
 
@@ -118,9 +119,19 @@ def _create_model(sam_file, ndf=None):
     if isinstance(sam_file, (str, Path)):
         model_data = veux.model.read_model(sam_file)
 
+    elif isinstance(sam_file, veux.model.Model):
+        return sam_file
+
     elif hasattr(sam_file, "asdict"):
         # Assuming an opensees.openseespy.Model
-        model_data = sam_file.asdict()
+        try:
+            model_data = sam_file.asdict()
+        except:
+            raise ValueError("Failed to read model data, model contains unsupported components.")
+
+    elif hasattr(sam_file, "cells") and hasattr(sam_file, "nodes"):
+        from veux.plane import PlaneModel
+        return PlaneModel((sam_file.nodes, sam_file.cells()))
 
     elif hasattr(sam_file, "cells") and hasattr(sam_file, "points"):
         # meshio; this has to come before hasattr(..., "read")
@@ -141,6 +152,11 @@ def _create_model(sam_file, ndf=None):
         model_data = sam_file
 
     return model_data
+
+
+def create_detail(model, element=None, section=None):
+    pass 
+
 
 def create_artist(
            model, ndf=6,
