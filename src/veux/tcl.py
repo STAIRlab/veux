@@ -22,7 +22,7 @@ def _render(*args, rt=None):
 
 def add_commands(rt):
     try:
-        rt._tcl.createcommand("sees::render", partial(_render, rt=rt))
+        rt._tcl.createcommand("veux::render", partial(_render, rt=rt))
     except:
         pass
 
