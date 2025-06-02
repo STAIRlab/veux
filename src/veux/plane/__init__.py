@@ -1,8 +1,6 @@
 import numpy as np
 from veux.model import Model
 from veux.state import BasicState
-import matplotlib.pyplot as plt
-import matplotlib.tri as tri
 
 def _plot_grid(x,y, ax=None, **kwargs):
     ax = ax or plt.gca()
@@ -159,6 +157,8 @@ class PlaneModel(Model):
 
 class PlaneArtist:
     def __init__(self, model, ax=None, **kwds):
+
+        import matplotlib.pyplot as plt
         if ax is None:
             _,ax = plt.subplots()
         self.ax = ax
@@ -182,8 +182,9 @@ class PlaneArtist:
 
 
     def draw_surfaces(self, field=None, show_scale=False):
-        ax = self.ax 
-
+        ax = self.ax
+        import matplotlib.tri as tri
+        import matplotlib.pyplot as plt
         #
         # Plot solution contours
         #
@@ -203,6 +204,7 @@ class PlaneArtist:
         self.ax.axis('equal')
 
     def show(self):
+        import matplotlib.pyplot as plt
         plt.show()
 
 def render(mesh, field=None, ax=None,
