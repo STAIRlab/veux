@@ -7,26 +7,22 @@
 # Claudio Perez
 #
 """
-The glTF file format is supported by [COMSOL](https://www.comsol.com/blogs/how-to-export-and-share-your-3d-result-plots-as-gltf-files)
-"""
-
-"""
 Some implementation notes:
+
 - glTF defines +Y as up.
 - glTF uses a right-handed coordinate system, that is, the cross product of +X and +Y yields +Z.
 - The front of a glTF asset faces +Z.
 
-
-- All angles are in radians.
-- Positive rotation is counterclockwise.
 - Rotations are given as quaternions stored as a tuple (x,y,z,w),
   where the w-component is the cosine of half of the rotation angle.
   For example, the quaternion [ 0.259, 0.0, 0.0, 0.966 ] describes a rotation
   about 30 degrees, around the x-axis.
 - The identity rotation is (0, 0, 0, 1.0)
+"""
 
 """
-import sys
+The glTF file format is supported by [COMSOL](https://www.comsol.com/blogs/how-to-export-and-share-your-3d-result-plots-as-gltf-files)
+"""
 import itertools
 
 import numpy as np
@@ -34,7 +30,6 @@ import pygltflib
 from scipy.spatial.transform import Rotation
 
 import veux
-
 from .canvas import Canvas, Line, Mesh, Node
 from veux import utility
 from veux.config import NodeStyle, MeshStyle, LineStyle, DrawStyle
@@ -45,21 +40,18 @@ GLTF_T = {
     "uint16":  pygltflib.UNSIGNED_SHORT,
 }
 
-import numpy as np
-import pygltflib
-
 EYE3 = np.eye(3, dtype="float32")
 
 def _append_index(lst, item):
     lst.append(item)
     return len(lst) - 1
 
-
 class GltfLibCanvas(Canvas):
     vertical = 2
 
     def __init__(self, config=None):
         self.config = config
+        self._data = {}
 
         #                          x, y, z, scalar
         self._rotation = [0, 0, 0, 1] #[-0.7071068, 0, 0, 0.7071068]
@@ -162,6 +154,8 @@ class GltfLibCanvas(Canvas):
         
         self._arrows = {}
 
+        self._node_markers = {}
+
         #
         # load assets for steel material
         #
@@ -176,12 +170,10 @@ class GltfLibCanvas(Canvas):
             self.gltf.convert_images(pygltflib.ImageFormat.DATAURI)
 
     def _init_fixed_node(self, points, triangles, x=True, y=True, z=True):
-        # Reuse existing POSITION accessor indices assumed to be stored in self
-        points_access = self.position_accessor_index  # previously stored index for POSITION accessor
-        indices_access = self.indices_accessor_index  # previously stored index for indices accessor
+        points_access  = self.position_accessor_index
+        indices_access = self.indices_accessor_index
 
-
-        # Initialize an array for vertex colors, defaulting to a base color (e.g., gray)
+        # Initialize an array for vertex colors, defaulting to a base color
         vertex_colors = np.tile(np.array([0.5, 0.5, 0.5, 1.0], dtype=self.float_t), (len(points), 1))
 
         # For each triangle, check if the face lies on a plane fixed along given axes
@@ -190,7 +182,7 @@ class GltfLibCanvas(Canvas):
             # Extract vertices of the triangle
             v0, v1, v2 = points[tri[0]], points[tri[1]], points[tri[2]]
 
-            # Check if all vertices share the same coordinate on any fixed axis:
+            # Check if all vertices share the same coordinate on any fixed axis
             if x and (np.isclose(v0[0], v1[0]) and np.isclose(v1[0], v2[0])):
                 # Set vertices of this triangle to white
                 for vi in tri:
@@ -203,7 +195,6 @@ class GltfLibCanvas(Canvas):
                     vertex_colors[vi] = [1.0, 1.0, 1.0, 1.0]
 
 
-        # Push the color data to the buffer and create a new accessor for vertex colors
         color_accessor_index = len(self.gltf.accessors)
         self.gltf.accessors.append(
             pygltflib.Accessor(
@@ -250,11 +241,19 @@ class GltfLibCanvas(Canvas):
         return len(self.gltf.meshes) - 1
 
 
-    def _init_nodes(self, style: NodeStyle):
+    def _find_marker(self, style: NodeStyle):
+        key = (style.color, style.scale)
+        if key not in self._node_markers:
+            self._node_markers[key] = self._init_marker(style)
+
+        return self._node_markers[key]
+
+
+    def _init_marker(self, style: NodeStyle):
         #
         #
         #
-        index_t = self.index_t # "uint8"
+        index_t = self.index_t
         points = style.scale*np.array(
             [
                 [-1.0, -1.0,  1.0],
@@ -310,8 +309,85 @@ class GltfLibCanvas(Canvas):
         ])
 
 
-        indices_access = len(self.gltf.accessors)-2 # indices
-        points_access  = len(self.gltf.accessors)-1 # points
+        indices_access = len(self.gltf.accessors)-2
+        points_access  = len(self.gltf.accessors)-1
+        self.gltf.meshes.append(
+               pygltflib.Mesh(
+                 primitives=[
+                     pygltflib.Primitive(
+                         mode=pygltflib.TRIANGLES,
+                         attributes=pygltflib.Attributes(POSITION=points_access),
+                         material=self._get_material(style),
+                         indices=indices_access
+                     )
+                 ]
+               )
+        )
+
+        return len(self.gltf.meshes) - 1
+
+    def _init_nodes(self, style: NodeStyle):
+        #
+        #
+        #
+        index_t = self.index_t
+        points = style.scale*np.array(
+            [
+                [-1.0, -1.0,  1.0],
+                [ 1.0, -1.0,  1.0],
+                [-1.0,  1.0,  1.0],
+                [ 1.0,  1.0,  1.0],
+                [ 1.0, -1.0, -1.0],
+                [-1.0, -1.0, -1.0],
+                [ 1.0,  1.0, -1.0],
+                [-1.0,  1.0, -1.0],
+            ],
+            dtype=self.float_t,
+        )/10
+
+        triangles = np.array(
+            [
+                [0, 1, 2],
+                [3, 2, 1],
+                [1, 0, 4],
+                [5, 4, 0],
+                [3, 1, 6],
+                [4, 6, 1],
+                [2, 3, 7],
+                [6, 7, 3],
+                [0, 2, 5],
+                [7, 5, 2],
+                [5, 7, 4],
+                [6, 4, 7],
+            ],
+            dtype=index_t,
+        )
+        triangles_binary_blob = triangles.flatten().tobytes()
+
+        self.gltf.accessors.extend([
+            pygltflib.Accessor(
+                bufferView=self._push_data(triangles_binary_blob,
+                                           pygltflib.ELEMENT_ARRAY_BUFFER),
+                componentType=GLTF_T[index_t],
+                count=triangles.size,
+                type=pygltflib.SCALAR,
+                max=[int(triangles.max())],
+                min=[int(triangles.min())],
+            ),
+            pygltflib.Accessor(
+                bufferView=self._push_data(points.tobytes(),
+                                           pygltflib.ARRAY_BUFFER),
+                componentType=GLTF_T[self.float_t],
+                count=len(points),
+                type=pygltflib.VEC3,
+                max=points.max(axis=0).tolist(),
+                min=points.min(axis=0).tolist(),
+            )
+        ])
+
+
+        indices_access = len(self.gltf.accessors)-2
+        points_access  = len(self.gltf.accessors)-1
         self.gltf.meshes.append(
                pygltflib.Mesh(
                  primitives=[
@@ -338,6 +414,7 @@ class GltfLibCanvas(Canvas):
 
         color = style.color
 
+        rgb = None
         if (color, alpha) in self._color:
             return self._color[(color,alpha)]
 
@@ -350,7 +427,12 @@ class GltfLibCanvas(Canvas):
         elif isinstance(color, tuple):
             rgb = color
 
-        else:
+        elif isinstance(color, str):
+            for key,a in self._color:
+                if color == key:
+                    rgb = self.gltf.materials[self._color[(key,a)]].pbrMetallicRoughness.baseColorFactor[:3]
+
+        if rgb is None:
             raise TypeError("Unexpected type for color")
 
         # Store index for new material
@@ -360,7 +442,7 @@ class GltfLibCanvas(Canvas):
             pygltflib.Material(
                 name=str(color),
                 doubleSided=True,
-                alphaMode=pygltflib.MASK,
+                alphaMode=pygltflib.BLEND,
                 pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
                     baseColorFactor=[*rgb, alpha]
                 )
@@ -388,8 +470,10 @@ class GltfLibCanvas(Canvas):
     def plot_nodes(self, vertices, label = None, style=None, data=None, rotations=None, skin=False, **kwds):
         nodes = []
 
-        if not hasattr(self, "_node_mesh"):
-            self._init_nodes(style or NodeStyle())
+        # if not hasattr(self, "_node_mesh"):
+        #     self._init_nodes(style or NodeStyle())
+
+        marker = self._find_marker(style or NodeStyle())
 
         if rotations is None:
             rotations = itertools.repeat([0, 0, 0, 1.0])
@@ -402,7 +486,7 @@ class GltfLibCanvas(Canvas):
 
         for coord, rotation in zip(vertices, rotations):
             index = _append_index(self.gltf.nodes, pygltflib.Node(
-                    mesh=self._node_mesh,
+                    mesh=marker,
                     rotation=rotation,
                     translation=(self._rotation_matrix@coord).tolist(),
                 )
@@ -459,7 +543,7 @@ class GltfLibCanvas(Canvas):
             )
         )
     
-        # Create Skeleton
+        # Create skeleton
         skeleton_root_node = pygltflib.Node(name="LineSkeleton", 
                                             children=joint_nodes)
         skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
@@ -581,22 +665,10 @@ class GltfLibCanvas(Canvas):
         # Add the new node to the scene
         scene.nodes.append(mesh_node)
 
+    def set_data(self, data, key):
 
-    def plot_lines(self, vertices, indices=None, style: LineStyle=None, vcache:str=None, **kwds):
-
-        lines = []
-        material = self._get_material(style or LineStyle())
-
-        # vertices is given with nans separating line groups, but
-        # GLTF does not accept nans so we have to filter these
-        # out, and add distinct meshes for each line group
-        assert np.all(np.isnan(vertices[np.isnan(vertices[:,0]), :]))
-        points  = np.array(vertices[~np.isnan(vertices[:,0]),:], dtype=self.float_t)
-
-        if points.size == 0:
-            return
-
-        self.gltf.accessors.append(
+        points = np.array(data, dtype=self.float_t)
+        self.gltf.accessors.extend([
             pygltflib.Accessor(
                 bufferView=self._push_data(points.tobytes(), pygltflib.ARRAY_BUFFER),
                 componentType=GLTF_T[self.float_t],
@@ -605,8 +677,42 @@ class GltfLibCanvas(Canvas):
                 max=points.max(axis=0).tolist(),
                 min=points.min(axis=0).tolist(),
             )
-        )
-        points_access = len(self.gltf.accessors) - 1
+        ])
+
+        self._data[key] = {"access_index": len(self.gltf.accessors)-1}
+
+
+    def plot_lines(self, vertices, indices=None, style: LineStyle=None, **kwds):
+
+        lines = []
+        material = self._get_material(style or LineStyle())
+
+        points_access = None 
+
+        if isinstance(vertices, (int, str)):
+            points_access = self.get_data(vertices)["access_index"]
+
+        else:
+            # vertices is given with nans separating line groups, but
+            # GLTF does not accept nans so we have to filter these
+            # out, and add distinct meshes for each line group
+            assert np.all(np.isnan(vertices[np.isnan(vertices[:,0]), :]))
+            points  = np.array(vertices[~np.isnan(vertices[:,0]),:], dtype=self.float_t)
+
+            if points.size == 0:
+                return
+
+            self.gltf.accessors.append(
+                pygltflib.Accessor(
+                    bufferView=self._push_data(points.tobytes(), pygltflib.ARRAY_BUFFER),
+                    componentType=GLTF_T[self.float_t],
+                    count=len(points),
+                    type=pygltflib.VEC3,
+                    max=points.max(axis=0).tolist(),
+                    min=points.min(axis=0).tolist(),
+                )
+            )
+            points_access = len(self.gltf.accessors) - 1
 
         if indices is None:
             # Get indices by splitting at nans
@@ -616,7 +722,11 @@ class GltfLibCanvas(Canvas):
 
         for indices in indices_:
             # `n` adjusts indices by the number of nan rows that were removed so far
-            n  = sum(np.isnan(vertices[:indices[0],0]))
+            if not isinstance(vertices, (int, str)):
+                n  = sum(np.isnan(vertices[:indices[0],0]))
+            else:
+                n = 0
+
             indices_array = indices - np.dtype(self.index_t).type(n)
 
             indices_binary_blob = indices_array.tobytes()
@@ -894,15 +1004,10 @@ class GltfLibCanvas(Canvas):
         :param kwds: other keywords
         """
 
-        # Step 1. Determine color array from 'field'
-        #         For demonstration, let's assume you have a helper
-        #         that returns Nx4 RGBA in [0,1].
+        # Determine color array from field
         color_array = self._map_field_to_colors(field, colormap, vmin, vmax)
 
-        # Step 2. Plot the mesh (re-use plot_mesh) but we'll also attach colors
-        # mesh_handle = self.plot_mesh(vertices, triangles, style=style, **kwds)
-
-        # Step 3. Add color data as a separate accessor in the just-created mesh
+        # SAdd color data as a separate accessor in the just-created mesh
         color_array = color_array.astype(self.float_t)
         self.gltf.accessors.extend([
             pygltflib.Accessor(
