@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.25"
+version = "0.0.26"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -36,7 +36,7 @@ dependencies = [
   "xara",
   "pygltflib",
   "matplotlib",
-  "shps>=0.0.14"
+  "shps>=0.0.26"
 ]
 
 classifiers = [
