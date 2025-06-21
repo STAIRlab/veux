@@ -6,13 +6,10 @@
 #===----------------------------------------------------------------------===#
 #
 import numpy as np
-import matplotlib.pyplot  as plt
-import matplotlib.patches as mplp
-import matplotlib.lines   as lines
-import matplotlib.collections
 from math import sqrt
 
 def show():
+    import matplotlib.pyplot as plt
     plt.show()
 
 def render(s, ax=None, show=None, **kwds):
@@ -35,6 +32,7 @@ class MatplotlibSectionCanvas:
         self.kwds = kwds
 
     def get_section_layers(self, section, **kwds):
+        import matplotlib.lines   as lines
         for layer in section.layers:
             if hasattr(layer, "plot_opts"):
                 options = layer.plot_opts
@@ -50,6 +48,8 @@ class MatplotlibSectionCanvas:
         might be a solution:
         https://docs.bokeh.org/en/latest/docs/reference/models/glyphs/arc.html
         """
+        import matplotlib.patches as mplp
+        import matplotlib.collections
         collection = []
         for patch in section.patches:
             name = patch.__class__.__name__.lower()
@@ -91,6 +91,8 @@ class MatplotlibSectionCanvas:
     ):
         """Plot a composite cross section."""
 
+        import matplotlib.pyplot  as plt
+        import matplotlib.collections
         if plain:
             show_properties = show_dims = False
 
