@@ -23,185 +23,6 @@ def _append_index(lst, item):
     lst.append(item)
     return len(lst) - 1
 
-def skin_frames_(model, canvas, config=None):
-    """
-    ORIGINAL IMPLEMENTATION
-
-    Builds a single skinned mesh for all frame elements in the reference (undeformed) configuration.
-    Returns a dictionary mapping (element_name, cross_section_index) -> glTF node index,
-    so you can update those node transforms later.
-
-    :param model: The dictionary-like structural model (with 'assembly', .frame_section, .frame_orientation, etc.)
-    :param gltf:  A pygltflib.GLTF2 object in which we will insert geometry, nodes, and the skin.
-    :param config: Optional dict with style info, scale, etc.
-    :return: extrusion = {(element_name, j): node_index, ...}
-    """
-    EYE4 = np.eye(4, dtype=canvas.float_t)
-
-    if config is None:
-        config = {
-            "style": MeshStyle(color="gray"),
-            "scale": 1.0,      # Factor for cross-sectional outline
-            "outline": "",
-        }
-
-    # Create a root node for the entire skeleton
-
-    gltf = canvas.gltf
-    skeleton_root_node = pygltflib.Node(name="FrameExtrusionSkeletonRoot", children=[])
-    skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
-    gltf.scenes[0].nodes.append(skeleton_root_idx)
-
-    def _make_matrix(translation, rotmat):
-        """Build a 4x4 transform from translation + 3x3 rotation matrix."""
-        M = np.eye(4, dtype=canvas.float_t)
-        M[:3, :3] = rotmat
-        M[:3,  3] = translation
-        return M
-
-    #------------------------------------------------------
-    # 1) Loop over each element in the model
-    #    Build cross-section nodes (reference config)
-    #    Accumulate geometry into a single big mesh
-    #------------------------------------------------------
-    positions   = []
-    joints_0    = []  # glTF's JOINTS_0 attribute
-    weights_0   = []  # glTF's WEIGHTS_0 attribute
-    texcoords   = []  # If you want to store local or UV coords
-    indices     = []  # Triangles for side faces
-    cap_indices = []  # Triangles for end caps
-
-    joint_nodes = skeleton_root_node.children
-    inverse_bind_matrices = []
-    skin_nodes = {}
-
-    global_vertex_offset = 0
-    for element_name in model.iter_cell_tags():
-        outline_0 = model.frame_section(element_name, 0)
-        if outline_0 is None:
-            continue
-
-        # For reference config, just read the original coordinates
-        X = model.cell_position(element_name)
-        nen = len(X)
-        outline_scale = config.get("scale", 1.0)
-
-        R_all = [model.frame_orientation(element_name).T]*nen
-
-        for j in range(nen):
-            # 1A) Create a node for cross section j
-            node = pygltflib.Node()
-            node.translation = X[j,:].tolist()
-            node.rotation = [*Rotation.from_matrix(R_all[j]).as_quat()]
-
-            this_node_idx = _append_index(gltf.nodes, node)
-
-            # Record in extrusion
-            skin_nodes[(element_name, j)] = this_node_idx
-
-            # 1B) Compute the bind pose for this cross section
-            M_bind_inv = np.linalg.inv(_make_matrix(X[j,:], R_all[j]))
-            # TODO:
-            inverse_bind_matrices.append(EYE4) #(M_bind_inv)
-            joint = _append_index(joint_nodes, this_node_idx)
-
-            # 1C) Append the ring geometry in local coords
-            outline_j = model.frame_section(element_name, j).exterior().copy()
-
-            noe = len(outline_j)
-            outline_j[:,1:] *= outline_scale
-
-            for k, edge in enumerate(outline_j):
-                # edge is (x, y, z) in local cross-section coords
-                positions.append(edge.astype(canvas.float_t))
-
-                # JOINTS_0 & WEIGHTS_0: rigidly bound to this cross-section's node
-                joints_0.append( [joint, 0, 0, 0])  # Single joint index
-                weights_0.append([1.0, 0.0, 0.0, 0.0])
-
-
-                # Build side faces by connecting ring (j) to ring (j-1)
-                if j>0 and k<noe-1:
-                    indices.append([
-                        global_vertex_offset + noe*j + k,
-                        global_vertex_offset + noe*j + (k+1),
-                        global_vertex_offset + noe*(j-1) + k
-                    ])
-                    indices.append([
-                        global_vertex_offset + noe*j + (k+1),
-                        global_vertex_offset + noe*(j-1) + (k+1),
-                        global_vertex_offset + noe*(j-1) + k
-                    ])
-
-                elif j>0 and k == (noe-1):
-                    # wrap-around
-                    indices.append([
-                        global_vertex_offset + noe*j + k,
-                        global_vertex_offset + noe*j,
-                        global_vertex_offset + noe*(j-1) + k
-                    ])
-                    indices.append([
-                        global_vertex_offset + noe*j,
-                        global_vertex_offset + noe*(j-1),
-                        global_vertex_offset + noe*(j-1) + k
-                    ])
-
-        # End for j in range(nen)
-        if True:
-            # Earcut-based end caps for j=0 and j=nen-1
-            try:
-                front_outline = model.frame_section(element_name, 0)[:,1:]
-                front_idx     = earcut(front_outline)
-                j0_offset     = global_vertex_offset
-                # ring 0 has vertices [j0_offset .. j0_offset + noe -1]
-
-                back_outline  = model.frame_section(element_name, nen-1)[:,1:]
-                back_idx      = earcut(back_outline)
-                jN_offset     = global_vertex_offset + noe*(nen-1)
-
-                # Convert earcut output to global indices
-                for tri in front_idx:
-                    cap_indices.append([
-                        j0_offset + tri[0],
-                        j0_offset + tri[1],
-                        j0_offset + tri[2],
-                    ])
-                for tri in back_idx:
-                    cap_indices.append([
-                        jN_offset + tri[0],
-                        jN_offset + tri[1],
-                        jN_offset + tri[2],
-                    ])
-            except Exception as e:
-                warnings.warn(f"Earcut failed for element '{element_name}' in ref config: {e}")
-
-        # Increase global_vertex_offset now that we’ve added nen rings
-        global_vertex_offset += nen * noe
-
-        # Combine side + cap indices
-        if True:
-            indices.extend(cap_indices)
-
-    if len(positions)==0 or len(indices)==0:
-        # No geometry
-        return skin_nodes
-
-    #
-    # 2) Create the Skin referencing the joints
-    #---------------------------------------------
-    skin = _create_skin(canvas, inverse_bind_matrices, joint_nodes, skeleton_root_idx)
-
-    #
-    # 3) Build the Mesh
-    #---------------------------------------------
-    _create_mesh(canvas, positions, texcoords, joints_0,  weights_0, 
-                 indices,
-                 skin_idx=skin,
-                 material=canvas._get_material(config["style"])
-    )
-    return skin_nodes
-
-
 from veux.frame.extrude import ExtrusionCollection, add_extrusion
 from shps.frame.extrude import FrameMesh
 
@@ -210,12 +31,7 @@ def skin_frames(model, artist, config=None):
     REFACTORED TO USE ExtrusionCollection
 
     Builds a skinned mesh for all frame elements in the reference (undeformed) configuration.
-    Returns a dictionary mapping (element_name, j) -> glTF node index,
-    so you can update those node transforms later.
-
-    It's almost the same as your original code, but the ring-building loops & earcut calls
-    are extracted into the `Extrusion` class. We then just bind each ring's vertex range
-    to one joint in the glTF skin, same as before.
+    Returns a dictionary mapping (element_name, j) -> glTF node index
     """
     if config is None:
         config = {
@@ -236,7 +52,7 @@ def skin_frames(model, artist, config=None):
     skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
     gltf.scenes[0].nodes.append(skeleton_root_idx)
 
-    # Store a list of joint node indices, and their inverseBindMatrices
+    #
     joint_nodes = skeleton_root_node.children
     ibms = []
     skin_nodes = {}
@@ -248,10 +64,10 @@ def skin_frames(model, artist, config=None):
         M[:3, 3] = translation
         return np.linalg.inv(M).T
 
-    #------------------------------------------------------
+    #
     # 3) For each ring, create a glTF Node (joint),
     #    and assign ring vertices to that joint
-    #------------------------------------------------------
+    #
     I = 0
     joints_0    = [] #np.zeros((num_vertices,4), dtype=canvas.index_t)
     weights_0   = [] #np.zeros((num_vertices,4), dtype=canvas.float_t)
@@ -419,9 +235,9 @@ def _create_mesh(canvas,
 
     mesh_idx = _append_index(gltf.meshes, mesh)
 
-    #---------------------------------------------
+    #
     # 4) Create a Node referencing the mesh + skin
-    #---------------------------------------------
+    #
     mesh_node_idx = _append_index(gltf.nodes, pygltflib.Node(
         mesh=mesh_idx,
         skin=skin_idx,
@@ -440,13 +256,6 @@ def deform_extrusion(model, canvas, state, skin_nodes, config=None):
     """
     Given a 'state' that contains the updated (displaced/rotated) coordinates for each element’s cross section,
     update the glTF nodes' translation/rotation accordingly.
-
-    :param model:    The same structural model used in draw_extrusions_ref.
-    :param gltf:     The glTF2 object that already has nodes, a skin, etc.
-    :param state:    Some data structure that can provide displacements & rotations for each (element, cross section).
-    :param skin_nodes: Dict returned by draw_extrusions_ref -> {(element_name, j): node_index, ...}
-    :param config:   Optional dict for additional settings (e.g. scale, etc).
-
 
     The skinned mesh in glTF will automatically show the new shape
     as the viewer or engine processes the node transforms.
@@ -751,12 +560,14 @@ def _add_warp_animation_to_joints(anim, joint_nodes, warp_keyframes, canvas):
     # Sort warp keyframes by time.
     warp_keyframes.sort(key=lambda x: x[0])
     num_joints = len(joint_nodes)
+
     # Build per-joint keyframe data.
     joint_keyframes = [[] for _ in range(num_joints)]
     for t, warp_list in warp_keyframes:
         # Each warp_list must have num_joints values.
         for j in range(num_joints):
             joint_keyframes[j].append((t, warp_list[j]))
+
     # For each joint, create an animation channel targeting its scale.
     for j, node_index in enumerate(joint_nodes):
         times = np.array([t for t, _ in joint_keyframes[j]], dtype=canvas.float_t)
@@ -851,7 +662,6 @@ def _animate(sam_file, res_file=None, vertical=None, **opts):
                                           config=artist._config_sketch("default")["surface"]["frame"])
             deform_extrusion(artist.model, artist.canvas, soln, skin_nodes)
 
-    # artist.draw()
     return artist
 
 
