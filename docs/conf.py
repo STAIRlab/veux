@@ -5,10 +5,10 @@
 from pathlib import Path
 project = 'veux'
 copyright = '2025, STAIRLab'
-author = 'Claudio Perez'
-description = "Finite element visualization."
-version = '0.0.10'
-release = '0.0.10'
+author = 'STAIRLab'
+description = "Finite element visualization for xara and OpenSees/OpenSeesPy."
+version = '0.0.26'
+release = '0.0.26'
 
 # -- General configuration ---------------------------------------------------
 

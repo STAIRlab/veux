@@ -226,7 +226,7 @@ def create_artist(
     return artist
 
 
-def render(sam_file, res_file=None, ndf=6,
+def render(model, state=None, ndf=6,
            canvas=None,
            show=None,
            hide=None,
@@ -294,13 +294,13 @@ def render(sam_file, res_file=None, ndf=6,
     # from sources with the following priorities:
     #      defaults < file configs < kwds 
 
-    if sam_file is None:
+    if model is None:
         raise RenderError("Expected required argument <sam-file>")
 
     #
     # Read model data
     #
-    model_data = _create_model(sam_file)
+    model_data = _create_model(model)
 
     # Setup config
     config = Config()
@@ -353,8 +353,8 @@ def render(sam_file, res_file=None, ndf=6,
     #
     # Read and process displacements 
     #
-    if res_file is not None:
-        artist.add_state(res_file,
+    if state is not None:
+        artist.add_state(state,
                          scale=config["scale"],
 #                        only=config["mode_num"],
                          **config["state_config"])
