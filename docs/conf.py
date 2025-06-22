@@ -20,7 +20,7 @@ extensions = [
     'sphinx_copybutton',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
-    'sphinx_sitemap'
+#   'sphinx_sitemap'
 ]
 
 
