@@ -432,9 +432,9 @@ class Motion:
         node_rotation_sampler_index = {}
 
         # 2) Flatten and encode data for each node
-        # We do them all in a single big set of buffers—time values and output values.
+        # Do them all in a single big set of buffers—time values and output values.
         # However, each node gets its own Sampler, because it has distinct times/values
-        # in this implementation. (We could share times if they match exactly.)
+        # in this implementation.
         for node_idx, track_dict in self._keyframes.items():
             pos_keyframes = track_dict["translation"]  # list of (time, (x,y,z))
             rot_keyframes = track_dict["rotation"]     # list of (time, (qx,qy,qz,qw))
@@ -450,8 +450,8 @@ class Motion:
             if pos_keyframes:
                 # Create Sampler for translation
                 sampler_index_t = _append_index(anim.samplers, pygltflib.AnimationSampler(
-                    input=-1,    # placeholder, we fill them after we create Accessors
-                    output=-1,   # also placeholder
+                    input=-1,    # placeholder, fill them after creating Accessors
+                    output=-1,   #
                     interpolation="LINEAR"
                 ))
                 node_position_sampler_index[node_idx] = sampler_index_t
@@ -658,8 +658,9 @@ def _animate(sam_file, res_file=None, vertical=None, **opts):
         if "time" not in opts:
             create_animation(artist, soln)
         else:
-            skin_nodes,_ = skin_frames(artist.model, artist.canvas,
-                                          config=artist._config_sketch("default")["surface"]["frame"])
+            skin_nodes,_ = skin_frames(artist.model, 
+                                       artist.canvas,
+                                        config=artist._config_sketch("default")["surface"]["frame"])
             deform_extrusion(artist.model, artist.canvas, soln, skin_nodes)
 
     return artist
