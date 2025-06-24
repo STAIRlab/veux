@@ -20,9 +20,14 @@ extensions = [
     'sphinx_copybutton',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
+    'nbsphinx',
 #   'sphinx_sitemap'
 ]
 
+
+# nbsphinx_custom_formats = {
+#     ".md": ["jupytext.reads", {"fmt": "mystnb"}],
+# }
 
 # autoapi_dirs = ['../src/mdof']
 
