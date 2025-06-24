@@ -13,15 +13,15 @@ release = '0.0.26'
 # -- General configuration ---------------------------------------------------
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    # 'autoapi.extension',
-    'myst_parser',
-    'sphinx_copybutton',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.githubpages',
-    'nbsphinx',
-#   'sphinx_sitemap'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    # "autoapi.extension",
+#   "myst_parser",
+    "sphinx_copybutton",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.githubpages",
+    "myst_nb",
+#   "sphinx_sitemap"
 ]
 
 

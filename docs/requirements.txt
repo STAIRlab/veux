@@ -4,5 +4,5 @@ veux
 sphinx-sitemap<2.7.0
 sphinx-copybutton
 myst-parser
-nbsphinx
+myst-nb
 
