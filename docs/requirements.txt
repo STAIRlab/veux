@@ -1,7 +1,8 @@
 sphinx==8.2.3
 pydata-sphinx-theme
 veux
-sphinx-sitemap
+sphinx-sitemap<2.7.0
 sphinx-copybutton
 myst-parser
+nbsphinx
 
