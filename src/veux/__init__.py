@@ -128,6 +128,29 @@ def _create_model(sam_file, ndf=None):
             model_data = sam_file.asdict()
         except:
             raise ValueError("Failed to read model data, model contains unsupported components.")
+    elif hasattr(sam_file, "printModel"):
+        import pathlib, tempfile, os, json
+        with tempfile.TemporaryDirectory() as tmp:
+            if os.name == "nt":
+                file = ".model.json"
+            else:
+                file = tmp/pathlib.Path("model.json")
+
+            sam_file.printModel("-JSON", "-file", str(file))
+
+            try:
+                with open(file, "r") as f:
+                    model = json.load(f)
+
+
+            except json.decoder.JSONDecodeError:
+                raise Exception("Failed to read model, check for unsupported materials")
+
+
+        if os.name == "nt":
+            os.remove(file)
+
+        return model
 
     elif hasattr(sam_file, "cells") and hasattr(sam_file, "nodes"):
         from veux.plane import PlaneModel
