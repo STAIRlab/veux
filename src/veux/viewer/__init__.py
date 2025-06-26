@@ -15,7 +15,6 @@ import numpy as np
 import numpy as np
 from io import BytesIO
 
-
 class Viewer:
     """
     A class to represent a 3D model viewer.
@@ -26,10 +25,15 @@ class Viewer:
         Initializes the Viewer with optional viewer type, file path, or binary data.
 
     """
-    def __init__(self, thing, viewer=None, id=None, path=None, hosted=None,standalone=True,lights=None):
+    def __init__(self, thing, viewer=None, id=None, 
+                 plane = False,
+                 size=None,
+                 hosted=None,standalone=True,lights=None):
         self._id = id if id is not None else "veux-viewer"
         self._viewer = viewer if viewer is not None else "mv"
         self._lights = lights # light or dark mode
+        self._plane = plane
+        self._size = size
 
         self._hosted = hosted
         if hosted is None and self._viewer == "mv":
@@ -86,12 +90,14 @@ class Viewer:
         elif self._viewer == "mv":
             return _model_viewer(self._glbsrc,
                                  control=False,
+                                 plane=self._plane,
+                                 size=self._size,
                                  hosted=self._hosted,
                                  light_mode=self._lights,
                                  standalone=self._standalone)
 
 
-def _model_viewer(source, control=False, hosted=False, standalone=True, light_mode=None):
+def _model_viewer(source, control=False, size=None, hosted=False, plane=False, standalone=True, light_mode=None):
 
     if light_mode is None:
         light_mode = "light"
@@ -129,7 +135,7 @@ def _model_viewer(source, control=False, hosted=False, standalone=True, light_mo
 
     with open(Path(__file__).parents[0]/"model-viewer.min.js", "r") as f:
         library = f'<script type="module">{f.read()}</script>'
-#   library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
+    # library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
 
     control_html = """
       <div class="controls">
@@ -140,22 +146,62 @@ def _model_viewer(source, control=False, hosted=False, standalone=True, light_mo
         environment = "/black_ground.hdr"
     else:
         environment = "neutral"
+    
+    if False: #plane:
+        camera = """
+            camera-controls
+            disable-rotate
+            camera-orbit="0deg 90deg auto"
+            auto-rotate="false"
+        """
+    else:
+        camera = """
+            camera-controls
+            min-camera-orbit="auto auto 0m"
+        """
+
+    if size is None:
+        size = 'style="width: 100%; height: 100vh;"'
+    else:
+        size = f'style="width: {size[0]}px; height: {size[1]}px;"'
+    
+    if hosted:
+        quit_button = """<form action="/quit" method="get" target="quit-frame" style="display:inline;">
+            <button type="submit" style="
+                display:inline-flex;align-items:center;justify-content:center;
+                width:24px;height:24px;border:none;border-radius:4px;
+                background:#eee;color:#333;text-decoration:none;
+                font-weight:bold;font-size:16px;
+                transition:background 0.2s ease;cursor:pointer;"
+                onmouseover="this.style.background='#ccc'"
+                onmouseout="this.style.background='#eee'">
+                <svg viewBox="0 0 10 10" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="1" y1="1" x2="9" y2="9" />
+                <line x1="9" y1="1" x2="1" y2="9" />
+                </svg>
+            </button>
+          </form>
+          <iframe name="quit-frame" style="display:none;"></iframe>
+        """
+    else:
+        quit_button = ""
 
     viewer = f"""
+          {quit_button}
+
           <model-viewer 
             id="veux-viewer"
             alt="rendering"
             src="{source}"
             autoplay
-            style="width: 100%; height: 100vh;"
+            {size}
             max-pixel-ratio="2"
             interaction-prompt="none"
             shadow-intensity="1"
             environment-image="{environment}"
             shadow-light="10000 10000 10000"
             exposure="0.8"
-            camera-controls
-            min-camera-orbit="auto auto 0m"
+            {camera}
             touch-action="pan-y">
           </model-viewer>
     """
