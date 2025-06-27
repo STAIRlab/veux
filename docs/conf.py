@@ -24,7 +24,7 @@ extensions = [
 #   "sphinx_sitemap"
 ]
 
-
+nb_execution_mode = "off"
 nb_execution_excludepatterns = ['*']
 
 # autoapi_dirs = ['../src/mdof']
