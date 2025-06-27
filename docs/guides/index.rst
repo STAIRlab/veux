@@ -15,5 +15,6 @@ This approach leads to a much more reliable and secure experience, meaning that 
 
    Guides <self>
    basics.ipynb
+   basics-global.ipynb
    cli
 
