@@ -15,6 +15,8 @@
 
 </div>
 
+`veux` is a visualization library for finite element analysis that is built on the idea that your renderings should be easy to save, share, and revisit.
+
 `veux` is a finite element visualization library that leverages modern 
 web technologies to produce sharable, efficient, and detailed renderings.
 
