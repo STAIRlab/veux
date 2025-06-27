@@ -25,9 +25,7 @@ extensions = [
 ]
 
 
-# nbsphinx_custom_formats = {
-#     ".md": ["jupytext.reads", {"fmt": "mystnb"}],
-# }
+nb_execution_excludepatterns = ['*']
 
 # autoapi_dirs = ['../src/mdof']
 
