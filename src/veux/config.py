@@ -59,7 +59,7 @@ def SketchConfig(kwds=None):
           "axes":        {"show": True,  "style": LineStyle(), "scale": 1.0}
       },
       "node":  {
-          "marker":  {"show": True, "style": NodeStyle(color="black") },
+          "marker":  {"show": False, "style": NodeStyle(color="black") },
           "hover":   {"show": True, "style": NodeStyle(color="black") },
       }
     })
@@ -85,7 +85,7 @@ class ModelConfig:
 
 
 Config = lambda : {
-  "sam_file":      None,
+  "model":         None,
   "res_file":      None,
   "write_file":    None,
   "displ":         defaultdict(list),
