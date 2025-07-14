@@ -1,10 +1,10 @@
 [project]
 name = "veux"
-version = "0.0.26"
+version = "0.0.30"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
-description="Finite element processing and visualization for xara and OpenSees/OpenSeesPy."
+description="Fast and friendly finite element visualization for xara and OpenSees/OpenSeesPy."
 
 license = {file = ".github/LICENSE.txt"}
 readme = "README.md"
