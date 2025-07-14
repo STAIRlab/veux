@@ -4,6 +4,7 @@
 #
 #===----------------------------------------------------------------------===#
 #
+import types
 from pathlib import Path
 
 from .errors import RenderError
@@ -122,7 +123,7 @@ def _create_model(sam_file, ndf=None):
     elif isinstance(sam_file, veux.model.Model):
         return sam_file
 
-    elif hasattr(sam_file, "asdict"):
+    elif hasattr(sam_file, "asdict") and not isinstance(sam_file, types.ModuleType):
         # Assuming an opensees.openseespy.Model
         try:
             model_data = sam_file.asdict()

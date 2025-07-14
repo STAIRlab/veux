@@ -355,9 +355,9 @@ def parse_args(argv)->dict:
             #
             # Positional
             #
-            elif not opts["sam_file"]:
+            elif not opts["model"]:
                 if arg == "-": arg = sys.stdin
-                opts["sam_file"] = arg
+                opts["model"] = arg
 
             else:
                 if arg == "-": arg = sys.stdin
