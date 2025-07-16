@@ -55,6 +55,8 @@ def serve(thing, viewer="mv", port=None, view_options=None):
         view_options = {
             "viewer": viewer,
             "plane": False,
+            "show_quit": True,
+            "quit_on_load": False,
         }
     if hasattr(thing, "canvas"):
         # artist was passed
