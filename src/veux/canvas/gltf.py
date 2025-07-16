@@ -21,7 +21,8 @@ Some implementation notes:
 """
 
 """
-The glTF file format is supported by [COMSOL](https://www.comsol.com/blogs/how-to-export-and-share-your-3d-result-plots-as-gltf-files)
+The glTF file format is supported by 
+[COMSOL](https://www.comsol.com/blogs/how-to-export-and-share-your-3d-result-plots-as-gltf-files)
 """
 import itertools
 
@@ -53,7 +54,7 @@ class GltfLibCanvas(Canvas):
         self.config = config
         self._data = {}
 
-        #                          x, y, z, scalar
+        #                 x, y, z, scalar
         self._rotation = [0, 0, 0, 1] #[-0.7071068, 0, 0, 0.7071068]
         # equivalent rotation matrix:
         self._rotation_matrix = np.eye(3) #np.array([[1,  0, 0],
@@ -566,7 +567,6 @@ class GltfLibCanvas(Canvas):
         # Add buffer view and accessor for the inverse bind matrices
         # Flatten inverse bind matrices for glTF format
         ibm_array = np.array(inverse_bind_matrices, dtype=self.float_t).reshape(-1, 16)
-        # ibm_array = np.array([ibm.flatten() for ibm in inverse_bind_matrices], dtype=self.float_t)
 
         ibm_accessor_idx = _append_index(gltf.accessors, pygltflib.Accessor(
             bufferView=self._push_data(ibm_array.tobytes(), target=None),
@@ -601,11 +601,9 @@ class GltfLibCanvas(Canvas):
                 [1.0, 0.0, 0.0, 0.0]
             ])
 
-        # index_array = np.array(indices, dtype=self.index_t)#.flatten()
-        index_array = np.array(lines, dtype=self.index_t).reshape(-1)#.flatten()
-        # index_array = np.zeros((len(lines),2), dtype=self.index_t).reshape(-1)
+        index_array = np.array(lines, dtype=self.index_t).reshape(-1)
 
-        # Add buffer view and accessor for the line indices
+        # Add buffer view and accessor
 
         index_accessor_idx = len(gltf.accessors)
         gltf.accessors.append(pygltflib.Accessor(
@@ -617,12 +615,11 @@ class GltfLibCanvas(Canvas):
             max=[int(index_array.max())]
         ))
 
-        # Create the line mesh with skinning attributes
-        joints_0_array  = np.array(joints_0, dtype=self.index_t)
+        # Create the line mesh
 
         joints_0_accessor_idx = len(gltf.accessors)
         gltf.accessors.append(pygltflib.Accessor(
-            bufferView=self._push_data(joints_0_array.tobytes(), pygltflib.ARRAY_BUFFER),
+            bufferView=self._push_data(np.array(joints_0, dtype=self.index_t).tobytes(), pygltflib.ARRAY_BUFFER),
             componentType=GLTF_T[self.index_t],
             count=len(joints_0),
             type="VEC4"
@@ -816,10 +813,10 @@ class GltfLibCanvas(Canvas):
             # Check if they are already the same (no rotation) or exactly opposite
             dot_val = np.dot(x_axis, v_norm)
             if np.isclose(dot_val, 1.0):
-                # Same direction -> identity quaternion
+                # Same direction, set to identity quaternion
                 return Rotation.from_quat([0.0, 0.0, 0.0, 1.0])
             elif np.isclose(dot_val, -1.0):
-                # Opposite direction -> 180 deg rotation about any axis perpendicular to x
+                # Opposite direction, 180 deg rotation about any axis perpendicular to x
                 # e.g., about [0,1,0]
                 return Rotation.from_rotvec(np.pi * np.array([0, 1, 0]))
 
@@ -988,7 +985,7 @@ class GltfLibCanvas(Canvas):
 
 
     def plot_mesh_field(self, mesh_handle, field,
-                        colormap="twilight", #"viridis", 
+                        colormap="rainbow4", # "cet_CET_R1",# "cet_CET_D13"#"twilight", #"viridis", 
                         vmin=None, vmax=None,
                         **kwds) -> tuple:
         """
@@ -1007,7 +1004,6 @@ class GltfLibCanvas(Canvas):
         # Determine color array from field
         color_array = self._map_field_to_colors(field, colormap, vmin, vmax)
 
-        # SAdd color data as a separate accessor in the just-created mesh
         color_array = color_array.astype(self.float_t)
         self.gltf.accessors.extend([
             pygltflib.Accessor(
@@ -1027,29 +1023,49 @@ class GltfLibCanvas(Canvas):
 
         return mesh_handle
 
-
     def _map_field_to_colors(self, field, 
-                             colormap="twilight", #"viridis", 
+                             colormap="cet_CET_D13", #"rainbow4", #"viridis", 
                              vmin=None, vmax=None):
         """
-        Convert 1D array of scalar values into Nx4 RGBA array in [0,1].
         """
-        import matplotlib
-        import matplotlib.cm
+        try:
+            import colorcet as cc
+            field = np.asarray(field, dtype=np.float64)
 
-        field = np.array(field, dtype=np.float64)
-        if vmin is None:
-            vmin = field.min()
-        if vmax is None:
-            vmax = field.max()
+            # Normalisation
+            if vmin is None:
+                vmin = np.nanmin(field)
+            if vmax is None:
+                vmax = np.nanmax(field)
 
-        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax, clip=True)
-        cmap = matplotlib.cm.get_cmap(colormap)
-        
-        # shape: (N, 4)
-        colors = cmap(norm(field))
-        # ensure Nx4
-        return colors
+            # avoid divide-by-zero
+            span = vmax - vmin or 1.0
+            t = np.clip((field - vmin) / span, 0.0, 1.0)
+
+
+            try:
+                cmap = cc.cm[colormap]
+            except KeyError as e:
+                raise ValueError(f"Unknown ColorCET colormap '{colormap}'.") from e
+
+            colors = cmap(t)
+            return colors
+
+        except:
+            import matplotlib
+            import matplotlib.cm
+
+            field = np.array(field, dtype=np.float64)
+            if vmin is None:
+                vmin = field.min()
+            if vmax is None:
+                vmax = field.max()
+
+            norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax, clip=True)
+            cmap = matplotlib.cm.get_cmap(colormap)
+
+            colors = cmap(norm(field))
+            return colors
 
 
     def to_glb(self)->bytes:
