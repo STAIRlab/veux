@@ -637,6 +637,7 @@ class FrameArtist:
         viewer = Viewer(self,
                         size=(800, 600),
                         hosted=False,
+                        show_quit=False,
                         standalone=False)
         html = viewer.get_html()
         return html
