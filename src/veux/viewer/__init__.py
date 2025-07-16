@@ -28,12 +28,24 @@ class Viewer:
     def __init__(self, thing, viewer=None, id=None, 
                  plane = False,
                  size=None,
-                 hosted=None,standalone=True,lights=None):
+                 hosted=None,
+                 show_quit=True,
+                 quit_on_load=False,
+                 standalone=True,
+                 lights=None):
+        
+        """
+        If hosted is True, the viewier will fetch the model.
+
+        If standalone is True, the viewer will be rendered as a standalone HTML page.
+        """
         self._id = id if id is not None else "veux-viewer"
         self._viewer = viewer if viewer is not None else "mv"
         self._lights = lights # light or dark mode
         self._plane = plane
         self._size = size
+        self._show_quit = show_quit
+        self._quit_on_load = quit_on_load
 
         self._hosted = hosted
         if hosted is None and self._viewer == "mv":
@@ -92,12 +104,22 @@ class Viewer:
                                  control=False,
                                  plane=self._plane,
                                  size=self._size,
+                                 show_quit=self._show_quit,
+                                 quit_on_load=self._quit_on_load,
                                  hosted=self._hosted,
                                  light_mode=self._lights,
                                  standalone=self._standalone)
 
 
-def _model_viewer(source, control=False, size=None, hosted=False, plane=False, standalone=True, light_mode=None):
+def _model_viewer(source,
+                  control=False,
+                  size=None,
+                  hosted=False,
+                  plane=False,
+                  show_quit=None,
+                  quit_on_load=False,
+                  standalone=True,
+                  light_mode=None):
 
     if light_mode is None:
         light_mode = "light"
@@ -135,6 +157,7 @@ def _model_viewer(source, control=False, size=None, hosted=False, plane=False, s
 
     with open(Path(__file__).parents[0]/"model-viewer.min.js", "r") as f:
         library = f'<script type="module">{f.read()}</script>'
+
     # library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
 
     control_html = """
@@ -165,7 +188,8 @@ def _model_viewer(source, control=False, size=None, hosted=False, plane=False, s
     else:
         size = f'style="width: {size[0]}px; height: {size[1]}px;"'
     
-    if hosted:
+    quit_button = ""
+    if show_quit:
         quit_button = """<form action="/quit" method="get" target="quit-frame" style="display:inline;">
             <button type="submit" style="
                 display:inline-flex;align-items:center;justify-content:center;
@@ -183,8 +207,19 @@ def _model_viewer(source, control=False, size=None, hosted=False, plane=False, s
           </form>
           <iframe name="quit-frame" style="display:none;"></iframe>
         """
-    else:
-        quit_button = ""
+    
+    quit_script = ""
+    if quit_on_load:
+        quit_script = """
+        <script>
+        window.addEventListener('load', function() {
+            const quitButton = document.querySelector('form[action="/quit"] button');
+            if (quitButton) {
+                quitButton.click();
+            }
+        });
+        </script>
+        """
 
     viewer = f"""
           {quit_button}
@@ -231,6 +266,7 @@ def _model_viewer(source, control=False, size=None, hosted=False, plane=False, s
                 {control_html if control else ""}
                 {control_code if control else ""}
             </body>
+            {quit_script}
         </html>
         """
     return textwrap.dedent(page)
