@@ -14,7 +14,6 @@ import shps.rotor as so3
 from veux.model  import Model,FrameModel
 from veux.state  import State, BasicState
 from veux.config import Config, LineStyle, NodeStyle, MeshStyle
-from ._section import SectionGeometry
 
 class FrameArtist:
     ndm:    int
