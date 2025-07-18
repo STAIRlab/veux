@@ -23,7 +23,7 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
     let scene, camera, renderer, controls;
     const canvas = document.querySelector('#veux-canvas');
 
@@ -33,7 +33,7 @@
 
     function init() {
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xdddddd);
+      scene.background = new THREE.Color(0xffffff);
 
       camera = new THREE.PerspectiveCamera(
         40,
@@ -44,43 +44,69 @@
       camera.rotation.y = (45 / 180) * Math.PI;
       camera.position.set(10, 10, 10);
 
-      const hlight = new THREE.AmbientLight(0x404040, 100);
-      scene.add(hlight);
+      //
+      // Lighting
+      //
+      if (false ) {
+        const hlight = new THREE.AmbientLight(0x404040, 100);
+        scene.add(hlight);
 
-      // Adding directional light
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 100);
-      directionalLight.position.set(0, 1, 0);
-      directionalLight.castShadow = true;
-      scene.add(directionalLight);
+        // Adding directional light
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 100);
+        directionalLight.position.set(0, 1, 0);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
 
-      // Adding point lights
-      const light = new THREE.PointLight(0xc4c4c4, 10);
-      light.position.set(0, 300, 500);
-      scene.add(light);
+        // Adding point lights
+        const light = new THREE.PointLight(0xc4c4c4, 10);
+        light.position.set(0, 300, 500);
+        scene.add(light);
 
-      const light2 = new THREE.PointLight(0xc4c4c4, 10);
-      light2.position.set(500, 100, 0);
-      scene.add(light2);
+        const light2 = new THREE.PointLight(0xc4c4c4, 10);
+        light2.position.set(500, 100, 0);
+        scene.add(light2);
 
-      const light3 = new THREE.PointLight(0xc4c4c4, 10);
-      light3.position.set(0, 100, -500);
-      scene.add(light3);
+        const light3 = new THREE.PointLight(0xc4c4c4, 10);
+        light3.position.set(0, 100, -500);
+        scene.add(light3);
 
-      const light4 = new THREE.PointLight(0xc4c4c4, 10);
-      light4.position.set(-500, 300, 0);
-      scene.add(light4);
+        const light4 = new THREE.PointLight(0xc4c4c4, 10);
+        light4.position.set(-500, 300, 0);
+        scene.add(light4);
+  
+      } else {
+        const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 3 );
+        hemiLight.position.set( 0, 20, 0 );
+        scene.add( hemiLight );
 
+        const dirLight = new THREE.DirectionalLight( 0xffffff, 3);
+        dirLight.position.set( -3, 10, -10 ); // Position it at an angle
+        scene.add( dirLight );
+      }
+      //
+      //
+      //
       renderer = new THREE.WebGLRenderer({
         canvas,
         alpha: true,
-        premultipliedAlpha: false,
+        antialias: true // Add antialiasing for smoother edges
+        // premultipliedAlpha: false,
       });
+      renderer.useLegacyLights = true;
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping; // A tone mapper helps prevent "blown out" whites
+      renderer.toneMappingExposure = 1;
       renderer.setSize(window.innerWidth, window.innerHeight);
 
       // Initialize OrbitControls
       controls = new OrbitControls(camera, renderer.domElement);
       controls.addEventListener('change', render);
 
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const envTex = pmrem.fromScene(new RoomEnvironment(renderer)).texture;
+      scene.environment = envTex;
+      
       // Load GLTF model
       const loader = new GLTFLoader();
       loader.load('/model.glb', (gltf) => {
@@ -105,7 +131,6 @@
       const delta = clock.getDelta();
       mixers.forEach((mixer) => mixer.update(delta));
 
-      // Optionally update controls
       controls.update();
 
       renderer.render(scene, camera);
