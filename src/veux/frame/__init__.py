@@ -14,6 +14,7 @@ import shps.rotor as so3
 from veux.model  import Model,FrameModel
 from veux.state  import State, BasicState
 from veux.config import Config, LineStyle, NodeStyle, MeshStyle
+from ._section import SectionGeometry
 
 class FrameArtist:
     ndm:    int
@@ -296,7 +297,74 @@ class FrameArtist:
                                                   alpha=0.5))
         
 
-    def draw_outlines(self, state=None, config=None, scale=1.0, style=None, skip=None):
+    def _draw_frame_lines(self, state=None, config=None, scale=1.0, style=None, skip=None):
+        """
+        """
+
+        Ra = self._plot_rotation
+        model = self.model
+
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
+            if style is not None:
+                config["frame"]["style"] = style
+                config["plane"]["style"] = style
+                config["solid"]["style"] = style
+
+        if skip is not None:
+            for type in skip:
+                config[type]["show"] = False
+
+        if state is not None:
+            state = self.model.wrap_state(state, scale=scale, transform=self.dofs2plot)
+            # Because "state" is given as opposed to position/displacement, we assume
+            # linearized rotations for now.
+            config["frame"]["basis"] = "Hermite"
+
+        N = 20 if state is not None and config["frame"]["basis"] is not None else 2
+        do_frames = False
+        ne = sum(1 for tag in model.iter_cell_tags() 
+                 if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"))
+        frames = np.zeros((ne*(N+1),3))
+        frames.fill(np.nan)
+
+        j = 0 # frame element counter
+        for tag in model.iter_cell_tags():
+            if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"):
+                if not config["frame"]["show"]:
+                    continue
+
+                if config["frame"]["basis"] is None or not model.cell_matches(tag, "frame"):
+                    # Draw a straight line between nodes
+                    do_frames = True
+                    frames[(N+1)*j:(N+1)*j+N,:] = np.linspace(*[
+                        Ra@xn for xn in model.cell_position(tag, state)[[0,-1],:]
+                    ], N)
+
+                else:
+                    do_frames = True
+                    Q = model.frame_orientation(tag)
+                    X = model.cell_position(tag)
+                    u = [xi - Xi for Xi, xi in zip(X, model.cell_position(tag, state=state))]
+                    R = [model.node_rotation(node, state=state) for node in model.cell_nodes(tag)]
+
+
+                    frames[(N+1)*j:(N+1)*j+N,:] = [Ra@v for v in  
+                                                    _hermite_cubic(X,
+                                                                 Q=Q,
+                                                                 u = [Q@u[0],          Q@u[1]],
+                                                                 v = [Q@so3.log(R[0]), Q@so3.log(R[1])],
+                                                                 npoints=N).T]
+                j += 1
+
+
+        if do_frames and config["frame"]["show"]:
+            self.canvas.plot_lines(frames[:,:self.ndm], style=config["frame"]["style"])
+
+
+
+    def draw_outlines_(self, state=None, config=None, scale=1.0, style=None, skip=None):
         """
         Draw the outlines of the model elements such as frames, planes, and solids.
         Interpolate if possible. This is expensive.
@@ -332,47 +400,15 @@ class FrameArtist:
             # linearized rotations for now.
             config["frame"]["basis"] = "Hermite"
 
-        N = 20 if state is not None and config["frame"]["basis"] is not None else 2
-        do_frames = False
-        ne = sum(1 for tag in model.iter_cell_tags() 
-                 if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"))
-        frames = np.zeros((ne*(N+1),3))
-        frames.fill(np.nan)
+        self._draw_frame_lines(state=state, config=config, scale=scale, style=style, skip=skip)
+
 
         quadrs = []
         trians = []
         solids = []
-
-        j = 0 # frame element counter
         for tag in model.iter_cell_tags():
-            if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"):
-                if not config["frame"]["show"]:
-                    continue
 
-                if config["frame"]["basis"] is None or not model.cell_matches(tag, "frame"):
-                    # Draw a straight line between nodes
-                    do_frames = True
-                    frames[(N+1)*j:(N+1)*j+N,:] = np.linspace(*[
-                        Ra@xn for xn in model.cell_position(tag, state)[[0,-1],:]
-                    ], N)
-
-                else:
-                    Q = model.frame_orientation(tag)
-                    X = model.cell_position(tag)
-                    u = [xi - Xi for Xi, xi in zip(X, model.cell_position(tag, state=state))]
-                    R = [model.node_rotation(node, state=state) for node in model.cell_nodes(tag)]
-
-
-                    do_frames = True
-                    frames[(N+1)*j:(N+1)*j+N,:] = [Ra@v for v in  
-                                                    _hermite_cubic(X,
-                                                                 Q=Q,
-                                                                 u = [Q@u[0],          Q@u[1]],
-                                                                 v = [Q@so3.log(R[0]), Q@so3.log(R[1])],
-                                                                 npoints=N).T]
-                j += 1
-
-            elif model.cell_matches(tag, "plane") and config["plane"]["show"]:
+            if model.cell_matches(tag, "plane") and config["plane"]["show"]:
                 idx = model.cell_exterior(tag)
                 if len(idx) == 4:
                     quadrs.append([*idx, idx[0]])
@@ -383,9 +419,6 @@ class FrameArtist:
                 # TODO: get cell faces
                 idx = model.cell_exterior(tag)
                 solids.append(idx)
-
-        if do_frames and config["frame"]["show"]:
-            self.canvas.plot_lines(frames[:,:self.ndm], style=config["frame"]["style"])
 
         nodes = np.array([Ra@x for x in model.node_position(state=state)])
 
@@ -404,6 +437,85 @@ class FrameArtist:
         if len(solids) > 0 and config["solid"]["show"]:
             self.canvas.plot_lines(nodes, indices=np.array(solids),
                                           style=config["solid"]["style"])
+
+    def draw_outlines(self, state=None, config=None, scale=1.0, style=None, skip=None):
+        """
+        Draw the outlines of the model elements such as frames, planes, and solids.
+        Interpolate if possible.
+
+        Parameters
+        ----------
+        state : dict, np.ndarray, callable, optional
+            The state of the model, see :ref:`State`. Default is None.
+        config : dict, optional
+            Configuration dictionary for drawing outlines. If None, a default configuration is loaded from SketchConfig. Default is None.
+        scale : float, optional
+            Scaling factor for the model. Default is 1.0.
+        """
+
+        Ra = self._plot_rotation
+        model = self.model
+
+        if config is None:
+            from veux.config import SketchConfig
+            config = {type: conf["outline"] for type, conf in SketchConfig().items() if "outline" in conf}
+            if style is not None:
+                config["frame"]["style"] = style
+                config["plane"]["style"] = style
+                config["solid"]["style"] = style
+
+        if skip is not None:
+            for type in skip:
+                config[type]["show"] = False
+
+        if state is not None:
+            state = self.model.wrap_state(state, scale=scale, transform=self.dofs2plot)
+            # Because "state" is given as opposed to position/displacement, we assume
+            # linearized rotations for now.
+            config["frame"]["basis"] = "Hermite"
+
+        self._draw_frame_lines(state=state, config=config, scale=scale, style=style, skip=skip)
+
+
+        quadrs = []
+        trians = []
+        solids = []
+        for tag in model.iter_cell_tags():
+
+            if model.cell_matches(tag, "plane") and config["plane"]["show"]:
+                idx = model.cell_exterior(tag)
+                if len(idx) == 4:
+                    quadrs.append([*idx, idx[0]])
+                elif len(idx) == 3:
+                    trians.append([*idx, idx[0]])
+
+            elif model.cell_matches(tag, "solid") and config["solid"]["show"]:
+                # TODO: get cell faces
+                idx = model.cell_exterior(tag)
+                solids.append(idx)
+
+
+        nodes = np.array([Ra@x for x in model.node_position(state=state)])
+
+        # Add a small offset to the lines to avoid z-fighting with any surfaces
+        if self.model.ndm == 2:
+            nodes += Ra@[0, 0, 0.01]
+        
+        self.canvas.set_data(nodes, key="node_vertices")
+
+
+        if len(quadrs) > 0 and config["plane"]["show"]:
+            self.canvas.plot_lines2("node_vertices", indices=np.array(quadrs),
+                                   style=config["plane"]["style"])
+
+        if len(trians) > 0 and config["plane"]["show"]:
+            self.canvas.plot_lines2("node_vertices", indices=np.array(trians),
+                                   style=config["plane"]["style"])
+
+        if len(solids) > 0 and config["solid"]["show"]:
+            self.canvas.plot_lines2("node_vertices", indices=np.array(solids),
+                                          style=config["solid"]["style"])
+
 
     def draw_sections(self,
                       state=None, rotation=None, position=None, scale=1.0,
