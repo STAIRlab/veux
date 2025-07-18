@@ -20,7 +20,7 @@ def Canvas(subplots=None, backend=None):
 
 
 
-def serve(thing, viewer="mv", port=None, view_options=None):
+def serve(thing, viewer=None, port=None, view_options=None):
     """
     Serve the given thing using the specified viewer and port.
 
