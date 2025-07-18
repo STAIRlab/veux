@@ -51,7 +51,7 @@ def add_extrusion(extr, e, x, R, I, caps=None):
         caps[0].append(            I+np.arange(noe))
         caps[1].append((nen-1)*noe+I+np.arange(noe))
 
-    return len(indices)
+    return len(p) #len(indices)
 
 
 def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
@@ -175,25 +175,27 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
     nan = np.array([0,0,0], dtype=float)*np.nan
     IDX = np.array(((0,2),(0,1)))
     coords = np.array(e.coords)
+    try:
+        if "tran" in config["outline"]:
+            tri_points = np.array([
+                coords[idx]  if (j+1)%3 else nan
+                for j,idx in enumerate(np.array(triang).reshape(-1))
+            ])
 
-    if "tran" in config["outline"]:
-        tri_points = np.array([
-            coords[idx]  if (j+1)%3 else nan
-            for j,idx in enumerate(np.array(triang).reshape(-1))
-        ])
+        elif "long" in config["outline"]:
+            tri_points = np.array([
+                coords[i]  if j%2 else nan
+                for j,idx in enumerate(np.array(triang)) for i in idx[IDX[j%2]] if j not in e.no_outline
+            ])
+        else:
+            return
 
-    elif "long" in config["outline"]:
-        tri_points = np.array([
-            coords[i]  if j%2 else nan
-            for j,idx in enumerate(np.array(triang)) for i in idx[IDX[j%2]] if j not in e.no_outline
-        ])
-    else:
+        if len(tri_points):
+            canvas.plot_lines(tri_points,
+                        style=config["line_style"])
+    except Exception as ex:
+        warnings.warn(f"Failed to draw outline with message: {ex}")
         return
-
-    if len(tri_points):
-        canvas.plot_lines(tri_points,
-                      style=config["line_style"])
-
 
 class so3:
     @classmethod
