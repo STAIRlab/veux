@@ -1,125 +1,119 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>veux</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/FBXLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/MTLLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/OBJLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/libs/fflate.min.js"></script></head>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/libs/fflate.min.js"></script>
+  </head>
 
-<body>
+  <body>
     <button id="screenshot" type="button">Save Image</button>
-    <canvas id='sees-canvas'></canvas>
+    <canvas id='veux-canvas'></canvas>
 
     <script>
-        let scene, camera, renderer;
-        const canvas = document.querySelector('#sees-canvas');
+      let scene, camera, renderer;
+      const canvas = document.querySelector('#veux-canvas');
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xdddddd);
+      function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xdddddd);
 
-            camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1, 5000);
-            camera.rotation.y = 45/180*Math.PI;
-            camera.position.x = 10; // 800;
-            camera.position.y = 10; // 100;
-            camera.position.z = 10; // 1000;
+        camera = new THREE.PerspectiveCamera(40, 
+          window.innerWidth/window.innerHeight, 
+          1, 
+          5000
+        );
+        camera.rotation.y = 45/180*Math.PI;
+        camera.position.x = 10; // 800;
+        camera.position.y = 10; // 100;
+        camera.position.z = 10; // 1000;
 
-            hlight = new THREE.AmbientLight (0x404040, 100);
-            scene.add(hlight);
+        hlight = new THREE.AmbientLight(0x404040, 100);
+        scene.add(hlight);
 
-            // Adding directional lights
-            directionalLight = new THREE.DirectionalLight(0xffffff, 100);
-            directionalLight.position.set(0,1,0);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
+        // Adding directional lights
+        directionalLight = new THREE.DirectionalLight(0xffffff, 100);
+        directionalLight.position.set(0,1,0);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
 
-            // Adding Shadow
-            light = new THREE.PointLight(0xc4c4c4,10);
-            light.position.set(0,300,500);
-            scene.add(light);
+        // Adding Shadow
+        light = new THREE.PointLight(0xc4c4c4,10);
+        light.position.set(0,300,500);
+        scene.add(light);
 
-            light2 = new THREE.PointLight(0xc4c4c4,10);
-            light2.position.set(500,100,0);
-            scene.add(light2);
+        light2 = new THREE.PointLight(0xc4c4c4,10);
+        light2.position.set(500,100,0);
+        scene.add(light2);
 
-            light3 = new THREE.PointLight(0xc4c4c4,10);
-            light3.position.set(0,100,-500);
-            scene.add(light3);
+        light3 = new THREE.PointLight(0xc4c4c4,10);
+        light3.position.set(0,100,-500);
+        scene.add(light3);
 
-            light4 = new THREE.PointLight(0xc4c4c4,10);
-            light4.position.set(-500,300,0);
-            scene.add(light4);
+        light4 = new THREE.PointLight(0xc4c4c4,10);
+        light4.position.set(-500,300,0);
+        scene.add(light4);
 
-            renderer = new THREE.WebGLRenderer({
-              canvas,
-              alpha: true,
-              premultipliedAlpha: false
-              // antialias:true
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            // document.body.appendChild(renderer.domElement);
+        renderer = new THREE.WebGLRenderer({
+          canvas,
+          alpha: true,
+          premultipliedAlpha: false
+          // antialias:true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        // document.body.appendChild(renderer.domElement);
 
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.addEventListener('change', render);
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.addEventListener('change', render);
 
-            let loader = new THREE.GLTFLoader();
-            loader.load('/model.glb', function(gltf){
-                //Reduce the model size by half
-                gltf.scene.traverse(child => {
-                  if (child.isMesh)
-                    child.scale.set(0.5, 0.5, 0.5)
-                });
-//              car = gltf.scene.children[0];
-//              car.scale.set(0.5, 0.5, 0.5);
-                scene.add(gltf.scene);
+        let loader = new THREE.GLTFLoader();
+        loader.load('/model.glb', function(gltf){
+            scene.add(gltf.scene);
 
 //              var vnh = new THREE.VertexNormalsHelper( gltf.scene.children[0], // gltf.asset, 
 //                                                       1, 0xff0000 );
 //              scene.add( vnh );
 
-                animate();
-            });
-        }
-        function animate(){
-            renderer.render(scene,camera);
-            requestAnimationFrame(animate);
-        }
-
-        function render() {
-          renderer.render(scene, camera);
-        }
-        init();
-
-        //
-        // Screenshot
-        //
-        document.querySelector('#screenshot').addEventListener('click', () => {
-            render();
-            canvas.toBlob((blob) => {
-              saveBlob(blob, `screencapture-${canvas.width}x${canvas.height}.png`);
-            });
+            animate();
         });
+      }
+      function animate(){
+        renderer.render(scene,camera);
+        requestAnimationFrame(animate);
+      }
 
-        const saveBlob = (function() {
-          const a = document.createElement('a');
-          document.body.appendChild(a);
-          a.style.display = 'none';
-          return function saveData(blob, fileName) {
-             const url = window.URL.createObjectURL(blob);
-             a.href = url;
-             a.download = fileName;
-             a.click();
-          };
-        }());
+      function render() {
+        renderer.render(scene, camera);
+      }
+      init();
+
+      //
+      // Screenshot
+      //
+      document.querySelector('#screenshot').addEventListener('click', () => {
+          render();
+          canvas.toBlob((blob) => {
+            saveBlob(blob, `screencapture-${canvas.width}x${canvas.height}.png`);
+          });
+      });
+
+      const saveBlob = (function() {
+        const a = document.createElement('a');
+        document.body.appendChild(a);
+        a.style.display = 'none';
+        return function saveData(blob, fileName) {
+            const url = window.URL.createObjectURL(blob);
+            a.href = url;
+            a.download = fileName;
+            a.click();
+        };
+      }());
 
     </script>
-
-</body>
+  </body>
 </html>
