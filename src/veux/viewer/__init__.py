@@ -8,6 +8,7 @@
 #
 # Summer 2024
 #
+import os
 import base64
 import textwrap
 from pathlib import Path
@@ -25,7 +26,8 @@ class Viewer:
         Initializes the Viewer with optional viewer type, file path, or binary data.
 
     """
-    def __init__(self, thing, viewer=None, id=None, 
+    def __init__(self, thing,
+                 viewer=None, id=None, 
                  plane = False,
                  size=None,
                  hosted=None,
@@ -40,7 +42,7 @@ class Viewer:
         If standalone is True, the viewer will be rendered as a standalone HTML page.
         """
         self._id = id if id is not None else "veux-viewer"
-        self._viewer = viewer if viewer is not None else "mv"
+        self._viewer = viewer if viewer is not None else os.environ.get("VEUX_VIEWER","mv")
         self._lights = lights # light or dark mode
         self._plane = plane
         self._size = size
@@ -92,11 +94,11 @@ class Viewer:
                 return f.read()
 
         if self._viewer == "three-160":
-            with open(Path(__file__).parents[0]/"gltf.html", "r") as f:
+            with open(Path(__file__).parents[0]/"three-160.html", "r") as f:
                 return f.read()
 
         elif self._viewer == "three-130":
-            with open(Path(__file__).parents[0]/"index.html", "r") as f:
+            with open(Path(__file__).parents[0]/"three-130.html", "r") as f:
                 return f.read()
 
         elif self._viewer == "mv":
@@ -143,28 +145,22 @@ def _model_viewer(source,
     """
     lights = ""
 
-    try:
-        with open(Path(__file__).parents[0]/"controls.css", "r") as f:
-            control_style = f"<style>{f.read()}</style>"
+    with open(Path(__file__).parents[0]/"controls.css", "r") as f:
+        control_style = f"<style>{f.read()}</style>"
 
-        with open(Path(__file__).parents[0]/"controls.js", "r") as f:
-            control_code = f"<script>{f.read()}</script>"
-
-    except Exception as e:
-        print(e)
-        control_code = ""
-        control_style = ""
+    with open(Path(__file__).parents[0]/"controls.js", "r") as f:
+        control_script = f"<script>{f.read()}</script>"
 
     with open(Path(__file__).parents[0]/"model-viewer.min.js", "r") as f:
         library = f'<script type="module">{f.read()}</script>'
-
-    # library = '<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>'
 
     control_html = """
       <div class="controls">
         <button id="toggle-animation">Pause</button>
       </div>
     """
+
+    
     if hosted:
         environment = "/black_ground.hdr"
     else:
@@ -221,8 +217,37 @@ def _model_viewer(source,
         </script>
         """
 
+    capt_button = """<button id="capture-button">Capture</button>"""
+    capt_script =  """
+    <script>
+    const modelViewer = document.getElementById("veux-viewer");
+
+    async function downloadPosterToBlob() {
+        const blob = await modelViewer.toBlob({ idealAspect: false });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "modelViewer_toBlob.png";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadPosterToDataURL() {
+        const url = modelViewer.toDataURL();
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "modelViewer_toDataURL.png";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    document.querySelector("#capture-button").addEventListener("click", downloadPosterToBlob);
+    
+    </script>
+    """
+
     viewer = f"""
           {quit_button}
+          {capt_button if show_quit else ""}
 
           <model-viewer 
             id="veux-viewer"
@@ -238,6 +263,9 @@ def _model_viewer(source,
             exposure="0.8"
             {camera}
             touch-action="pan-y">
+            <div class="progress-bar hide" slot="progress-bar">
+                <div class="update-bar"></div>
+            </div>
           </model-viewer>
     """
 
@@ -264,9 +292,10 @@ def _model_viewer(source,
             <body>
                 {viewer}
                 {control_html if control else ""}
-                {control_code if control else ""}
+                {control_script if control else ""}
             </body>
             {quit_script}
+            {capt_script}
         </html>
         """
     return textwrap.dedent(page)

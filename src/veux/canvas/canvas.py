@@ -1,4 +1,13 @@
+#===----------------------------------------------------------------------===#
+#
+#         STAIRLab -- STructural Artificial Intelligence Laboratory
+#
+#===----------------------------------------------------------------------===#
+#
+# The Canvas abstraction allows models to be drawn with different backends.
+#
 # Claudio Perez
+#
 import numpy as np
 import warnings
 from dataclasses import dataclass
@@ -37,6 +46,14 @@ class Canvas:
     def plot_hover(self, vertices, data=None, text=None, style: NodeStyle=None, label=None, keys=None, html=None):
         # warnings.warn("plot_hover not implemented for chosen canvas; try canvas='plotly'")
         pass
+
+    def set_data(self, data, key):
+        if not hasattr(self, "_data"):
+            self._data = {}
+        self._data[key] = {"data": data}
+
+    def get_data(self, key):
+        return self._data.get(key, {})
 
     def plot_nodes(self, vertices, indices=None, label=None, style: NodeStyle=None, rotate=None, data=None):
         warnings.warn("plot_nodes not implemented for chosen canvas")

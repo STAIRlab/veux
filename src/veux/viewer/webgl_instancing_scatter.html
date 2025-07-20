@@ -16,16 +16,6 @@
           }
         }
       </script>
-      <!--
-        <script type="importmap">
-            {
-                "imports": {
-                    "three": "../build/three.module.js",
-                    "three/addons/": "./jsm/"
-                }
-            }
-        </script>
-      -->
 
         <script type="module">
 
@@ -107,10 +97,8 @@
                 const blossomPalette = [ 0xF20587, 0xF2D479, 0xF2C879, 0xF2B077, 0xF24405 ];
 
                 for ( let i = 0; i < count; i ++ ) {
-
                     color.setHex( blossomPalette[ Math.floor( Math.random() * blossomPalette.length ) ] );
                     blossomMesh.setColorAt( i, color );
-
                 }
 
                 // Instance matrices will be updated every frame.

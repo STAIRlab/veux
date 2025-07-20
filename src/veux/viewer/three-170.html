@@ -16,7 +16,25 @@
 </head>
 
 <body>
+  <form action="/quit" method="get" target="quit-frame" style="display:inline;">
+    <button type="submit" style="
+        display:inline-flex;align-items:center;justify-content:center;
+        width:24px;height:24px;border:none;border-radius:4px;
+        background:#eee;color:#333;text-decoration:none;
+        font-weight:bold;font-size:16px;
+        transition:background 0.2s ease;cursor:pointer;"
+        onmouseover="this.style.background='#ccc'"
+        onmouseout="this.style.background='#eee'">
+        <svg viewBox="0 0 10 10" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="1" y1="1" x2="9" y2="9" />
+          <line x1="9" y1="1" x2="1" y2="9" />
+        </svg>
+    </button>
+  </form>
+  <iframe name="quit-frame" style="display:none;"></iframe>
+
   <button id="screenshot" type="button">Save Image</button>
+  <button id="saveSvg" type="button">Save SVG</button>
   <canvas id="veux-canvas"></canvas>
 
   <script type="module">
@@ -24,6 +42,7 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
     let scene, camera, renderer, controls;
     const canvas = document.querySelector('#veux-canvas');
 
@@ -151,6 +170,21 @@
       canvas.toBlob((blob) => {
         saveBlob(blob, `screencapture-${canvas.width}x${canvas.height}.png`);
       });
+    });
+  
+    document.querySelector('#saveSvg').addEventListener('click', () => {
+
+      const svgRenderer = new SVGRenderer();
+      svgRenderer.setSize(window.innerWidth, window.innerHeight);
+      // render the scene to SVG
+      svgRenderer.render(scene, camera);
+
+      // serialize to string
+      const svgData = new XMLSerializer().serializeToString(svgRenderer.domElement);
+
+      // make a Blob and download it
+      const blob = new Blob([svgData], { type: 'image/svg+xml' });
+      saveBlob(blob, `scene-${window.innerWidth}x${window.innerHeight}.svg`);
     });
 
     const saveBlob = (function() {
