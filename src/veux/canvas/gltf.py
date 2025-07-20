@@ -526,14 +526,7 @@ class GltfLibCanvas(Canvas):
         joint_node_to_index = {node: i for i, node in enumerate(joint_nodes)}
 
         points = np.zeros((len(joint_nodes), 3), dtype=self.float_t)
-        # points = np.zeros((1,3), dtype=self.float_t) 
-        # points = np.random.random((len(joint_nodes), 3))
-        # for i in range(len(joint_nodes)):
-        #     points[i] /= np.linalg.norm(points[i])*1e3
-        # points = points.astype(self.float_t)
 
-        # points = np.array([self._rotation_matrix.T@self.gltf.nodes[n].translation for n in joint_nodes], dtype=self.float_t)
-        # points = np.array(_,dtype=self.float_t) #np.array([self._rotation_matrix.T@n for n in _], dtype=self.float_t)
         ver_accessor = _append_index(self.gltf.accessors, pygltflib.Accessor(
                 bufferView=self._push_data(points.tobytes(), pygltflib.ARRAY_BUFFER),
                 componentType=GLTF_T[self.float_t],
@@ -679,6 +672,206 @@ class GltfLibCanvas(Canvas):
         self._data[key] = {"access_index": len(self.gltf.accessors)-1}
 
 
+    def _make_line_strip(self, indices, vertices, points_access, material):
+        
+        # `n` adjusts indices by the number of nan rows that were removed so far
+        if not isinstance(vertices, (int, str)):
+            n  = sum(np.isnan(vertices[:indices[0],0]))
+        else:
+            n = 0
+
+        indices_array = indices - np.dtype(self.index_t).type(n)
+
+        indices_binary_blob = indices_array.tobytes()
+
+        if len(indices_array) <= 1:
+            import warnings
+            warnings.warn(indices_array)
+            return None
+
+        self.gltf.accessors.extend([
+            pygltflib.Accessor(
+                bufferView=self._push_data(indices_binary_blob,
+                                            pygltflib.ELEMENT_ARRAY_BUFFER),
+                componentType=GLTF_T[self.index_t],
+                count=indices_array.size,
+                type=pygltflib.SCALAR,
+                max=[int(indices_array.max())],
+                min=[int(indices_array.min())],
+            )
+        ])
+        self.gltf.meshes.append(
+                pygltflib.Mesh(
+                    primitives=[
+                        pygltflib.Primitive(
+                            mode=pygltflib.LINE_STRIP,
+                            attributes=pygltflib.Attributes(POSITION=points_access),
+                            material=material,
+                            # most recently added accessor
+                            indices=len(self.gltf.accessors)-1,
+                            # TODO: use this mechanism to add annotation data
+                            extras={},
+                        )
+                    ]
+                )
+        )
+
+        self.gltf.nodes.append(pygltflib.Node(
+                mesh=len(self.gltf.meshes)-1,
+                rotation=self._rotation
+            )
+        )
+
+        self.gltf.scenes[0].nodes.append(
+            len(self.gltf.nodes)-1
+        )
+
+        return Line(id=len(self.gltf.nodes)-1)
+
+    def plot_lines2(self, vertices, indices=None, style: LineStyle | None = None, **node_kwds):
+        """
+        Add a batch of disconnected line-segments to the scene as a *single*
+        glTF primitive (mode = LINES).
+
+        Parameters
+        ----------
+        vertices : array_like, int, or str
+            • (N, 3) array – NaNs may delimit poly-lines  
+            • accessor index/name – reuse an existing POSITION accessor
+        indices : sequence[array_like] | None
+            If given, each item is a vertex-index list describing one poly-line.
+            Consecutive pairs are turned into independent segments.  If omitted
+            and ``vertices`` is an array with NaNs, the index list is generated
+            automatically.
+        style   : LineStyle, optional
+            Passed to ``_get_material``.
+        **node_kwds
+            Extra kwargs for the created glTF ``Node`` (e.g. “name”, “matrix”, ...).
+
+        Returns
+        -------
+        int
+            Index of the new ``Node`` in ``self.gltf.nodes``.
+        """
+        #
+        # 1.  Material
+        #
+        material_idx = self._get_material(style or LineStyle())
+
+        # ------------------------------------------------------------------
+        # 2.  POSITION accessor
+        # ------------------------------------------------------------------
+        if isinstance(vertices, (int, str)):
+            # Re-use an accessor that caller has already stored.
+            points_access = self.get_data(vertices)["access_index"]
+            n_vertices = self.gltf.accessors[points_access].count
+            # When the caller passes indices, we trust them to
+            # reference this existing accessor correctly.
+            verts_map = None          # identity
+        else:
+            vertices = np.asarray(vertices, dtype=self.float_t)
+            if vertices.ndim != 2 or vertices.shape[1] != 3:
+                raise ValueError("vertices must be (N,3)")
+
+            # Strip NaN rows – these are *delimiters*, never emitted.
+            finite_mask = np.isfinite(vertices[:, 0])
+            points = vertices[finite_mask]
+            if points.size == 0:
+                return None  # nothing to draw
+
+            buf_view = self._push_data(points.tobytes(), pygltflib.ARRAY_BUFFER)
+            self.gltf.accessors.append(
+                pygltflib.Accessor(
+                    bufferView=buf_view,
+                    componentType=GLTF_T[self.float_t],
+                    count=len(points),
+                    type=pygltflib.VEC3,
+                    min=points.min(axis=0).tolist(),
+                    max=points.max(axis=0).tolist(),
+                )
+            )
+            points_access = len(self.gltf.accessors) - 1
+            n_vertices = len(points)
+
+            # Map original row index to new compact index
+            verts_map = np.full(len(vertices), -1, dtype=self.index_t)
+            verts_map[finite_mask] = np.arange(n_vertices, dtype=self.index_t)
+
+        # ------------------------------------------------------------------
+        # 3.  Build flat SCALAR index list (pairs)
+        # ------------------------------------------------------------------
+        seg_idx = []
+        if indices is not None:
+            for poly in indices:
+                poly = np.asarray(poly, dtype=self.index_t)
+                if verts_map is not None:
+                    poly = verts_map[poly]          # translate to compact space
+                if len(poly) < 2:
+                    continue
+                # consecutive pairs
+                for i in range(len(poly) - 1):
+                    a, b = poly[i], poly[i + 1]
+                    if a != b:                      # skip degenerate
+                        seg_idx.extend((a, b))
+        else:
+            if verts_map is None:
+                raise ValueError("Automatic index generation needs vertices array.")
+            current = []
+            for src_idx, compact_idx in enumerate(verts_map):
+                if compact_idx == -1:               # NaN delimiter
+                    current.clear()
+                    continue
+                current.append(compact_idx)
+                if len(current) >= 2:
+                    # last two points form a segment
+                    seg_idx.extend(current[-2:])
+        if not seg_idx:
+            return None
+
+        seg_idx = np.asarray(seg_idx, dtype=self.index_t)
+        if seg_idx.max() >= n_vertices:
+            raise ValueError("Index out of range for POSITION accessor.")
+
+
+        # ------------------------------------------------------------------
+        # Create lines
+        # ------------------------------------------------------------------
+
+        #
+        # INDICES accessor
+        # 
+        idx_view = self._push_data(seg_idx.tobytes(), pygltflib.ELEMENT_ARRAY_BUFFER)
+        self.gltf.accessors.append(
+            pygltflib.Accessor(
+                bufferView=idx_view,
+                componentType=GLTF_T[self.index_t],
+                count=seg_idx.size,
+                type=pygltflib.SCALAR,
+                min=[int(seg_idx.min())],
+                max=[int(seg_idx.max())],
+            )
+        )
+        idx_acc = len(self.gltf.accessors) - 1
+
+        #
+        # Primitive, Mesh, and Node
+        #
+        primitive = pygltflib.Primitive(
+            attributes={"POSITION": points_access},
+            indices=idx_acc,
+            mode=pygltflib.LINES,
+            material=material_idx,
+        )
+        self.gltf.meshes.append(pygltflib.Mesh(primitives=[primitive]))
+        mesh_idx = len(self.gltf.meshes) - 1
+
+        self.gltf.nodes.append(pygltflib.Node(mesh=mesh_idx, **node_kwds))
+        node_idx = len(self.gltf.nodes) - 1
+
+        self.gltf.scenes[0].nodes.append(node_idx)
+
+        return Line(id=node_idx)
+
     def plot_lines(self, vertices, indices=None, style: LineStyle=None, **kwds):
 
         lines = []
@@ -711,6 +904,7 @@ class GltfLibCanvas(Canvas):
             )
             points_access = len(self.gltf.accessors) - 1
 
+
         if indices is None:
             # Get indices by splitting at nans
             indices_ = utility.split(np.arange(len(vertices), dtype=self.index_t), np.nan, vertices[:,0])
@@ -718,61 +912,9 @@ class GltfLibCanvas(Canvas):
             indices_ = list(map(lambda x: np.array(x, dtype=self.index_t), indices))
 
         for indices in indices_:
-            # `n` adjusts indices by the number of nan rows that were removed so far
-            if not isinstance(vertices, (int, str)):
-                n  = sum(np.isnan(vertices[:indices[0],0]))
-            else:
-                n = 0
-
-            indices_array = indices - np.dtype(self.index_t).type(n)
-
-            indices_binary_blob = indices_array.tobytes()
-
-            if len(indices_array) <= 1:
-                import warnings
-                warnings.warn(indices_array)
+            if (line := self._make_line_strip(indices, vertices, points_access, material)) is None:
                 continue
-
-            self.gltf.accessors.extend([
-                pygltflib.Accessor(
-                    bufferView=self._push_data(indices_binary_blob,
-                                               pygltflib.ELEMENT_ARRAY_BUFFER),
-                    componentType=GLTF_T[self.index_t],
-                    count=indices_array.size,
-                    type=pygltflib.SCALAR,
-                    max=[int(indices_array.max())],
-                    min=[int(indices_array.min())],
-                )
-            ])
-            self.gltf.meshes.append(
-                   pygltflib.Mesh(
-                     primitives=[
-                         pygltflib.Primitive(
-                             mode=pygltflib.LINE_STRIP,
-                             attributes=pygltflib.Attributes(POSITION=points_access),
-                             material=material,
-                             # most recently added accessor
-                             indices=len(self.gltf.accessors)-1,
-                             # TODO: use this mechanism to add annotation data
-                             extras={},
-                         )
-                     ]
-                   )
-            )
-
-            self.gltf.nodes.append(pygltflib.Node(
-                    mesh=len(self.gltf.meshes)-1,
-                    rotation=self._rotation
-                )
-            )
-
-            self.gltf.scenes[0].nodes.append(
-                len(self.gltf.nodes)-1
-            )
-
-            lines.append(Line(
-                id=len(self.gltf.nodes)-1
-            ))
+            lines.append(line)
 
         return lines
 
