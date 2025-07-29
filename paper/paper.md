@@ -1,5 +1,5 @@
 ---
-title: 'xara: A Python package for nonlinear finite element analysis'
+title: 'veux: Simulation visualization'
 tags:
   - Python
   - mechanics
@@ -28,6 +28,8 @@ bibliography: paper.bib
 # aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
 # aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
+
+![](ForceFrame.png)
 
 ## Introduction
 
