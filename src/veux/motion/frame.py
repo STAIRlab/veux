@@ -1,4 +1,15 @@
-
+#===----------------------------------------------------------------------===#
+#
+#         STAIRLab -- STructural Artificial Intelligence Laboratory
+#
+#===----------------------------------------------------------------------===#
+#
+# Copyright (c) 2025, Claudio M. Perez
+# All rights reserved.  No warranty, explicit or implicit, is provided.
+#
+# This source code is licensed under the BSD 2-Clause License.
+# See LICENSE file or https://opensource.org/licenses/BSD-2-Clause
+#
 from collections import defaultdict
 
 import numpy as np
@@ -16,6 +27,7 @@ from shps.frame.extrude import FrameMesh
 def _append_index(lst, item):
     lst.append(item)
     return len(lst) - 1
+
 
 def skin_frames(model, artist, config=None, interpolate=None):
     """
@@ -131,6 +143,132 @@ def skin_frames(model, artist, config=None, interpolate=None):
     return skin_nodes, joint_nodes, joint_elements
 
 
+def skin_points(model, artist, config=None, mesh=None):
+    """
+    Returns a dictionary mapping (point_name, j) -> glTF node index
+    """
+    if config is None:
+        config = {
+            "style": MeshStyle(color="gray"),
+            "scale": 1.0,
+            "outline": "",
+        }
+    canvas = artist.canvas 
+    Ra = artist._plot_rotation
+
+    default_points = np.array([
+                    [-1.0, -1.0,  1.0],
+                    [ 1.0, -1.0,  1.0],
+                    [-1.0,  1.0,  1.0],
+                    [ 1.0,  1.0,  1.0],
+                    [ 1.0, -1.0, -1.0],
+                    [-1.0, -1.0, -1.0],
+                    [ 1.0,  1.0, -1.0],
+                    [-1.0,  1.0, -1.0],
+                ],
+                dtype=canvas.float_t,
+            )/10
+    default_indices = np.array([
+                    [0, 1, 2],
+                    [3, 2, 1],
+                    [1, 0, 4],
+                    [5, 4, 0],
+                    [3, 1, 6],
+                    [4, 6, 1],
+                    [2, 3, 7],
+                    [6, 7, 3],
+                    [0, 2, 5],
+                    [7, 5, 2],
+                    [5, 7, 4],
+                    [6, 4, 7],
+                ], dtype=canvas.index_t,
+            )
+
+
+    #
+    # Create a skeleton root node
+    #
+    gltf = canvas.gltf
+    skeleton_root_node = pygltflib.Node(name="PointSkeletonRoot", children=[])
+    skeleton_root_idx = _append_index(gltf.nodes, skeleton_root_node)
+    gltf.scenes[0].nodes.append(skeleton_root_idx)
+
+    #
+    joint_nodes = skeleton_root_node.children
+    ibms = []
+    skin_nodes = {}
+
+    def _bind_inv(translation, rotmat):
+        M = np.eye(4, dtype=canvas.float_t)
+        return M
+
+    #
+    # 3) For each ring, create a glTF Node (joint),
+    #    and assign ring vertices to that joint
+    #
+    I = 0
+    coords = []
+    triang = []
+    joints_0    = []
+    weights_0   = []
+
+
+    for tag in model.iter_node_tags():
+        # Setup mesh
+        mesh = model.node_marker(None)
+        if mesh is not None:
+            points = mesh.points
+            indices = None
+            for type in mesh.cells:
+                if type.type == "triangle":
+                    indices = I + type.data
+            if indices is None:
+                raise ValueError(f"Mesh {mesh.name} has no triangle cells")
+        
+        else:
+            points = default_points
+            indices = I + default_indices 
+
+        coords.extend(points.tolist())
+        triang.extend([list(reversed(face)) for face in indices.tolist()])
+        I += len(points)
+        #
+        X = (Ra@model.node_position(tag)).tolist()
+        node = pygltflib.Node(
+             translation =  X,
+            #  rotation    =  Rotation.from_matrix(Ra).as_quat().tolist()
+        )
+
+        skin_nodes[tag] = _append_index(gltf.nodes, node)
+
+        # add to skeleton root
+        joint = _append_index(joint_nodes, skin_nodes[tag])
+
+        ibms.append(_bind_inv(X, np.eye(3, dtype=canvas.float_t)))
+
+        for i in range(len(points)):
+            # Mark all vertices as belonging 100% to this joint
+            joints_0.append( [joint, 0., 0., 0.])
+            weights_0.append([  1.0, 0., 0., 0.])
+
+
+    # 4) Create the Skin referencing these joints
+    #------------------------------------------------------
+    skin = _create_skin(canvas, ibms, joint_nodes, skeleton_root_idx)
+
+    # 5) Build the mesh
+    #------------------------------------------------------
+    if len(coords):
+        canvas.plot_mesh(coords,
+                         triang,
+                         joints_0=joints_0,
+                         weights_0=weights_0,
+                         skin=skin,
+                         mesh_name="PointSkinMesh",
+                         node_name="PointSkinMeshNode",
+        )
+
+    return skin_nodes
 
 def _create_skin(canvas, ibms, joint_nodes, skeleton):
     "Create a Skin referencing given joints and add to skeleton"
@@ -186,6 +324,8 @@ class Motion:
 
         self._section_skins = None
 
+        self._point_skins = None
+
         self._outine_skins = None
 
         # Warping
@@ -229,6 +369,45 @@ class Motion:
             field(model.cell_nodes(element)[j]) for element,j in self._joint_elements
         ]
         self._mesh_morph_keyframes.append((time, field))
+
+    def draw_nodes(self,
+                    state=None, 
+                    rotation=None, position=None):
+        """
+        Given a 'state' that has deformed positions and rotations for each element’s cross-section,
+        record a new keyframe at the current time.
+
+        :param state:  Some data structure that can provide displacements & rotations
+                       for each (element, cross_section_index).
+        """
+        if self._point_skins is None:
+            self._point_skins = skin_points(self.model, self.artist)
+        
+        skin_nodes = self._point_skins
+
+        state = self.model.wrap_state(state, 
+                                        rotation=rotation, 
+                                        position=position,
+                                        transform=self.artist.dofs2plot)
+        model = self.model
+        Ra = self.artist._plot_rotation
+
+
+        for tag in model.iter_node_tags():
+
+            # Displacements & rotations from 'state'
+            key = tag
+            # look up the glTF node index
+            if key not in skin_nodes:
+                continue
+
+            # compute final position and rotation for cross section j
+            x_def = Ra@model.node_position(tag, state=state)
+            q = Rotation.from_matrix(Ra@model.node_rotation(tag,state=state)).as_quat().tolist()
+
+            # store a keyframe
+            self.set_node_position(skin_nodes[key], (x_def[0], x_def[1], x_def[2]))
+            self.set_node_rotation(skin_nodes[key], q)
 
 
     def draw_sections(self,
@@ -308,16 +487,15 @@ class Motion:
         if not self._keyframes:
             return
 
-        # 1) Create an Animation object
         anim = pygltflib.Animation(name=self._anim_name,
                                    samplers=[],
                                    channels=[])
 
-        # Create samplers and channels:
+        # 1) Create samplers and channels:
         #   - For each node, we have two samplers (translation, rotation)
         #   - Then two channels referencing those samplers
 
-        # We'll need to record the sampler index for each node property as we build them
+        # Record the sampler index for each node property as we build them
         # so we can attach channels referencing the correct sampler.
         node_position_sampler_index = {}
         node_rotation_sampler_index = {}
@@ -338,6 +516,7 @@ class Motion:
             pos_keyframes.sort(key=lambda x: x[0])
             rot_keyframes.sort(key=lambda x: x[0])
 
+            # assert pos_keyframes and rot_keyframes
 
             if pos_keyframes:
                 # Create Sampler for translation
@@ -432,7 +611,6 @@ class Motion:
                 count=len(sampler.extras["vals_array"]),
                 type=val_type
             ))
-
             sampler.input  = time_accessor_idx
             sampler.output = vals_accessor_idx
 
