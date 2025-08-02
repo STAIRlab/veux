@@ -7,6 +7,7 @@
 # Claudio M. Perez
 #
 import warnings
+from collections import defaultdict
 import numpy as np
 Array = np.ndarray
 
@@ -109,6 +110,14 @@ class FrameArtist:
 
         self.displ_states = {}
 
+    def plot_scatter(self, vertices, label=None, style=None, color=None, scale=1.0):
+        """
+        Plot a scatter of vertices in the canvas.
+        """
+        if style is None:
+            style = NodeStyle(color=color or "#808080", scale=scale)
+
+        self.canvas.plot_nodes([self._plot_rotation@x for x in vertices], style=style)
 
     def _config_sketch(self,  sketch):
         strokes = {"outline", "surface", "axes", "contour", "marker", "info"}
@@ -331,7 +340,7 @@ class FrameArtist:
 
         j = 0 # frame element counter
         for tag in model.iter_cell_tags():
-            if model.cell_matches(tag, "frame") or model.cell_matches(tag, "truss"):
+            if model.cell_matches(tag, "frame"): # or model.cell_matches(tag, "truss"):
                 if not config["frame"]["show"]:
                     continue
 
@@ -476,10 +485,10 @@ class FrameArtist:
 
         self._draw_frame_lines(state=state, config=config, scale=scale, style=style, skip=skip)
 
-
+        lines  = []
         quadrs = []
         trians = []
-        solids = []
+        strokes = defaultdict(list)
         for tag in model.iter_cell_tags():
 
             if model.cell_matches(tag, "plane") and config["plane"]["show"]:
@@ -492,7 +501,12 @@ class FrameArtist:
             elif model.cell_matches(tag, "solid") and config["solid"]["show"]:
                 # TODO: get cell faces
                 idx = model.cell_exterior(tag)
-                solids.append(idx)
+                if idx:
+                    strokes[len(idx)].append(idx)
+                    # solids.append(idx)
+            
+            elif model.cell_matches(tag, "truss"):
+                lines.append(model.cell_exterior(tag))
 
 
         nodes = np.array([Ra@x for x in model.node_position(state=state)])
@@ -505,16 +519,25 @@ class FrameArtist:
 
 
         if len(quadrs) > 0 and config["plane"]["show"]:
-            self.canvas.plot_lines2("node_vertices", indices=np.array(quadrs),
+            self.canvas.plot_lines("node_vertices", indices=np.array(quadrs),
                                    style=config["plane"]["style"])
 
         if len(trians) > 0 and config["plane"]["show"]:
-            self.canvas.plot_lines2("node_vertices", indices=np.array(trians),
+            self.canvas.plot_lines("node_vertices", indices=np.array(trians),
                                    style=config["plane"]["style"])
 
-        if len(solids) > 0 and config["solid"]["show"]:
-            self.canvas.plot_lines2("node_vertices", indices=np.array(solids),
-                                          style=config["solid"]["style"])
+        # if len(solids) > 0 and config["solid"]["show"]:
+        #     self.canvas.plot_lines("node_vertices", indices=np.array(solids),
+        #                                   style=config["solid"]["style"])
+        
+        for group in strokes.values():
+            if len(group):
+                self.canvas.plot_lines("node_vertices", indices=np.array(group),
+                                            style=config["solid"]["style"])
+
+        if len(lines) > 0:
+            self.canvas.plot_lines("node_vertices", indices=np.array(lines),
+                                    style=config["frame"]["style"])
 
 
     def draw_sections(self,
@@ -640,11 +663,14 @@ class FrameArtist:
     def draw_nodes(self,
                    state=None,
                    data=None, label=None, config=None, size=None, scale=1.0):
+        
         R = self._plot_rotation 
 
         from veux.config import SketchConfig
         if config is None:
-            config = {type: conf["marker"] for type, conf in SketchConfig().items() if "marker" in conf}
+            config = {type: conf["marker"] 
+                      for type, conf in SketchConfig().items() if "marker" in conf}
+
         if size is not None:
             config["node"]["style"].scale = size
 
@@ -659,6 +685,7 @@ class FrameArtist:
             rotations = None
 
         coord = np.array([R@self.model.node_position(tag, state=state) for tag in self.model.iter_node_tags()])
+        
         self.canvas.plot_nodes(coord[:,:self.ndm], label=label,
                                rotations=rotations,
                                style=config["node"]["style"])
@@ -706,9 +733,6 @@ class FrameArtist:
     def draw_origin(self, **kwds):
         xyz = np.zeros((3,3))
         uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
-        off = [[0, -kwds.get("scale", 1.0)/2, 0],
-               [0]*3,
-               [0]*3]
 
         self.canvas.plot_vectors(xyz, uvw, **kwds)
 
