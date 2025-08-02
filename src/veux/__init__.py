@@ -131,6 +131,7 @@ def _create_model(sam_file, ndf=None):
             model_data = sam_file.asdict()
         except:
             raise ValueError("Failed to read model data, model contains unsupported components.")
+    
     elif hasattr(sam_file, "printModel"):
         import pathlib, tempfile, os, json
         with tempfile.TemporaryDirectory() as tmp:
@@ -170,6 +171,38 @@ def _create_model(sam_file, ndf=None):
     elif isinstance(sam_file, tuple):
         from veux.plane import PlaneModel
         return PlaneModel(sam_file, ndf=ndf)
+
+    elif isinstance(sam_file, dict) and "nodes" in sam_file:
+        m = {
+            "StructuralAnalysisModel": {
+                "properties": {
+                    "sections": [],
+                    "nDMaterials": [],
+                    "uniaxialMaterials": [],
+                    "crdTransformations": [],
+                    "patterns": [],
+                    "parameters": []
+                },
+                "geometry": {
+                    "nodes": [],
+                    "elements": [],
+                    "constraints": []
+                }
+            }
+        }
+        for i,node in enumerate(sam_file.get("nodes", [])):
+            m["StructuralAnalysisModel"]["geometry"]["nodes"].append({
+                "name": i,
+                "crd": node
+            })
+        for i,elem in enumerate(sam_file.get("cells", [])):
+            if len(elem) == 3:
+                m["StructuralAnalysisModel"]["geometry"]["elements"].append({
+                    "name": i,
+                    "type": "Tri31",
+                    "nodes": elem,
+                })
+        return m
 
     elif not isinstance(sam_file, dict):
         model_data = veux.model.FrameModel(sam_file)
