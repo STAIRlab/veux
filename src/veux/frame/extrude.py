@@ -14,7 +14,6 @@ from scipy.spatial.transform import Rotation
 import shps.curve
 
 import veux
-import veux.frame
 from veux.model import read_model
 from veux.errors import RenderError
 from veux.config import MeshStyle
