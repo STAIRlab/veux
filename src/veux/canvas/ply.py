@@ -41,6 +41,8 @@ class PlotlyCanvas(Canvas):
 
     def plot_lines(self, vertices, indices=None, label=None, style=None)->list:
         lines=[]
+        if isinstance(vertices, str):
+            vertices = self.get_data(vertices)["data"]
         if indices is not None:
             for idx in indices:
                 lines.extend(self.plot_lines(vertices[idx], label=label, style=style))
