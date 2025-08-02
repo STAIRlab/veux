@@ -39,6 +39,7 @@ GLTF_T = {
     "float32": pygltflib.FLOAT,
     "uint8":   pygltflib.UNSIGNED_BYTE,
     "uint16":  pygltflib.UNSIGNED_SHORT,
+    "uint32":  pygltflib.UNSIGNED_INT,
 }
 
 EYE3 = np.eye(3, dtype="float32")
@@ -61,7 +62,7 @@ class GltfLibCanvas(Canvas):
                                           #[0,  0, 1],
                                           #[0, -1, 0]])
 
-        self.index_t = "uint16"
+        self.index_t = "uint32"
         self.float_t = "float32"
 
         self.gltf = pygltflib.GLTF2(
@@ -728,7 +729,7 @@ class GltfLibCanvas(Canvas):
 
         return Line(id=len(self.gltf.nodes)-1)
 
-    def plot_lines2(self, vertices, indices=None, style: LineStyle | None = None, **node_kwds):
+    def plot_lines(self, vertices, indices=None, style: LineStyle | None = None, **node_kwds):
         """
         Add a batch of disconnected line-segments to the scene as a *single*
         glTF primitive (mode = LINES).
@@ -769,6 +770,7 @@ class GltfLibCanvas(Canvas):
             # reference this existing accessor correctly.
             verts_map = None          # identity
         else:
+            return self.plot_lines_old(vertices, indices, style, **node_kwds)
             vertices = np.asarray(vertices, dtype=self.float_t)
             if vertices.ndim != 2 or vertices.shape[1] != 3:
                 raise ValueError("vertices must be (N,3)")
@@ -872,7 +874,7 @@ class GltfLibCanvas(Canvas):
 
         return Line(id=node_idx)
 
-    def plot_lines(self, vertices, indices=None, style: LineStyle=None, **kwds):
+    def plot_lines_old(self, vertices, indices=None, style: LineStyle=None, **kwds):
 
         lines = []
         material = self._get_material(style or LineStyle())
