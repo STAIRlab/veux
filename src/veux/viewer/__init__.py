@@ -176,8 +176,11 @@ def _model_viewer(source,
     else:
         camera = """
             camera-controls
-            min-camera-orbit="auto auto 0m"
+            max-field-of-view="90deg" 
         """
+            # min-camera-orbit='auto auto 100%'
+            # max-camera-orbit='auto auto 100%'
+            # min-camera-orbit="auto auto 0m"
 
     if size is None:
         size = 'style="width: 100%; height: 100vh;"'
