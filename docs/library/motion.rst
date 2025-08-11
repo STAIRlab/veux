@@ -3,12 +3,13 @@
 Motions
 ^^^^^^^
 
-Learn how to create and customize animations using the ``veux.Motion`` class. 
+The ``veux.Motion`` class is used to draw animation frames. 
 This page covers how to create, configure, and display animations of structural
 simulations performed with OpenSeesRT.
 
 
 .. class:: Motion
+
 
 Examples
 --------
@@ -42,7 +43,8 @@ Examples
         # Just a dummy section & element so we can visualize a 'beam'
         E, I = 1.0, 2.0
         sec_tag = 1
-        model.section("FrameElastic", sec_tag, "-E", E, "-G", 1.0, "-A", 2.0,
+        model.section("FrameElastic", sec_tag, 
+                      E=E, G=1.0, A=2.0,
                       "-J", 2.0, "-Iy", I, "-Iz", I, "-Ay", 2.0, "-Az", 2.0)
         transf_tag = 1
         model.geomTransf("Linear", transf_tag, 0, 0, 1)
@@ -72,6 +74,7 @@ Examples
     E, I = 1.0, 2.0
     L    = 1.0
 
+
     def exact_position_rotation(M):
         """
         Returns two callable objects:
@@ -99,6 +102,7 @@ Examples
             # Rotation about z-axis by angle theta:
             # quaternion with scalar last -> (0, 0, sin(theta/2), cos(theta/2))
             return (0.0, 0.0, sin(theta / 2.0), cos(theta / 2.0))
+
 
         return position, rotation
 
