@@ -131,7 +131,7 @@ def _create_model(sam_file, ndf=None):
             model_data = sam_file.asdict()
         except:
             raise ValueError("Failed to read model data, model contains unsupported components.")
-    
+
     elif hasattr(sam_file, "printModel"):
         import pathlib, tempfile, os, json
         with tempfile.TemporaryDirectory() as tmp:
@@ -158,7 +158,7 @@ def _create_model(sam_file, ndf=None):
 
     elif hasattr(sam_file, "cells") and hasattr(sam_file, "nodes"):
         from veux.plane import PlaneModel
-        return PlaneModel((sam_file.nodes, sam_file.cells()))
+        return PlaneModel((sam_file.nodes, sam_file.cells()), ndf=ndf)
 
     elif hasattr(sam_file, "cells") and hasattr(sam_file, "points"):
         # meshio; this has to come before hasattr(..., "read")
@@ -214,7 +214,7 @@ def _create_model(sam_file, ndf=None):
 
 
 def create_detail(model, element=None, section=None):
-    pass 
+    pass
 
 
 def create_artist(
