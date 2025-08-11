@@ -44,6 +44,7 @@ GLTF_T = {
 
 EYE3 = np.eye(3, dtype="float32")
 
+
 def _append_index(lst, item):
     lst.append(item)
     return len(lst) - 1
@@ -1073,10 +1074,10 @@ class GltfLibCanvas(Canvas):
             mesh.name = mesh_name
 
         if joints_0 is not None:
-            joints_0  = np.array(joints_0,  dtype=self.index_t)
+            joints_0  = np.array(joints_0,  dtype="uint16")
             mesh.primitives[0].attributes.JOINTS_0 = _append_index(self.gltf.accessors, pygltflib.Accessor(
                 bufferView=self._push_data(joints_0.tobytes(), pygltflib.ARRAY_BUFFER),
-                componentType=GLTF_T[self.index_t],
+                componentType=GLTF_T["uint16"],
                 count=len(joints_0),
                 type="VEC4"
             ))
