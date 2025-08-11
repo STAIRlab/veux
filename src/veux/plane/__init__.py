@@ -42,7 +42,7 @@ class PlaneModel(Model):
         if isinstance(mesh, tuple):
             nodes, elems = mesh
             if isinstance(nodes, dict):
-                self.nodes = nodes 
+                self.nodes = nodes
             else:
                 self.nodes = {i: list(coord) for i, coord in enumerate(nodes)}
 
