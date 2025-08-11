@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.35"
+version = "0.0.40"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -23,7 +23,7 @@ keywords = [
 ] 
 
 dependencies = [
-  "opensees",
+  "opensees>=0.1.8",
   "quakeio",
   "bottle",
   "openbim",
@@ -37,7 +37,7 @@ dependencies = [
   "xara",
   "pygltflib",
   "colorcet",
-  "shps>=0.0.26"
+  "shps>=0.0.28"
 ]
 
 classifiers = [
