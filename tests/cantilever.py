@@ -54,6 +54,7 @@ for nodes, yvects in (
 #        (1, 0, 0), # sideways if --vert 2
 #        (1, 1, 0))),
        ):
+
     for yvec in yvects:
         render(model(nodes, yvec),
                canvas="gltf",
