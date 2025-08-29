@@ -512,6 +512,9 @@ class GltfLibCanvas(Canvas):
         scene = gltf.scenes[0]
         EYE4 = np.eye(4, dtype=self.float_t)
 
+        if len(lines) == 0:
+            return
+
         # Validate that all node indices in `lines` exist in gltf.nodes
         max_node_idx = len(gltf.nodes) - 1
         for i, j in lines:
