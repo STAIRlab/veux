@@ -27,6 +27,8 @@ dependencies = [
   "quakeio",
   "bottle",
   "openbim",
+  "xcae",
+  "xcsi",
 
   "pyyaml",
   "scipy",
