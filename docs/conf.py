@@ -86,7 +86,7 @@ def _add_examples(app, pagename, templatename, context, doctree):
     if templatename == "home.html":
         context["home_image"] = "_static/images/girder-light.png"
         context["examples"] = [
-            {"title": "Basics",      "link": f"{g}/examples/example6/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
+            {"title": "Basics",      "link": f"{g}/examples/plane-0002/",     "image": "../_static/images/gallery/Example6.png", "description": "Learn the basics of drawing models."},
             {"title": "Frames",      "link": f"{g}/examples/portal-moments/",     "image": "../_static/images/gallery/moments.png", "description": "Render structural models with extruded sections."},
 #           {"title": "Sections",    "link": f"{g}/examples/framesections/",     "image": "../_static/images/gallery/Torsion.png", "description": "Detailed analysis of structural cross sections."},
             {"title": "Detailing",   "link": f"{g}/examples/example7/",     "image": "../_static/images/gallery/ShellFrame.png", "description": "."},
