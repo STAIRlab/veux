@@ -1,0 +1,4 @@
+xara>=0.0.5
+opensees
+veux
+numpy
