@@ -23,6 +23,7 @@ from veux.config import MeshStyle, LineStyle
 
 from veux.frame.extrude import ExtrusionCollection, add_extrusion
 from shps.frame.extrude import FrameMesh
+from veux.frame._element import _SimpleSample
 
 def _append_index(lst, item):
     lst.append(item)
@@ -74,7 +75,7 @@ def skin_frames(model, artist, config=None, interpolate=None):
     weights_0   = []
     e = ExtrusionCollection([], [], [], set(), set())
     for tag in model.iter_cell_tags():
-        if not model.cell_matches(tag, "frame"):
+        if not model.cell_matches(tag, "frame") and not model.cell_matches(tag, "truss"):
             continue
         
         if False:
@@ -127,6 +128,7 @@ def skin_frames(model, artist, config=None, interpolate=None):
     # 4) Create the Skin referencing these joints
     #------------------------------------------------------
     skin = _create_skin(canvas, ibms, joint_nodes, skeleton_root_idx)
+
 
     # 5) Build the mesh
     #------------------------------------------------------
@@ -410,6 +412,7 @@ class Motion:
             self.set_node_rotation(skin_nodes[key], q)
 
 
+
     def draw_sections(self,
                       state=None, rotation=None, position=None, warp=None,
                       time=None):
@@ -426,6 +429,12 @@ class Motion:
                             config=self.artist._config_sketch("default")["surface"]["frame"])
         
         skin_nodes = self._section_skins
+
+        #
+        # State
+        #
+        if state is None and rotation is None and position is None:
+            return
 
         state = self.model.wrap_state(state, 
                                 rotation=rotation, 
@@ -466,8 +475,7 @@ class Motion:
                     x_def = pos_all[j]
                     qx, qy, qz, qw = Rotation.from_matrix(rot_all[j]).as_quat()
                 else:
-                    from veux.frame._element import _SimpleSample
-                    x_def = elem.sample_position(_SimpleSample(j), state=state)
+                    x_def = Ra@elem.sample_position(_SimpleSample(j), state=state)
                     qx, qy, qz, qw = Rotation.from_matrix(
                         Ra@elem.sample_rotation(_SimpleSample(j), state=state)
                     ).as_quat().tolist()
