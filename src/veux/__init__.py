@@ -19,6 +19,70 @@ def Canvas(subplots=None, backend=None):
     pass
 
 
+def ShapeArtist(shape, ax=None, **kwds):
+    from .artist.shape import PlaneArtist
+    return PlaneArtist(shape.model, ax=ax, **kwds)
+
+def draw_shape(shape, ax=None, **kwds):
+    import uuid
+    from itertools import cycle
+    def _is_uuid(s):
+        try:
+            uuid.UUID(s)
+            return True
+        except ValueError:
+            return False
+        
+    color_cycle = cycle(["lightgray", "lightblue", "lightcoral", "lightgreen", "lightpink"])
+    artist = ShapeArtist(shape, ax=ax, **kwds)
+    labels = set()
+    colors = {}
+    for group in shape.groups:
+        for patch in shape._find_group_patches(group):
+            label = None
+            if group is None or _is_uuid(group):
+                pass
+            else:
+                if group not in labels:
+                    label = group
+                    labels.add(group)
+
+            if group in colors:
+                color = colors[group]
+            else:
+                color = next(color_cycle)
+                colors[group] = color
+            
+                
+            artist.draw_shape(shape._patches[patch], color=color, label=label)
+    if labels:
+        artist.ax.figure.legend(loc="upper left", frameon=False)
+    # artist.draw_surfaces()
+    return artist
+
+# def draw_column(column):
+#     core = column.core 
+#     cover = column.cover
+
+#     artist = veux.ShapeArtist(column)
+#     for patch in column._find_group_patches("cover"):
+#         artist.draw_shape(column._patches[patch], color="lightgray", label="$\\Omega_{\\mathrm{cover}}$")
+#     for patch in column._find_group_patches("core"):
+#         artist.draw_shape(column._patches[patch], color="lightblue", label="$\\Omega_{\\mathrm{core}}$")
+#     for j,patch in enumerate(column._find_group_patches("steel")):
+#         artist.draw_shape(column._patches[patch], 
+#                           color="lightcoral", 
+#                           label="$\\Omega_{\\mathrm{steel}}$" if j==0 else None)
+#     artist.draw_dimensions({
+#         f"{cover.depth}": (((0, -cover.depth/2), (0, cover.depth/2)), (cover.depth*0.9, 0), "inside"),
+#         f"{core.depth}":   (((0, -core.depth/2), (0, core.depth/2)),  (core.depth*0.9,  0), "inside"),
+#     }, gap=1)
+#     artist.ax.figure.legend(loc="upper left", 
+#                             frameon=False,
+#                             fontsize=18)
+    
+#     return artist
+
 
 def serve(thing, viewer=None, port=None, view_options=None)->None:
     """
