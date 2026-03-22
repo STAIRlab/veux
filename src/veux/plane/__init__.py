@@ -1,6 +1,7 @@
 import numpy as np
 from veux.model import Model
 from veux.state import BasicState
+from ..artist.shape import PlaneArtist
 
 def _plot_grid(x,y, ax=None, **kwargs):
     ax = ax or plt.gca()
@@ -31,6 +32,8 @@ def _make_state(res, model=None, time=None, scale=None, transform=None, recover=
 
 
 class PlaneModel(Model):
+    # This model represents a plane model for 3D drawings. 
+    #
     ndm = 2
     def __init__(self, mesh, ndf=2):
         self.recs = []
@@ -38,6 +41,8 @@ class PlaneModel(Model):
         self._tri6 = []
 
         self.ndf = ndf
+
+        self._model = None
 
         if isinstance(mesh, tuple):
             nodes, elems = mesh
@@ -68,18 +73,25 @@ class PlaneModel(Model):
                     tuple(i for i in elem) for elem in elems if len(elem) == 6
                 ]
 
+        elif hasattr(mesh, "cell_gradient"):
+            # shps object 
+            self._model = mesh
+            self._load_meshio(mesh.mesh)
         else:
             # assume mesh is a meshio object
-            self.nodes = {i: list(coord)[:2] for i, coord in enumerate(mesh.points)}
-            for blk in mesh.cells:
-                if blk.type == "triangle":
-                    self.tris = self.tris + [
-                        tuple(int(i) for i in elem) for elem in blk.data
-                    ]
-                elif blk.type == "quad":
-                    self.recs = self.recs + [
-                        tuple(int(i) for i in elem) for elem in blk.data
-                    ]
+            self._load_meshio(mesh)
+        
+    def _load_meshio(self, mesh):
+        self.nodes = {i: list(coord)[:2] for i, coord in enumerate(mesh.points)}
+        for blk in mesh.cells:
+            if blk.type == "triangle":
+                self.tris = self.tris + [
+                    tuple(int(i) for i in elem) for elem in blk.data
+                ]
+            elif blk.type == "quad":
+                self.recs = self.recs + [
+                    tuple(int(i) for i in elem) for elem in blk.data
+                ]
 
     def wrap_state(self, state, scale=None, transform=None)->BasicState:
         """
@@ -133,8 +145,10 @@ class PlaneModel(Model):
             xyz = xyz + state.node_array(tag, dof=state.position)
         return xyz
 
-    def cell_triangles(self, tag=None):
-        if tag is None:
+    def cell_triangles(self, tag=None,group=None):
+        if group is not None:
+            pass
+        elif tag is None:
             return [
                     self.cell_triangles(tag) for tag in range(len(self.recs)+len(self.tris))
             ]
@@ -155,10 +169,12 @@ class PlaneModel(Model):
             ]
 
 
-class PlaneArtist:
+class _PlaneArtist:
     def __init__(self, model, ax=None, **kwds):
-
-        import matplotlib.pyplot as plt
+        try:
+            import thesis as plt
+        except ImportError:
+            import matplotlib.pyplot as plt
         if ax is None:
             _,ax = plt.subplots()
         self.ax = ax
@@ -207,13 +223,14 @@ class PlaneArtist:
         import matplotlib.pyplot as plt
         plt.show()
 
+
 def render(mesh, field=None, ax=None,
          # mesh options
          show_edges=True,
          # contour options
          show_scale=True
     ):
-    artist = PlaneArtist(PlaneModel(mesh))
+    artist = _PlaneArtist(PlaneModel(mesh))
 
     #
     # plot the finite element mesh
