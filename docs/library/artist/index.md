@@ -10,18 +10,41 @@ This is a class that owns a `Model` and a `Canvas`, and provides a convenient in
 entities associated with the model. That is, rather than manually drawing lines and surfaces
 through the `Canvas`, an artist can be used to draw higher-level entities like frames and shells.
 
+<!-- 
 ```{toctree}
 :maxdepth: 1
+:hidden:
 
 draw_outlines
 draw_surfaces
 draw_sections
+``` 
+-->
+
+```{eval-rst}
+.. currentmodule:: veux.frame
+
+
+.. toctree::
+   :hidden:
+
+   veux.frame.FrameArtist.draw_outlines
+   veux.frame.FrameArtist.draw_surfaces
+   veux.frame.FrameArtist.draw_sections
+
+
+.. autosummary::
+
+   ~FrameArtist.draw_outlines
+   ~FrameArtist.draw_surfaces
+   ~FrameArtist.draw_sections
+
 ```
 
 
 ## Viewing a Rendering
 
-To view a rendering generated with `canvas="gltf"` or `canvas="plotly"`, use the `veux.serve()` function::
+To view a rendering generated with `canvas="gltf"` or `canvas="plotly"`, use the `veux.serve()` function:
 
     veux.serve(artist)
 
@@ -29,6 +52,7 @@ This will start a local web server and output a message like::
 
     Listening on http://localhost:8081/
     Hit Ctrl-C to quit.
+
 
 Open the URL (e.g., http://localhost:8081) in a web browser to interactively view the rendering.
 
