@@ -23,7 +23,20 @@ def ShapeArtist(shape, ax=None, **kwds):
     from .artist.shape import PlaneArtist
     return PlaneArtist(shape.model, ax=ax, **kwds)
 
+
 def draw_shape(shape, ax=None, **kwds):
+    """
+    Create a basic drawing of a plane shape.
+    
+    Parameters
+    ----------
+    shape : Shape
+        The shape to be drawn.
+    ax : matplotlib.axes.Axes, optional
+        The axes to draw on. If not provided, a new figure and axes will be created.
+    **kwds : dict
+        Additional keyword arguments to pass to the ShapeArtist.
+    """
     import uuid
     from itertools import cycle
     def _is_uuid(s):
@@ -294,7 +307,7 @@ def create_artist(
     Parameters
     ----------
     model : str, dict, or Model
-        The ``model`` parameter can be of several types:
+        The ``model`` parameter can be of several types (see :ref:`Model <model>`):
 
         - **str**: Treated as a file path. Supported file formats are ``.json`` and ``.tcl``.
         - **dict**: A dictionary representation of the model.
