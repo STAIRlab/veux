@@ -21,10 +21,10 @@ def Canvas(subplots=None, backend=None):
 
 def ShapeArtist(shape, ax=None, **kwds):
     from .artist.shape import PlaneArtist
-    return PlaneArtist(shape.model, ax=ax, **kwds)
+    return PlaneArtist(shape.model, ax=ax, shape=shape, **kwds)
 
 
-def draw_shape(shape, ax=None, **kwds):
+def draw_shape(shape, ax=None, origin=False, **kwds):
     """
     Create a basic drawing of a plane shape.
     
@@ -70,6 +70,9 @@ def draw_shape(shape, ax=None, **kwds):
             artist.draw_shape(shape._patches[patch], color=color, label=label)
     if labels:
         artist.ax.figure.legend(loc="upper left", frameon=False)
+
+    if origin:
+        artist.draw_origin()
     # artist.draw_surfaces()
     return artist
 
