@@ -6,6 +6,7 @@
 #
 import types
 from pathlib import Path
+import webbrowser
 
 from .errors import RenderError
 from .config import Config, apply_config
@@ -18,13 +19,98 @@ assets = Path(__file__).parents[0]/"assets/"
 def Canvas(subplots=None, backend=None):
     pass
 
+def _is_xara_model(obj):
+    return hasattr(obj, "asdict") and not isinstance(obj, types.ModuleType)
+
+def ModelArtist(
+           model, ndf=6,
+           canvas="gltf",
+           vertical=3,
+           **opts)->FrameArtist:
+    """
+    Create an :ref:`artist` for a model::
+
+        artist = veux.ModelArtist(model, canvas=canvas)
+
+
+    Parameters
+    ----------
+    model : str, dict, or Model
+        The ``model`` parameter can be of several types (see :ref:`Model <model>`):
+
+        - **str**: Treated as a file path. Supported file formats are ``.json`` and ``.tcl``.
+        - **dict**: A dictionary representation of the model.
+        - **Model**: An instance of the ``Model`` class from the `xara <https://xara.so>`_ Python package. See the `documentation <https://xara.so/user/manual/model/model_class.html>`_ 
+          for details.
+
+    canvas : str, optional
+        The rendering backend to use. Options are (see :ref:`canvas`):
+
+        - ``"gltf"`` (default): Produces high-quality renderings. Files can be saved as ``.html`` or ``.glb``. ``.glb`` is recommended for 3D object portability.
+        - ``"plotly"``: Best for model debugging. Includes detailed annotations (e.g., node/element numbers, properties) but lower visual quality than  ``gltf``.
+        - ``"matplotlib"``: Generates ``.png`` files programmatically. Note that renderings are lower quality compared to ``gltf``.
+
+    Returns
+    -------
+    artist : Artist
+        An object representing the rendered model. Can be used to view or save the rendering.
+
+    """
+
+    # Configuration is determined by successively layering
+    # from sources with the following priorities:
+    #      defaults < file configs < kwds 
+    from .artist.model import _ModelArtist
+
+    model_data = _create_model(model, ndf=ndf)
+
+    # Setup config
+    config = Config()
+
+    if isinstance(model_data, dict) and "RendererConfiguration" in model_data:
+        apply_config(model_data["RendererConfiguration"], config)
+
+    config["artist_config"]["vertical"] = vertical
+    apply_config(opts, config)
+
+    if _is_xara_model(model):
+        config["model_config"]["xmodel"] = model
+
+    #
+    # Create Artist
+    #
+    # The real Model is created from model_data by the artist
+    # so that the artist can inform it how to transform
+    # things if neccessary.
+    artist = _ModelArtist(model_data, ndf=ndf,
+                         config=config["artist_config"],
+                         model_config=config["model_config"],
+                         canvas=_create_canvas(canvas or config["canvas_config"]["type"],
+                                               config=config["canvas_config"]))
+
+
+    return artist
+
+def draw_frame(model, show=None, **opts):
+    artist = ModelArtist(model, **opts)
+    artist.draw_sections()
+    if show is not None:
+        if "origin" in show:
+            artist.draw_origin()
+    return artist
 
 def ShapeArtist(shape, ax=None, **kwds):
     from .artist.shape import PlaneArtist
-    return PlaneArtist(shape.model, ax=ax, shape=shape, **kwds)
+
+    section = None
+    if hasattr(shape, "_shape") and hasattr(shape, "_add_to_model"):
+        section = shape
+        shape = section._shape
+
+    return PlaneArtist(shape.model, ax=ax, shape=shape, section=section, **kwds)
 
 
-def draw_shape(shape, ax=None, origin=False, **kwds):
+def draw_shape(shape, ax=None, origin=False, legend=True, **kwds):
     """
     Create a basic drawing of a plane shape.
     
@@ -45,9 +131,23 @@ def draw_shape(shape, ax=None, origin=False, **kwds):
             return True
         except ValueError:
             return False
-        
-    color_cycle = cycle(["lightgray", "lightblue", "lightcoral", "lightgreen", "lightpink"])
+    section = None
+
+    if hasattr(shape, "_add_to_model"):
+        section = shape
+        shape = section._shape
+
     artist = ShapeArtist(shape, ax=ax, **kwds)
+
+    color_cycle = cycle([
+                         "#E6E6E6",
+                         "#D6D6D6",
+                         "#CD7D5B",
+                         "lightgray", 
+                         "lightblue", 
+                         "lightcoral", 
+                         "lightgreen", 
+                         "lightpink"])
     labels = set()
     colors = {}
     for group in shape.groups:
@@ -68,12 +168,17 @@ def draw_shape(shape, ax=None, origin=False, **kwds):
             
                 
             artist.draw_shape(shape._patches[patch], color=color, label=label)
-    if labels:
+    if legend and labels:
         artist.ax.figure.legend(loc="upper left", frameon=False)
 
     if origin:
         artist.draw_origin()
+
     # artist.draw_surfaces()
+
+    if section is not None:
+        if hasattr(section, "_fibers") and section._fibers is not None:
+            artist.ax.scatter(*section._fibers[:,:2].T, color="black", s=10)
     return artist
 
 # def draw_column(column):
@@ -100,7 +205,10 @@ def draw_shape(shape, ax=None, origin=False, **kwds):
 #     return artist
 
 
-def serve(thing, viewer=None, port=None, view_options=None)->None:
+def serve(thing, viewer=None, 
+          port: int =None, 
+          open_browser=False,
+          view_options=None)->None:
     """
     Serve the given thing using the specified viewer and port.
 
@@ -139,6 +247,8 @@ def serve(thing, viewer=None, port=None, view_options=None)->None:
             "quit_on_load": False,
         }
 
+    server = None
+
     if hasattr(thing, "canvas"):
         # artist was passed
         canvas = thing.canvas
@@ -150,17 +260,36 @@ def serve(thing, viewer=None, port=None, view_options=None)->None:
         canvas.show()
         return
 
+    #
+    # Create server
+    #
     if hasattr(canvas, "to_glb"):
         viewer_ = Viewer(canvas, **view_options)
-        server = veux.server.Server(viewer=viewer_)
-        server.run(port=port)
+        server = veux.server.Server(viewer=viewer_, port=port)
 
     elif hasattr(canvas, "to_html"):
-        server = veux.server.Server(html=canvas.to_html())
-        server.run(port=port)
+        server = veux.server.Server(html=canvas.to_html(), port=port)
 
     else:
         raise ValueError("Cannot serve object.")
+    
+    #
+    # Open browser
+    #
+    if open_browser and server is not None:
+        import webbrowser, threading
+        webbrowser.open_new_tab(f"http://localhost:{server.port}")
+        # threading.Timer(1.0, lambda: 
+        #                 webbrowser.open(f"http://localhost:{port}")).start()
+        
+    server.run()
+    
+    return server 
+
+
+
+def show(artist):
+    server = serve(artist, open_browser=True)
 
 
 def _create_canvas(name=None, config=None):
@@ -194,8 +323,51 @@ def _create_canvas(name=None, config=None):
     else:
         raise ValueError(f"Unknown canvas name {name}")
 
+def render_null(model):
+    from veux.config import LineStyle
+    from scipy.linalg import null_space
+    model.constraints("Transformation")
+    model.analysis("Static")
+    K = model.getTangent().T
+    # Get first vector of null space
+    N = null_space(K)
+    # Render
+    artist = create_artist(model, vertical=3)
+    artist.draw_outlines()
+    artist.draw_origin(extrude=True, size=10)
 
-def _create_model(sam_file, ndf=None):
+
+    print(N.shape)
+    colors = iter(["red", "blue"])
+    scale = 100
+    for i in [0]:
+        v = N[:,i] #, rcond=1e-8)
+
+        u = {
+            tag: [v[dof-1] for dof in model.nodeDOFs(tag)]
+            for tag in model.getNodeTags()
+        }
+        max_u = 0
+        max_node = None
+        for node, disp in u.items():
+            for comp in disp:
+                if abs(comp) > max_u:
+                    max_u = abs(comp)
+                    max_node = node
+        print(f"Max displacement for mode {i}: Node {max_node}, {max_u}")
+        artist.draw_outlines(
+            state=u,
+            scale=scale,
+            style=LineStyle(color=next(colors))
+        )
+        artist.draw_nodes(
+            state=u,
+            scale=scale,
+            size=50
+        )
+    serve(artist)
+
+def _create_model(sam_file, ndf=None)->dict:
 
     import veux.model
 
@@ -205,8 +377,8 @@ def _create_model(sam_file, ndf=None):
     elif isinstance(sam_file, veux.model.Model):
         return sam_file
 
-    elif hasattr(sam_file, "asdict") and not isinstance(sam_file, types.ModuleType):
-        # Assuming an opensees.openseespy.Model
+    elif _is_xara_model(sam_file):
+        # Assuming a xara.Model
         try:
             model_data = sam_file.asdict()
         except:
@@ -349,6 +521,8 @@ def create_artist(
     config["artist_config"]["vertical"] = vertical
     apply_config(opts, config)
 
+    if _is_xara_model(model):
+        config["model_config"]["xmodel"] = model
     #
     # Create Artist
     #
@@ -449,6 +623,9 @@ def render(model, state=None, ndf=6,
 
     config["artist_config"]["vertical"] = vertical
     apply_config(opts, config)
+
+    if _is_xara_model(model):
+        config["model_config"]["xmodel"] = model
 
     # TODO: Maybe this be moved after constructing FrameArtist;
     # that way we can just say 
