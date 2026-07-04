@@ -6,8 +6,20 @@ from matplotlib.patches import PathPatch, Polygon as MplPolygon
 from matplotlib.patches import FancyArrowPatch
 
 class PlaneArtist:
-    def __init__(self, model, ax=None, title=None, shape=None, **kwds):
+    def __init__(self, 
+                 model, 
+                 ax=None, 
+                 title=None, 
+                 cbar_layout=None,
+                 shape=None, 
+                 section=None,
+                 **kwds):
         self._draw_done = False
+
+        self.model = model
+        self._shape = shape
+        self._section = section
+
 
         import matplotlib.pyplot as plt
         from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -25,28 +37,117 @@ class PlaneArtist:
         # ax.patch.set_alpha(0.0)
 
         divider = make_axes_locatable(ax)
-        self._cax = divider.append_axes("right", size="5%", pad=0.1)
+
+        self._cbar_layout = cbar_layout
+        if cbar_layout == "bottom":
+            self._cax = divider.append_axes("bottom", size="10%", pad="10%")
+        else:
+            self._cax = divider.append_axes("right", size="5%", pad=0.1)
         self._cax.axis("off")
 
-        self.model = model
-        self._shape = shape
+
+    def __repr__(self):
+        return ""
 
     def _draw_nodes(self, nodes):
         self.ax.scatter(*zip(*nodes.values()))
         for k,v in nodes.items():
             self.ax.annotate(k, v)
 
+    def draw_exterior(self):
+        exterior = self._shape.exterior()
+        self.ax.plot(*zip(*exterior, exterior[0]), color="black", lw=0.5)
+
 
     def draw_outlines(self, **kwds):
         ax = self.ax
         # TODO:
         nodes = self.model.nodes
+        # nodes = np.array([Ra@x for x in model.node_position(state=state)])
 
+        xy = []
         for element in self.model.cell_exterior():
-            x = [nodes[element[i]][0] for i in range(len(element))]
-            y = [nodes[element[i]][1] for i in range(len(element))]
-            ax.fill(x, y, edgecolor='black', ls="-", lw=0.5, fill=False)
+            xy.extend([nodes[i] for i in element])
+            xy.append([np.nan, np.nan])
+            continue 
+        
+            # x = [nodes[element[i]][0] for i in range(len(element))]
+            # y = [nodes[element[i]][1] for i in range(len(element))]
+            # ax.fill(x, y, edgecolor='black', ls="-", lw=0.5, fill=False)
+        ax.plot(*np.array(xy).T, color="black", ls="-", lw=0.5)
 
+
+    def draw_fibers(self, color="steelblue"):
+        shape = self._shape
+        model = shape.model
+
+        if self._section is not None:
+            section = self._section
+            if hasattr(section, "_fibers") and section._fibers is not None:
+                self.ax.scatter(*section._fibers[:,:2].T, color=color, s=10)
+                return
+
+        fibers = np.array([fiber.coord for fiber in model.fibers]).T
+        self.ax.scatter(fibers[0], fibers[1], color=color, s=10, zorder=5)
+
+
+    def draw_groups(self, color_cycle=None, legend=True, alpha=None, legend_font=None):
+        # June 2026
+
+        import uuid
+        from itertools import cycle
+
+        shape = self._shape
+
+        def _is_uuid(s):
+            try:
+                uuid.UUID(s)
+                return True
+            except ValueError:
+                return False
+
+        if color_cycle is None:
+            color_cycle = cycle(["lightgray", 
+                                 "lightblue", 
+                                 "#CD7D5B", # "#9c502D",
+                                 "lightcoral", 
+                                 "lightgreen",
+                                 "lightpink"])
+
+        if isinstance(color_cycle, list):
+            color_cycle = cycle(color_cycle)
+            group_color = lambda group: next(color_cycle)
+        elif isinstance(color_cycle, dict):
+            group_color = lambda group: color_cycle.get(group, "lightgray")
+        else:
+            group_color = lambda group: next(color_cycle)
+
+        labels = set()
+        colors = {}
+        for group in shape.groups:
+            for patch in shape._find_group_patches(group):
+                label = None
+                if group is None or _is_uuid(group):
+                    pass
+                else:
+                    if group not in labels:
+                        label = group
+                        labels.add(group)
+
+                if group in colors:
+                    color = colors[group]
+                else:
+                    # color = next(color_cycle)
+                    color = group_color(group)
+                    colors[group] = color
+                
+                    
+                self.draw_shape(shape._patches[patch], color=color, label=label, alpha=alpha)
+
+        if legend and labels:
+            if legend_font is None:
+                legend_font = {}
+            self.ax.figure.legend(loc="upper left", frameon=False, **legend_font)
 
     def draw_surfaces(self, 
                       field=None, 
@@ -54,11 +155,12 @@ class PlaneArtist:
                       group=None,
                       color="lightgray",
                       cbar_label=None,
+                      fontsize=None,
+                      levels=100,
                       show_scale=True):
         ax = self.ax
-        import matplotlib.pyplot as plt
         try:
-            import colorcet 
+            import colorcet
             cmap = colorcet.cm['rainbow4']
         except ImportError:
             cmap = "twilight"
@@ -78,22 +180,37 @@ class PlaneArtist:
             contours = \
                 ax.tricontourf(triangulation, field, 
                             cmap=cmap,#"twilight", 
-                            levels=100,
+                            levels=levels,
                             #    alpha=0.5
                             )
 
             if show_scale:
-                plt.colorbar(contours, ax=self._cax, label=cbar_label)
+                # plt.colorbar(contours, ax=self._cax, label=cbar_label)
+                cbar = ax.figure.colorbar(contours, 
+                                   ax=self._cax, 
+                                   orientation="horizontal" if self._cbar_layout == "bottom" else None,
+                )
+
+                cbar.set_label(cbar_label, fontsize=fontsize)
+                cbar.ax.tick_params(labelsize=fontsize)
+                if self._cbar_layout == "bottom":
+                    vmin, vmax = field.min(), field.max()
+                    cbar.set_ticks([vmin, vmax])
+                    cbar.set_ticklabels([f"{vmin:.2f}", f"{vmax:.2f}"])
+            return contours
         else:
             # If no field is provided, just show the mesh with a light color
-            # ax.tripcolor(triangulation, 
-            #             #  np.ones(len(triangulation.triangles)),
-            #              facecolors=[1]*len(triangulation.triangles), 
-            #              edgecolors='none')
-            # ax.triplot(triangulation, color="lightgray", lw=0.5)
-            patch = self._mpl_polygon(group=group, color=color)
-            ax.add_patch(patch)
+            # patch = self._mpl_polygon(group=group, color=color)
+            # ax.add_patch(patch)
+
+            # from matplotlib.collections import TriMesh
+            ax.tripcolor(triangulation,
+                        facecolors=np.ones(len(triangulation.triangles)),
+                        cmap=plt.matplotlib.colors.ListedColormap([color]),
+                        edgecolors='none')
+            # ax.triplot(triangulation, color='black', linewidth=0.5)
             ax.autoscale_view()
+
 
     def _triangulation(self, group=None):
         import matplotlib.tri as tri
@@ -199,20 +316,47 @@ class PlaneArtist:
                 _draw_outside(ax, p1, p2, key, tangent, normal, length,
                             fontsize, color, gap, **kw)
 
-    def draw_origin(self, length=None, color="k", lw=0.8, head_width=0.02, head_length=0.03):
+    def draw_origin(self, length=None, color="k", lw=0.8, 
+                    head_width=0.02, head_length=0.03,
+                    label=None,
+                    fontsize=None):
         ax = self.ax
         if length is None:
             xlim, ylim = ax.get_xlim(), ax.get_ylim()
             span = max(xlim[1] - xlim[0], ylim[1] - ylim[0])
-            length = span * 0.15
+            length = span * 0.12
             head_width = span * head_width
             head_length = span * head_length
 
-        arrow_style = "->, head_width=0.25, head_length=0.3"
-        kw = dict(arrowstyle=arrow_style, color=color, lw=lw, shrinkA=0, shrinkB=0)
+        if isinstance(color, str):
+            color = color, color
 
-        ax.annotate("", xy=(length, 0), xytext=(0, 0), arrowprops=kw)
-        ax.annotate("", xy=(0, length), xytext=(0, 0), arrowprops=kw)
+        arrow_style = "-|>, head_width=0.2, head_length=0.4"
+        kw = dict(arrowstyle=arrow_style, lw=lw, shrinkA=0, shrinkB=0)
+
+        ax.annotate("", xy=(length, 0), xytext=(0, 0), arrowprops={**kw, "color": color[0]})
+        ax.annotate("", xy=(0, length), xytext=(0, 0), arrowprops={**kw, "color": color[1]})
+
+        # if fontsize is not None:
+        #     ax.annotate("$y$", xy=(length, 0), xytext=(length*1, length/3), 
+        #                 color=color[0],
+        #                 fontsize=fontsize,
+        #                 ha="left", va="center")
+        #     ax.annotate("$z$", xy=(0, length), xytext=(-length/2, length*1.), 
+        #                 color=color[1],
+        #                 fontsize=fontsize,
+        #                 ha="center", va="bottom")
+        
+        if isinstance(label, tuple):
+            x_label, y_label = label
+            ax.annotate(x_label, xy=(length*1.1, 0), xytext=(length*1.1, 0), fontsize=fontsize, color=color[0])
+            ax.annotate(y_label, xy=(0, length*1.1), xytext=(0, length*1.1), fontsize=fontsize, color=color[1])
+        
+        if isinstance(label, str):
+            ax.annotate(label, xy=(0, 0), xytext=(-length/2, -length/2), 
+                        color="k",
+                        fontsize=fontsize,
+                        ha="center", va="center")
 
 
     def draw_vector(self, vector, origin=(0, 0), color="steelblue", lw=1.5, label=None, fontsize=9):
@@ -222,7 +366,7 @@ class PlaneArtist:
         ax.annotate("",
                     xy=(ox + vx, oy + vy),
                     xytext=(ox, oy),
-                    arrowprops=dict(arrowstyle="->, head_width=0.35, head_length=0.4",
+                    arrowprops=dict(arrowstyle="-|>, head_width=0.3, head_length=0.4",
                                     color=color, lw=lw, shrinkA=0, shrinkB=0))
         if label is not None:
             ax.annotate(label,
@@ -264,10 +408,23 @@ class PlaneArtist:
 
     def save(self, filename, bbox_inches="tight", pad_inches=0, **kwds):
         self.draw()
+        self._set_section_limits()
         self.ax.figure.savefig(filename, 
                                bbox_inches=bbox_inches, 
                                pad_inches=pad_inches, **kwds)
 
+    def _set_section_limits(self, margin=0.05):
+
+        xy = np.asarray(self._shape.exterior(), dtype=float)
+        lo = xy.min(axis=0)
+        hi = xy.max(axis=0)
+
+        span = hi - lo
+        pad = margin * span
+
+        self.ax.set_xlim(lo[0] - pad[0], hi[0] + pad[0])
+        self.ax.set_ylim(lo[1] - pad[1], hi[1] + pad[1])
+        self.ax.set_aspect("equal", adjustable="box")
 
 def render(mesh, field=None, ax=None,
          # mesh options
