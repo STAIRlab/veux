@@ -1,33 +1,6 @@
 from dataclasses import dataclass
 from collections import defaultdict
-
-@dataclass
-class DrawStyle:
-    color: str
-
-@dataclass
-class LineStyle:
-    color: str   = "black"
-    alpha: float = 1.0
-    width: float = 1
-
-@dataclass
-class TextStyle:
-    hover: bool
-
-@dataclass
-class NodeStyle:
-    color: str   = "black"
-    scale: float = 1.0
-    shape: str   = "block"
-
-
-@dataclass
-class MeshStyle:
-    color: str   = "gray"
-    alpha: float = 1.0
-    edges: LineStyle = None
-
+from veux.style import LineStyle, MeshStyle, NodeStyle, DrawStyle, TextStyle
 
 def SketchConfig(kwds=None):
     if kwds is None:
