@@ -78,3 +78,44 @@ class Canvas:
             self.plot_lines(X, style=style, label=label)
 
 
+
+class TransformedCanvas:
+    def __init__(self, canvas: Canvas, rotate):
+        self.canvas = canvas
+        self.rotate = rotate
+
+    def annotate(self, *args, **kwds): ...
+
+    def plot_label(self, vertices, text):
+        pass
+
+    def plot_hover(self, vertices, data=None, text=None, style: NodeStyle=None, label=None, keys=None, html=None):
+        # warnings.warn("plot_hover not implemented for chosen canvas; try canvas='plotly'")
+        pass
+
+    def set_data(self, data, key):
+        if not hasattr(self, "_data"):
+            self._data = {}
+        self._data[key] = {"data": data}
+
+    def get_data(self, key):
+        return self._data.get(key, {})
+
+    def plot_nodes(self, vertices, **kwds):
+        vertices = np.asarray(vertices)
+        vertices = self.rotate @ vertices.T
+        vertices = vertices.T
+        self.canvas.plot_nodes(vertices, **kwds)
+
+    def plot_lines(self, vertices, indices=None, label=None, style: LineStyle=None)->list:
+        warnings.warn("plot_lines not implemented for chosen canvas")
+
+    def plot_vectors(self, locs, vecs, label=None, **kwds):
+        vecs = np.asarray(vecs)
+        locs = np.asarray(locs)
+        vecs = self.rotate @ vecs.T
+        locs = self.rotate @ locs.T
+        self.canvas.plot_vectors(locs.T, vecs.T, label=label, **kwds)
+        
+
+
