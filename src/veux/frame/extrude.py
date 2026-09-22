@@ -6,6 +6,7 @@
 #
 # Claudio M. Perez
 #
+import os
 import sys
 import warnings
 import numpy as np
@@ -53,7 +54,12 @@ def add_extrusion(extr, e, x, R, I, caps=None):
     return len(p) #len(indices)
 
 
-def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
+def draw_extrusions3(model, 
+                     canvas, 
+                     state=None, 
+                     config=None, 
+                     Ra=None,
+                     shape=None):
     if config is None:
         config = {"style": MeshStyle(color="gray")}
     if Ra is None:
@@ -62,12 +68,11 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
     scale = config.get("scale", 1.0)
 
     # 1) Build local geometry
-    #----------------------------------------------------------
     I = 0
     caps = []
     e = ExtrusionCollection([], [], [], set(), set())
     for tag in model.iter_cell_tags():
-        if not model.cell_matches(tag, "frame"):
+        if not model.cell_matches(tag, "frame") and not model.cell_matches(tag, "truss"):
             continue
 
         R0 = model.frame_orientation(tag)
@@ -93,9 +98,12 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
             x = X_ref
             R = [Ra@R0 for _ in range(nen)]
 
-        sections = [model.frame_section(tag, i) for i in range(len(x))]
-        if sections[0] is None or sections[-1] is None:
-            continue
+        if shape is not None:
+            sections = [shape]*len(x)
+        else:
+            sections = [model.frame_section(tag, i) for i in range(len(x))]
+            if sections[0] is None or sections[-1] is None:
+                continue
 
         icap, jcap = [], []
         #
@@ -164,11 +172,21 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
             try:
                 canvas.plot_mesh(mesh.vertices, cap, style=config["style"])
             except Exception as ex:
-                print(ex)
+                print(ex, file=sys.stderr)
 
+    #
     # Draw outlines
+    #
     if "outline" not in config:
         return
+
+
+    draw_kwds = {}
+    if "VEUX_TUBES" in os.environ:
+        draw_lines = canvas.draw_wires 
+        draw_kwds["thickness"] = float(os.environ["VEUX_TUBES"])
+    else:
+        draw_lines = canvas.plot_lines
 
     triang = e.triang
     nan = np.array([0,0,0], dtype=float)*np.nan
@@ -180,19 +198,21 @@ def draw_extrusions3(model, canvas, state=None, config=None, Ra=None):
                 coords[idx]  if (j+1)%3 else nan
                 for j,idx in enumerate(np.array(triang).reshape(-1))
             ])
-
-        elif "long" in config["outline"]:
+            if len(tri_points):
+                draw_lines(tri_points,
+                            style=config["line_style"], **draw_kwds)
+        
+        if "long" in config["outline"]:
             tri_points = np.array([
                 coords[i]  if j%2 else nan
                 for j,idx in enumerate(np.array(triang)) for i in idx[IDX[j%2]] if j not in e.no_outline
             ])
-        else:
-            return
 
-        if len(tri_points):
-            canvas.plot_lines(tri_points,
-                        style=config["line_style"])
+            if len(tri_points):
+                draw_lines(tri_points,
+                            style=config["line_style"], **draw_kwds)
     except Exception as ex:
+        raise
         warnings.warn(f"Failed to draw outline with message: {ex}")
         return
 
