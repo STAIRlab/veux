@@ -4,10 +4,15 @@
 #
 #===----------------------------------------------------------------------===#
 #
-# Claudio M. Perez
+# Copyright (c) 2025, Claudio M. Perez
+# All rights reserved.  No warranty, explicit or implicit, is provided.
+#
+# This source code is licensed under the BSD 2-Clause License.
+# See LICENSE file or https://opensource.org/licenses/BSD-2-Clause
 #
 from collections import defaultdict
 from veux.state  import StateSeries, BasicState, GroupSeriesSE3, GroupStateSE3, GroupStateSO3, Rotation
+from xsection.library import Rectangle
 import warnings
 
 import numpy as np
@@ -19,6 +24,7 @@ try:
 except ImportError:
     import json
 
+from veux.frame._section import SectionGeometry
 
 class Model:
     def __iter__(self):
@@ -28,6 +34,9 @@ class Model:
     def make_state(self, state, **kwds):
         # This just needs to return an opaque object that can be passed into the methods below
         return state 
+    
+    def node_marker(self, tag):
+        return self._node_marker
 
     def node_position(self, tag, **kwds): ...
 
@@ -44,6 +53,8 @@ class Model:
     def cell_interior(self, tag):   ...
 
     def cell_quadrature(self, tag):  return []
+
+    def cell_prototypes(self):  return []
 
     def cell_rotation(self, tag, state): raise NotImplementedError
 
@@ -90,12 +101,16 @@ def _is_truss(el):
 
 def _is_plane(el):
     name = el["type"].lower()
-    return "quad" in name or "shell" in name or "tri" in name
+    return "quad" in name or "shell" in name or "tri" in name \
+        or "q4" in name or "plate" in name
 
 def _is_solid(el):
     name = el["type"].lower()
     return "brick" in name or "tetra" in name
 
+def _is_link(el):
+    name = el["type"].lower()
+    return "link" in name
 
 def _orient_frame(xi, xj, angle):
     """
@@ -149,15 +164,13 @@ def read_model(filename:str, shift=None, verbose=False)->dict:
 
     elif isinstance(filename, str) and (
         filename.endswith(".s2k") or filename.endswith(".$2k") or filename.endswith(".$br")) or filename.endswith(".b2k"):
-        from openbim import csi
-        # import veux.reader.csi as csi
-        with open(filename, "r") as f:
-            model = csi.create_model(csi.load(f), verbose=verbose)
+        from xcsi import Job
+        model = Job(filename).instance().model
         return model.asdict()
 
     elif isinstance(filename, str) and filename.endswith(".inp"):
-        from openbim import inp
-        model = inp.create_model(inp.parser.load(filename), verbose=verbose, mode="visualize")
+        from xcae import Project as Job
+        model = Job(filename).instance().model
         return model.asdict()
 
     elif isinstance(filename, str) and filename.endswith(".vtk"):
@@ -314,10 +327,10 @@ def read_state(res_file,
                         {
                             k: Rotation.from_rotvec(v[rdof])
                             for k,v in res.items()
-                        }, 
-                        model, 
-                        scale=scale,
-                        transform=transform[3:,3:], 
+                        },
+                        model,
+                      # scale=scale,
+                        transform=transform[3:,3:],
                         time=time
                     )
 
@@ -331,7 +344,7 @@ def read_state(res_file,
 
         if callable(rotation) and model.ndm==2:
             rotation_state = GroupStateSO3(
-                {k: Rotation.from_rotvect([0,0,rotation(k)]) for k in model.iter_node_tags()},
+                {k: Rotation.from_rotvec([0,0,rotation(k)]) for k in model.iter_node_tags()},
                 model,
                 transform=transform[3:,3:],
                 time=time,
@@ -352,11 +365,16 @@ def read_state(res_file,
 
 
 class FrameModel:
-# rename to SolidModel?
 
-    def __init__(self, sam:dict,
-                 shift = None, rot=None, # Coordinate transformation
-                 frame_outlines=None, 
+    def __init__(self,
+                 sam:dict,
+                 shift = None,
+                 frame_outlines=None,
+                 frame_shape = None,
+                 frame_samples=None,
+                 node_marker=None,
+                 node_marker_scale=1.0,
+                 xmodel=None,
                  **kwds):
 
         # number of dimensions of artist, not model?
@@ -368,6 +386,11 @@ class FrameModel:
         else:
             shift = np.asarray(shift)
 
+
+        self._xmodel = xmodel
+        self._node_marker = node_marker
+        if node_marker_scale is not None and node_marker is not None:
+            self._node_marker.points *= node_marker_scale
         #
         self._data = _from_opensees(sam, shift, R)# output
 
@@ -378,8 +401,29 @@ class FrameModel:
         # Section data
         #
         from .frame._section import SectionGeometry
+
+        # 1) Supplementary data
+        self._frame_sections = {}
+        self._frame_samples = frame_samples
+        for name,section in self._data["sections"].items():
+            try:
+                _add_section_shape(section, 
+                                   self._data["sections"], 
+                                   self._frame_sections, 
+                                   self.ndm, 
+                                   self._xmodel)
+            except:
+                # fails for shell sections with fibers
+                pass
+
+        self._frame_sections = {
+            k: SectionGeometry(v) for k,v in self._frame_sections.items() if len(v) > 0
+        }
+
+
         self._frame_outlines = {}
         if isinstance(frame_outlines, dict):
+
             for key, polygons in frame_outlines.items():
                 if hasattr(polygons, "exterior"):
                     self._frame_outlines[key] = [polygons]
@@ -393,27 +437,42 @@ class FrameModel:
 
         elif frame_outlines is None and "extrude_outline" not in kwds:
             # TODO: Make this dict of list of sections
-            self._frame_outlines = _get_frame_outlines(self)
+            try:
+                self._frame_outlines = _get_frame_outlines(self)
+            except:
+                # Was failing for shell fiber sections
+                self._frame_outlines = {}
 
+        # 2) Default extrusion
         self._extrude_default = SectionGeometry(_OUTLINES[kwds.get("extrude_default", "square")])
-        if "extrude_outline" in kwds:
-            if hasattr(kwds["extrude_outline"], "exterior"):
-                self._extrude_outline = SectionGeometry(
-                                          exterior=kwds["extrude_outline"].exterior(),
-                                          interior=kwds["extrude_outline"].interior(),
+
+        # 3) Forced extrusion
+        if "extrude_outline" in kwds and frame_shape is None:
+            frame_shape = kwds["extrude_outline"]
+
+        if frame_shape is not None:
+            if hasattr(frame_shape, "exterior"):
+                self._frame_shape = SectionGeometry(
+                                          exterior=frame_shape.exterior(),
+                                          interior=frame_shape.interior(),
                                           warping=kwds.get("section_warping", None))
+
             elif isinstance(kwds["extrude_outline"], str):
-                self._extrude_outline = SectionGeometry(_OUTLINES[kwds["extrude_outline"]])
+                self._frame_shape = SectionGeometry(_OUTLINES[kwds["extrude_outline"]])
             else:
                 raise ValueError("extrude_outline must be a SectionGeometry or a string")
         else:
-            self._extrude_outline = None
+            self._frame_shape = None
 
         self._extrude_scale   = kwds.get("extrude_scale",   1.0)
+
 
     def __getitem__(self, key):
         # TODO: Remove this method
         return self._data[key]
+    
+    def node_marker(self, tag):
+        return self._node_marker
 
     def wrap_state(self,
                     state=None,
@@ -591,6 +650,33 @@ class FrameModel:
             return np.array([ self.node_position(node, state)
                               for node in self["assembly"][tag]["nodes"] ])
 
+    def frame_element(self, tag):
+        """
+        Iterate over all frame elements in the model.
+        """
+        from veux.frame._element import _FrameElement
+        from veux.frame._section import SectionGeometry
+        if self.cell_matches(tag, "truss"):
+            return _FrameElement(
+                tag=tag,
+                vmodel=self,
+                xmodel=self._xmodel,
+                samples=2
+            )
+
+        if self.cell_matches(tag, "frame"):
+            frame_shape = self._frame_shape
+
+            if frame_shape is None and self.ndm == 2:
+                frame_shape = SectionGeometry([[-1,0],[1,0]])
+            
+
+            return _FrameElement(tag=tag,
+                                vmodel=self,
+                                xmodel=self._xmodel,
+                                samples=self._frame_samples,
+                                section_override=frame_shape
+            )
 
     def cell_exterior(self, tag):
         """
@@ -602,9 +688,13 @@ class FrameModel:
 
         if "frm" in type or "beamcol" in type:
             return self.cell_indices(tag)
+        
+        elif self.cell_matches(tag, "truss"):
+            return self.cell_indices(tag)
 
         elif ("quad" in type or \
-              "shell" in type and ("q" in type) or ("mitc" in type)):
+              "shell" in type and ("q" in type) or ("mitc" in type) \
+                or ("thick" in type) or ("plate" in type)):
             return self.cell_indices(tag)[:4]
 
 
@@ -657,7 +747,7 @@ class FrameModel:
             return [self.cell_indices(tag)]
 
         elif ("quad" in type or
-             ("shell" in type and ("q" in type) or ("mitc" in type))):
+             ("shell" in type and ("q" in type) or ("mitc" in type) or ("thick" in type))):
             nodes = self.cell_indices(tag)
 
             if len(nodes) == 3:
@@ -689,47 +779,54 @@ class FrameModel:
 
         return []
 
-    def _section_area(self, tag, i):
-        # TODO
-        return 1
-        try:
-            stag = self["assembly"][tag]["sections"][i]
-            try:
-                return self["sections"][int(stag)]["A"]
-            except:
-                return self["sections"][str(stag)]["A"]
-        except Exception as e:
-            return  1.0
+
+    def _frame_section(self, tag):
+        # print(f"{tag = }")
+        # This is called by the _FrameElement to get the section geometry for a given element tag.
+        if tag is None:
+            return self._extrude_default
+
+        return self._frame_sections[int(tag)] \
+               if int(tag) in self._frame_sections else self._extrude_default
 
     def frame_section(self, tag, coord=None)->"SectionGeometry":
-        from .frame._section import SectionGeometry
+        """
+        called by extrude3 and Motion
 
-        if self.cell_matches(tag, "truss"):
-            A = self["assembly"][tag].get("A", 1.0)
-            o = np.sqrt(A)*np.array([[0,-1,-1],[0,1,-1],[0,1,1],[0,-1,1]], dtype=float)
-            return SectionGeometry(o)
+        tag: Element tag
+        coord: float in [0,1] indicating the position along the element length where the
+        """
+        # 
+        from .frame._section import SectionGeometry
 
         if not self.cell_matches(tag, "frame"):
             return None
+
 
         # # Initialize frame outlines
         # if self._frame_outlines is None:
         #     # TODO: Make this dict of list of sections
         #     self._frame_outlines = _get_frame_outlines(self)
 
-        sections = []
-        if self._extrude_outline is not None:
-            sections = [
-                SectionGeometry(self._extrude_outline.exterior()*self._section_area(tag, 0)),
-            ]*2 #*self._extrude_scale
+        if self._frame_shape is not None:
+            return self._frame_shape
 
-        elif tag in self._frame_outlines:
-            sections = self._frame_outlines[tag]
+        # sections = []
+        # if self._extrude_outline is not None:
+        #     sections = [
+        #         SectionGeometry(self._extrude_outline.exterior()*self._section_area(tag, 0))
+        #     ]*2 #*self._extrude_scale
 
-        elif self._extrude_default is not None:
-            sections = [self._extrude_default]*2 #*self._extrude_scale
+        # elif tag in self._frame_outlines:
+        #     sections = self._frame_outlines[tag]
+
+        # elif self._extrude_default is not None:
+        #     sections = [self._extrude_default]*2 #*self._extrude_scale
+        elem = self.frame_element(tag)
+        sections = [elem.sample_section(i) for i in elem.simple_samples()]
 
 
+        # We have sections[], now get the section at the given coordinate
         if len(sections) == 0:
             # print(f"Empty sections for {tag}", file=sys.stderr)
             return
@@ -765,18 +862,28 @@ class FrameModel:
         e1  = v1/L
 
         if self.ndm == 2:
-            v2 = -np.cross(e1, np.array([0, 0, 1]))
+            v2 =  -np.cross(e1, np.array([0, 0, 1]))
+            # v2 =   np.cross(e1, np.array([0, 1, 0]))
 
-        if "yvec" in el["trsfm"] and el["trsfm"]["yvec"] is not None:
-            v2  = np.array(el["trsfm"]["yvec"])
 
-        elif "vecxz" in el["trsfm"]:
-            v13 =  np.atleast_1d(el["trsfm"]["vecxz"])
-            v2  = -np.cross(e1,v13)
-
-        else:
+        if self.cell_matches(tag, "truss"):
             v3 = _orient_frame(el["crd"][0], el["crd"][1], 0)
-            v2  = -np.cross(e1,v3)
+            v2 = -np.cross(e1, v3)
+        else:
+            trsfm = el.get("trsfm", el.get("crdTransformation", {}))
+            if trsfm is None:
+                trsfm = {}
+
+            if "yvec" in trsfm and trsfm["yvec"] is not None:
+                v2  = np.array(trsfm["yvec"])
+
+            elif "vecxz" in trsfm:
+                v13 =  np.atleast_1d(trsfm["vecxz"])
+                v2  = -np.cross(e1,v13)
+
+            else:
+                v3 = _orient_frame(el["crd"][0], el["crd"][1], 0)
+                v2  = -np.cross(e1,v3)
 
         e2 = v2 / np.linalg.norm(v2)
         v3 = np.cross(e1,e2)
@@ -821,7 +928,7 @@ def _from_opensees(sam: dict, shift, R):
 
     # TODO?
     R = np.eye(3)
-    
+
     try:
         sam = sam["StructuralAnalysisModel"]
     except KeyError:
@@ -829,21 +936,34 @@ def _from_opensees(sam: dict, shift, R):
 
     geom = sam.get("geometry", sam.get("assembly"))
 
-    try:
-        #coord = np.array([R@n.pop("crd") for n in geom["nodes"]], dtype=float) + shift
-        coord = np.array([R@n["crd"] for n in geom["nodes"]], dtype=float) + R@shift
+#   ndm = len(next(iter(nodes.values()))["crd"])
+
+    if len(geom["nodes"]) > 0:
+        try:
+            #coord = np.array([R@n.pop("crd") for n in geom["nodes"]], dtype=float) + shift
+            coord = np.array([R@n["crd"] for n in geom["nodes"]], dtype=float) + R@shift
+            ndm = 3
+        except:
+            try:
+                coord = np.array([R@[*n["crd"], 0.0] for n in geom["nodes"]], dtype=float) + shift
+                ndm = 2
+            except:
+                coord = np.array([
+                    R@([*n["crd"], 0.0] if len(n["crd"]) == 2 else n["crd"]) for n in geom["nodes"]], dtype=float) + shift
+                ndm = 2
+    else:
         ndm = 3
-    except:
-        coord = np.array([R@[*n["crd"], 0.0] for n in geom["nodes"]], dtype=float) + shift
-        ndm = 2
 
     nodes = {
         n["name"]: {**n, "crd": coord[i], "idx": i}
             for i,n in enumerate(geom["nodes"])
     }
 
-#   ndm = len(next(iter(nodes.values()))["crd"])
-    ndf = next(iter(nodes.values())).get("ndf", None)
+    try:
+        ndf = next(iter(nodes.values())).get("ndf", None)
+    except StopIteration:
+        # No nodes
+        ndf = 6
 
     trsfm = {}
     for t in sam.get("properties", {}).get("crdTransformations", []):
@@ -867,7 +987,7 @@ def _from_opensees(sam: dict, shift, R):
         e["name"]: dict(
             **e,
             crd=np.array([nodes[n]["crd"] for n in e["nodes"]], dtype=float),
-            trsfm=_make_transform(e) 
+            trsfm=_make_transform(e)
         ) for e in geom["elements"]
     }
 
@@ -889,18 +1009,28 @@ def _from_opensees(sam: dict, shift, R):
 
 
 def collect_outlines(model):
-    return _get_frame_outlines(_from_opensees(model, [0, 0, 0], np.eye(3)))
+    return _get_frame_outlines(_from_opensees(model, 
+                                              shift=[0, 0, 0], 
+                                              R=np.eye(3)))
 
-def _add_section_shape(section, sections, outlines, ndm):
 
+def _add_section_shape(section, sections, outlines, ndm, xmodel=None):
     tag = int(section["name"])
     if "section" in section:
         # Treat aggregated sections
         child_tag = int(section["section"])
         if child_tag not in outlines:
-            _add_section_shape(sections[section["section"]], sections, outlines, ndm)
+            _add_section_shape(sections[section["section"]], sections, outlines, ndm, xmodel)
 
         outlines[tag] = outlines[child_tag]
+    
+    elif xmodel is not None:
+        if tag not in xmodel._objects["section"]:
+            return
+        sec_obj = xmodel._objects["section"][tag]
+        if not hasattr(sec_obj, "_shape") or sec_obj._shape is None:
+            return
+        outlines[tag] = sec_obj._shape.exterior()
 
     elif "bounding_polygon" in section:
         # Rotation to change coordinates from x-y to z-y
@@ -909,30 +1039,39 @@ def _add_section_shape(section, sections, outlines, ndm):
         outlines[tag] = [R@s for s in section["bounding_polygon"]]
 
     elif "fibers" in section and ndm > 2:
-        try:
-            points = np.array([
-                f.get("coord", None) or f["location"] for f in section["fibers"]
-            ])
+        points = np.array([
+            f.get("coord", None) or f["location"] for f in section["fibers"]
+        ])
+
+        if len(points) == 1:
+            A = sum(i["area"] for i in section["fibers"])
+
+            if A is None:
+                return
+
+            b = d = np.sqrt(A)
+            outlines[tag] = Rectangle(b, d).exterior()
+            return
+
+        elif len(points) > 2:
             try:
                 from veux.utility.alpha_shape import alpha_shape
-                alpha = alpha_shape(points, bound_ratio=0.0025) #0.01) #0.03)#0.01)
-                outlines[tag] =  alpha
+                alpha = alpha_shape(points, bound_ratio=0.01) #0.0025) #0.01) #0.03)#0.01)
+                if len(alpha) > 0:
+                    outlines[tag] =  alpha
             except Exception as e: #scipy.spatial._qhull.QhullError as e:
                 warnings.warn("Failed to compute alpha shape")
                 import scipy.spatial
                 outlines[tag] = points[scipy.spatial.ConvexHull(points).vertices]
 
-        except Exception as e:
-            warnings.warn("Failed to find section shape")
-            return
 
 
 
 def _get_frame_outlines(model):
+    xmodel = getattr(model, "_xmodel", None)
     section_outlines = {}
     for name,section in model["sections"].items():
-        _add_section_shape(section, model["sections"], section_outlines, model.ndm)
-
+        _add_section_shape(section, model["sections"], section_outlines, model.ndm, xmodel)
 
     # Function to check if list of lists is homogeneous
     homogeneous = lambda lst: (
@@ -942,24 +1081,40 @@ def _get_frame_outlines(model):
               )
     )
 
-    from veux.frame import SectionGeometry
     outlines = {}
     for elem in model["assembly"].values():
+        if not model.cell_matches(elem["name"], "frame"):
+            continue
+        elem_shapes = []
         if "sections" in elem:
-            outlines[elem["name"]] = [
+            elem_shapes = [
                 SectionGeometry(section_outlines[int(i)]) for i in elem["sections"]
                 if i in section_outlines and section_outlines[i] is not None
             ]
-            continue
-            if len(elem_shapes) == 0:
+        elif "section" in elem: # Truss
+            if int(elem["section"]) not in section_outlines:
                 continue
-            if not homogeneous(elem_shapes):
-                elem_shapes = np.array(elem_shapes[0])
-            else:
-                elem_shapes = np.array(elem_shapes)
+            elem_shapes = [
+                SectionGeometry(section_outlines[int(elem["section"])])
+            ]*2
 
-            outlines[elem["name"]] = [SectionGeometry(shape) for shape in elem_shapes]
+        if len(elem_shapes) != 0:
+            outlines[elem["name"]] = elem_shapes
+
+            # if not homogeneous(elem_shapes):
+            #     elem_shapes = np.array(elem_shapes[0])
+            # else:
+            #     elem_shapes = np.array(elem_shapes)
+
+            # outlines[elem["name"]] = [SectionGeometry(shape) for shape in elem_shapes]
 
 
     return outlines
 
+
+"""
+._frame_sectoins: dict[section_tag, SectionGeometry]
+
+
+._frame
+"""
