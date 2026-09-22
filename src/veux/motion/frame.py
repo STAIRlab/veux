@@ -372,6 +372,7 @@ class Motion:
         ]
         self._mesh_morph_keyframes.append((time, field))
 
+
     def draw_nodes(self,
                     state=None, 
                     rotation=None, position=None):
