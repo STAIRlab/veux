@@ -25,7 +25,7 @@ The glTF file format is supported by
 [COMSOL](https://www.comsol.com/blogs/how-to-export-and-share-your-3d-result-plots-as-gltf-files)
 """
 import itertools
-
+import os
 import numpy as np
 import pygltflib
 from scipy.spatial.transform import Rotation
@@ -33,7 +33,7 @@ from scipy.spatial.transform import Rotation
 import veux
 from .canvas import Canvas, Line, Mesh, Node
 from veux import utility
-from veux.config import NodeStyle, MeshStyle, LineStyle, DrawStyle
+from veux.style import NodeStyle, MeshStyle, LineStyle, DrawStyle
 
 GLTF_T = {
     "float32": pygltflib.FLOAT,
@@ -118,7 +118,10 @@ class GltfLibCanvas(Canvas):
                     doubleSided=True,
                     alphaMode=pygltflib.MASK,
                     pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
-                        baseColorFactor=[0.80, 0.80, 0.80, 1]
+                        baseColorFactor=[0.7]*3 + [1],
+                        # baseColorFactor=[0.80, 0.80, 0.80, 1],
+                        roughnessFactor=0.35,
+                        metallicFactor=0.0,
                     )
                 ),
                 pygltflib.Material(
@@ -158,6 +161,10 @@ class GltfLibCanvas(Canvas):
         self._arrows = {}
 
         self._node_markers = {}
+
+        self._annotations = []
+
+        self._tubes = {}
 
         #
         # load assets for steel material
@@ -410,10 +417,10 @@ class GltfLibCanvas(Canvas):
         pass
 
     def _get_material(self, style: DrawStyle)->int:
-        if hasattr(style,"alpha"):
+        if hasattr(style,"alpha") and style.alpha is not None:
             alpha = style.alpha
         else:
-            alpha = 1.0
+            alpha = None #1.0
 
         color = style.color
 
@@ -441,16 +448,28 @@ class GltfLibCanvas(Canvas):
         # Store index for new material
         self._color[(color, alpha)] = len(self.gltf.materials)
         # Create and add new material
-        self.gltf.materials.append(
-            pygltflib.Material(
-                name=str(color),
-                doubleSided=True,
-                alphaMode=pygltflib.BLEND,
-                pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
-                    baseColorFactor=[*rgb, alpha]
-                )
-            ),
-        )
+        if alpha is not None:
+            self.gltf.materials.append(
+                pygltflib.Material(
+                    name=str(color),
+                    doubleSided=True,
+                    alphaMode=pygltflib.BLEND,
+                    pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
+                        baseColorFactor=[*rgb, alpha]
+                    )
+                ),
+            )
+        else:
+            self.gltf.materials.append(
+                pygltflib.Material(
+                    name=str(hash(tuple((color, alpha)))), #str(color),
+                    doubleSided=True,
+                    alphaMode=pygltflib.MASK,
+                    pbrMetallicRoughness=pygltflib.PbrMetallicRoughness(
+                        baseColorFactor=[*rgb, 1.0]
+                    )
+                ),
+            )
         return self._color[(color, alpha)]
 
 
@@ -470,7 +489,16 @@ class GltfLibCanvas(Canvas):
         return len(self.gltf.bufferViews)-1
 
 
-    def plot_nodes(self, vertices, label = None, style=None, data=None, rotations=None, skin=False, **kwds):
+    def plot_nodes(self, vertices, 
+                   label = None, 
+                   style=None, 
+                   data=None, 
+                   names=None, 
+                   rotations=None, 
+                   skin=False, **kwds):
+        if names is None:
+            names = itertools.repeat(None)
+
         nodes = []
 
         # if not hasattr(self, "_node_mesh"):
@@ -487,9 +515,10 @@ class GltfLibCanvas(Canvas):
                 rotations = Rotation.from_rotvec([self._rotation_matrix@R for R in rotations]).as_quat().tolist()
 
 
-        for coord, rotation in zip(vertices, rotations):
+        for name,coord, rotation in zip(names, vertices, rotations):
             index = _append_index(self.gltf.nodes, pygltflib.Node(
                     mesh=marker,
+                    name=str(name),
                     rotation=rotation,
                     translation=(self._rotation_matrix@coord).tolist(),
                 )
@@ -499,6 +528,7 @@ class GltfLibCanvas(Canvas):
             nodes.append(Node(id=index))
 
         return nodes
+
 
     def add_lines(self, lines: list, style=None, skin_nodes=None):
         """
@@ -735,14 +765,14 @@ class GltfLibCanvas(Canvas):
 
     def plot_lines(self, vertices, indices=None, style: LineStyle | None = None, **node_kwds):
         """
-        Add a batch of disconnected line-segments to the scene as a *single*
+        Add a batch of disconnected line-segments to the scene as a single
         glTF primitive (mode = LINES).
 
         Parameters
         ----------
         vertices : array_like, int, or str
-            • (N, 3) array – NaNs may delimit poly-lines  
-            • accessor index/name – reuse an existing POSITION accessor
+            - (N, 3) array – NaNs may delimit poly-lines  
+            - accessor index/name – reuse an existing POSITION accessor
         indices : sequence[array_like] | None
             If given, each item is a vertex-index list describing one poly-line.
             Consecutive pairs are turned into independent segments.  If omitted
@@ -758,14 +788,17 @@ class GltfLibCanvas(Canvas):
         int
             Index of the new ``Node`` in ``self.gltf.nodes``.
         """
+        if "VEUX_TUBE" in os.environ:
+            thickness = float(os.environ["VEUX_TUBE"])
+            return self.draw_wires(vertices, indices, style, thickness=thickness, **node_kwds)
         #
         # 1.  Material
         #
         material_idx = self._get_material(style or LineStyle())
 
-        # ------------------------------------------------------------------
+        #
         # 2.  POSITION accessor
-        # ------------------------------------------------------------------
+        #
         if isinstance(vertices, (int, str)):
             # Re-use an accessor that caller has already stored.
             points_access = self.get_data(vertices)["access_index"]
@@ -803,9 +836,9 @@ class GltfLibCanvas(Canvas):
             verts_map = np.full(len(vertices), -1, dtype=self.index_t)
             verts_map[finite_mask] = np.arange(n_vertices, dtype=self.index_t)
 
-        # ------------------------------------------------------------------
+        #
         # 3.  Build flat SCALAR index list (pairs)
-        # ------------------------------------------------------------------
+        #
         seg_idx = []
         if indices is not None:
             for poly in indices:
@@ -839,9 +872,9 @@ class GltfLibCanvas(Canvas):
             raise ValueError("Index out of range for POSITION accessor.")
 
 
-        # ------------------------------------------------------------------
+        #
         # Create lines
-        # ------------------------------------------------------------------
+        #
 
         #
         # INDICES accessor
@@ -923,6 +956,256 @@ class GltfLibCanvas(Canvas):
             lines.append(line)
 
         return lines
+
+    def draw_wires(self, vertices, indices=None, style=None,
+                thickness=0.01, sides=6, capped=False, **node_kwds):
+        """
+        Same interface as ``plot_lines``, but renders each line segment as
+        a 3-D tube mesh (mode = TRIANGLES) with controllable cross-section.
+
+        Parameters
+        ----------
+        vertices : array_like
+            (N, 3) array – NaNs may delimit poly-lines.
+        indices : sequence[array_like] | None
+            Per-polyline vertex-index lists (same semantics as plot_lines).
+        style : LineStyle, optional
+            Passed to ``_get_material``.
+        thickness : float
+            Diameter of the wire tube (default 0.01).
+        sides : int
+            Number of facets around the tube circumference (default 6).
+        capped : bool
+            If True, add flat end-caps to every segment.
+        **node_kwds
+            Extra kwargs forwarded to the glTF ``Node``.
+
+        Returns
+        -------
+        int | None
+            Index of the new ``Node``, or None if nothing to draw.
+        """
+        material_idx = self._get_material(style or LineStyle())
+
+        # 
+        # 1. Resolve vertices into a (M, 3) array + compaction map
+        # 
+        # if isinstance(vertices, (int, str)):
+        #     if vertices not in self._tubes:
+        #         raise ValueError(f"Accessor '{vertices}' not found for tube geometry.")
+        #     vertices = self._tubes[vertices]
+        #     # raise TypeError(
+        #     #     "draw_wires needs the raw vertex array to build tube geometry; "
+        #     #     "accessor references are not supported."
+        #     # )
+
+        if isinstance(vertices, (int, str)):
+            data_info = self.get_data(vertices)
+            acc_idx = data_info["access_index"]
+            accessor = self.gltf.accessors[acc_idx]
+            bv = self.gltf.bufferViews[accessor.bufferView]
+            blob = self.gltf.binary_blob()
+            start = bv.byteOffset
+            end = start + bv.byteLength
+            vertices = np.frombuffer(blob[start:end], dtype=self.float_t).reshape(-1, 3).copy()
+        vertices = np.asarray(vertices, dtype=self.float_t)
+        if vertices.ndim != 2 or vertices.shape[1] != 3:
+            raise ValueError("vertices must be (N, 3)")
+
+        finite_mask = np.isfinite(vertices[:, 0])
+        points = vertices[finite_mask]
+        if points.size == 0:
+            return None
+
+        n_compact = len(points)
+        _INVALID = np.iinfo(self.index_t).max 
+        verts_map = np.full(len(vertices), _INVALID, dtype=self.index_t)
+        verts_map[finite_mask] = np.arange(n_compact, dtype=self.index_t)
+
+        # 
+        # 2. Collect segment pairs (compact indices)
+        # 
+        seg_pairs = []
+        if indices is not None:
+            for poly in indices:
+                poly = np.asarray(poly, dtype=self.index_t)
+                poly = verts_map[poly]
+                for i in range(len(poly) - 1):
+                    a, b = int(poly[i]), int(poly[i + 1])
+                    if a != _INVALID and b != _INVALID and a != b:
+                        seg_pairs.append((a, b))
+        else:
+            current = []
+            for compact_idx in verts_map:
+                if compact_idx == _INVALID:
+                    current.clear()
+                    continue
+                current.append(int(compact_idx))
+                if len(current) >= 2:
+                    seg_pairs.append((current[-2], current[-1]))
+
+        if not seg_pairs:
+            return None
+
+        # 
+        # 3. Pre-compute shared ring template
+        # 
+        radius = thickness * 0.5
+        n = max(sides, 3)
+        angles = np.linspace(0, 2 * np.pi, n, endpoint=False, dtype=self.float_t)
+        cos_a = np.cos(angles)                          # (n,)
+        sin_a = np.sin(angles)                          # (n,)
+
+        # Per-segment vertex/index counts
+        verts_per_seg = 2 * n + (2 * n if capped else 0)
+        tris_per_seg  = 2 * n + (2 * (n - 2) if capped else 0)
+
+        all_positions = np.empty((len(seg_pairs) * verts_per_seg, 3), dtype=self.float_t)
+        all_normals   = np.empty_like(all_positions)
+        all_indices   = np.empty(len(seg_pairs) * tris_per_seg * 3, dtype=self.index_t)
+
+        v_off = 0   # running vertex offset
+        i_off = 0   # running index offset
+
+        # Scratch vectors
+        up_y = np.array([0, 1, 0], dtype=self.float_t)
+        up_x = np.array([1, 0, 0], dtype=self.float_t)
+
+        # 
+        # 4. Generate tube geometry per segment
+        # 
+        for a_idx, b_idx in seg_pairs:
+            A = points[a_idx]
+            B = points[b_idx]
+            seg_dir = B - A
+            seg_len = np.linalg.norm(seg_dir)
+            if seg_len < 1e-12:
+                continue
+            D = seg_dir / seg_len
+
+            # Stable perpendicular frame (Gram–Schmidt-ish)
+            ref = up_x if abs(D[1]) > 0.9 else up_y
+            U = np.cross(D, ref)
+            U /= np.linalg.norm(U)
+            V = np.cross(D, U)                          # already unit length
+
+            # Ring offsets: radius * (cos*U + sin*V)  -> (n, 3)
+            ring_offsets = radius * (cos_a[:, None] * U + sin_a[:, None] * V)
+            ring_normals = cos_a[:, None] * U + sin_a[:, None] * V   # unit outward
+
+            # ---- wall vertices (2 * n) ----
+            base = v_off
+            all_positions[v_off:v_off + n] = A + ring_offsets
+            all_normals  [v_off:v_off + n] = ring_normals
+            v_off += n
+            all_positions[v_off:v_off + n] = B + ring_offsets
+            all_normals  [v_off:v_off + n] = ring_normals
+            v_off += n
+
+            # ---- wall triangles (2 * n) ----
+            for i in range(n):
+                j = (i + 1) % n
+                ai = base + i
+                bi = base + n + i
+                aj = base + j
+                bj = base + n + j
+                all_indices[i_off    ] = ai
+                all_indices[i_off + 1] = bi
+                all_indices[i_off + 2] = bj
+                all_indices[i_off + 3] = ai
+                all_indices[i_off + 4] = bj
+                all_indices[i_off + 5] = aj
+                i_off += 6
+
+            # ---- end-caps ----
+            if capped:
+                for center_pt, normal_dir, ring_start in [
+                    (A, -D, base),            # start cap faces backwards
+                    (B,  D, base + n),        # end cap faces forwards
+                ]:
+                    cap_base = v_off
+                    # duplicate ring verts with flat normal for hard edge
+                    all_positions[v_off:v_off + n] = all_positions[ring_start:ring_start + n]
+                    all_normals  [v_off:v_off + n] = normal_dir
+                    v_off += n
+                    for i in range(1, n - 1):
+                        all_indices[i_off    ] = cap_base
+                        all_indices[i_off + 1] = cap_base + i
+                        all_indices[i_off + 2] = cap_base + i + 1
+                        i_off += 3
+
+        # Trim to actual usage (some degenerate segments may have been skipped)
+        all_positions = all_positions[:v_off]
+        all_normals   = all_normals[:v_off]
+        all_indices   = all_indices[:i_off]
+
+        if i_off == 0:
+            return None
+
+        # 
+        # 5. Push buffers into glTF
+        # 
+        # POSITION
+        pos_view = self._push_data(all_positions.tobytes(), pygltflib.ARRAY_BUFFER)
+        self.gltf.accessors.append(
+            pygltflib.Accessor(
+                bufferView=pos_view,
+                componentType=GLTF_T[self.float_t],
+                count=len(all_positions),
+                type=pygltflib.VEC3,
+                min=all_positions.min(axis=0).tolist(),
+                max=all_positions.max(axis=0).tolist(),
+            )
+        )
+        pos_acc = len(self.gltf.accessors) - 1
+
+        # NORMAL
+        norm_view = self._push_data(all_normals.tobytes(), pygltflib.ARRAY_BUFFER)
+        self.gltf.accessors.append(
+            pygltflib.Accessor(
+                bufferView=norm_view,
+                componentType=GLTF_T[self.float_t],
+                count=len(all_normals),
+                type=pygltflib.VEC3,
+            )
+        )
+        norm_acc = len(self.gltf.accessors) - 1
+
+        # INDICES
+        idx_view = self._push_data(all_indices.tobytes(), pygltflib.ELEMENT_ARRAY_BUFFER)
+        self.gltf.accessors.append(
+            pygltflib.Accessor(
+                bufferView=idx_view,
+                componentType=GLTF_T[self.index_t],
+                count=len(all_indices),
+                type=pygltflib.SCALAR,
+                min=[int(all_indices.min())],
+                max=[int(all_indices.max())],
+            )
+        )
+        idx_acc = len(self.gltf.accessors) - 1
+
+        #
+        # 6. Primitive -> Mesh -> Node
+        #
+        primitive = pygltflib.Primitive(
+            attributes=pygltflib.Attributes(
+                POSITION=pos_acc,
+                NORMAL=norm_acc,
+            ),
+            indices=idx_acc,
+            mode=pygltflib.TRIANGLES,
+            material=material_idx,
+        )
+        self.gltf.meshes.append(pygltflib.Mesh(primitives=[primitive]))
+        mesh_idx = len(self.gltf.meshes) - 1
+
+        self.gltf.nodes.append(pygltflib.Node(mesh=mesh_idx, **node_kwds))
+        node_idx = len(self.gltf.nodes) - 1
+        self.gltf.scenes[0].nodes.append(node_idx)
+
+
+        return Line(id=node_idx)
 
     def plot_vectors(self, locs, vecs, label=None, extrude=False, **kwds):
         ne = len(vecs)
@@ -1041,24 +1324,6 @@ class GltfLibCanvas(Canvas):
             ])
             point_access = len(self.gltf.accessors)-1
 
-#       # Expecting morph_targets as an iterable of target arrays (each of shape (n,3))
-#       morph_targets = kwds.get("morph_targets", None)
-#       targets = []
-#       if morph_targets is not None:
-#           for mt in morph_targets:
-#               mt_arr = np.array(mt, dtype=self.float_t)
-#               self.gltf.accessors.extend([
-#                   pygltflib.Accessor(
-#                       bufferView=self._push_data(mt_arr.tobytes(), pygltflib.ARRAY_BUFFER),
-#                       componentType=GLTF_T[self.float_t],
-#                       count=len(mt_arr),
-#                       type=pygltflib.VEC3,
-#                       max=mt_arr.max(axis=0).tolist(),
-#                       min=mt_arr.min(axis=0).tolist(),
-#                   )
-#               ])
-#               mt_accessor = len(self.gltf.accessors)-1
-#               targets.append({"POSITION": mt_accessor})
 
         mesh = pygltflib.Mesh(
                 primitives=[
@@ -1132,7 +1397,8 @@ class GltfLibCanvas(Canvas):
                     indices=index_access)
 
 
-    def plot_mesh_field(self, mesh_handle, field,
+    def plot_mesh_field(self, 
+                        mesh_handle, field,
                         colormap="rainbow4", # "cet_CET_R1",# "cet_CET_D13"#"twilight", #"viridis", 
                         vmin=None, vmax=None,
                         **kwds) -> tuple:
@@ -1214,6 +1480,53 @@ class GltfLibCanvas(Canvas):
 
             colors = cmap(norm(field))
             return colors
+
+
+    @property
+    def annotations(self):
+        return [dict(annotation) for annotation in self._annotations]
+
+    def _sync_annotations(self):
+        if not self.gltf.scenes:
+            return
+
+        scene_idx = self.gltf.scene if self.gltf.scene is not None else 0
+        scene = self.gltf.scenes[scene_idx]
+        extras = dict(getattr(scene, "extras", {}) or {})
+        extras["veux_annotations"] = [dict(annotation) for annotation in self._annotations]
+        scene.extras = extras
+
+    def annotate(self, text, position, normal=None, pixel_offset=None, **style):
+        position = np.asarray(position, dtype=float).reshape(3)
+
+        if normal is None:
+            normal = np.array([0.0, 1.0, 0.0], dtype=float)
+        else:
+            normal = np.asarray(normal, dtype=float).reshape(3)
+
+        annotation = {
+            "text": str(text),
+            "position": [float(x) for x in position],
+            "normal": [float(x) for x in normal],
+        }
+
+        if pixel_offset is not None:
+            pixel_offset = np.asarray(pixel_offset, dtype=float).reshape(2)
+            annotation["pixel_offset"] = [
+                float(pixel_offset[0]),
+                float(pixel_offset[1]),
+            ]
+
+        for key in ("anchor", "fontsize", "color", "background", "border", "opacity"):
+            if key in style and style[key] is not None:
+                value = style[key]
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                annotation[key] = value
+
+        self._annotations.append(annotation)
+        self._sync_annotations()
+        return annotation
 
 
     def to_glb(self)->bytes:
