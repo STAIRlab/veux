@@ -137,7 +137,7 @@ def draw_shape(shape, ax=None, origin=False, legend=True, **kwds):
         section = shape
         shape = section._shape
 
-    artist = ShapeArtist(shape, ax=ax, **kwds)
+    artist = ShapeArtist(section or shape, ax=ax, **kwds)
 
     color_cycle = cycle([
                          "#E6E6E6",
@@ -168,6 +168,7 @@ def draw_shape(shape, ax=None, origin=False, legend=True, **kwds):
             
                 
             artist.draw_shape(shape._patches[patch], color=color, label=label)
+
     if legend and labels:
         artist.ax.figure.legend(loc="upper left", frameon=False)
 
@@ -178,8 +179,9 @@ def draw_shape(shape, ax=None, origin=False, legend=True, **kwds):
 
     if section is not None:
         if hasattr(section, "_fibers") and section._fibers is not None:
-            artist.ax.scatter(*section._fibers[:,:2].T, color="black", s=10)
+            artist.draw_fibers(color="black")
     return artist
+
 
 # def draw_column(column):
 #     core = column.core 
