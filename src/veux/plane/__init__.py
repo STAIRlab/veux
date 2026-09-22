@@ -132,7 +132,7 @@ class PlaneModel(Model):
         elif tag < len(self.tris) + len(self._tri6):
             return self._tri6[tag-len(self.tris)][:3]
         else:
-            return self.recs[tag]
+            return [*self.recs[tag], self.recs[tag][0]]
 
     def node_position(self, tag=None, state=None):
         if tag is None:
@@ -190,11 +190,18 @@ class _PlaneArtist:
         ax = self.ax
         # TODO:
         nodes = self.model.nodes
+        # nodes = np.array([Ra@x for x in model.node_position(state=state)])
 
+        xy = []
         for element in self.model.cell_exterior():
-            x = [nodes[element[i]][0] for i in range(len(element))]
-            y = [nodes[element[i]][1] for i in range(len(element))]
-            ax.fill(x, y, edgecolor='black', ls="-", lw=0.5, fill=False)
+            xy.extend([nodes[i] for i in element])
+            xy.append([np.nan, np.nan])
+            continue 
+        
+            # x = [nodes[element[i]][0] for i in range(len(element))]
+            # y = [nodes[element[i]][1] for i in range(len(element))]
+            # ax.fill(x, y, edgecolor='black', ls="-", lw=0.5, fill=False)
+        ax.plot(*np.array(xy).T, color="black", ls="-", lw=0.5)
 
 
     def draw_surfaces(self, field=None, show_scale=False):
@@ -218,10 +225,14 @@ class _PlaneArtist:
 
     def draw(self):
         self.ax.axis('equal')
+        self.ax.axis('off')
 
     def show(self):
         import matplotlib.pyplot as plt
         plt.show()
+
+    def save(self, filename):
+        self.ax.figure.savefig(filename, bbox_inches='tight', pad_inches=0.1)
 
 
 def render(mesh, field=None, ax=None,
@@ -230,6 +241,8 @@ def render(mesh, field=None, ax=None,
          # contour options
          show_scale=True
     ):
+
+
     artist = _PlaneArtist(PlaneModel(mesh))
 
     #
