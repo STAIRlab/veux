@@ -1,4 +1,15 @@
-
+#===----------------------------------------------------------------------===#
+#
+#         STAIRLab -- STructural Artificial Intelligence Laboratory
+#
+#===----------------------------------------------------------------------===#
+#
+# Copyright (c) 2025, Claudio M. Perez
+# All rights reserved.  No warranty, explicit or implicit, is provided.
+#
+# This source code is licensed under the BSD 2-Clause License.
+# See LICENSE file or https://opensource.org/licenses/BSD-2-Clause
+#
 import numpy as np
 Array = np.ndarray
 from veux.frame._section import SectionGeometry
@@ -88,7 +99,7 @@ class _FrameElement:
             section_source = "External"
         elif "sections" in self._elem_data:
             section_source = "Internal"
-        
+
         self._section_source = section_source
 
         #
@@ -125,15 +136,15 @@ class _FrameElement:
             return self._vmodel._frame_outlines[self._tag][sample.index]
 
         elif self._section_source == "Internal":
-            return self._vmodel._frame_section(self._elem_data["sections"][sample.index])
+            return self._vmodel._frame_section(self._elem_data["sections"][0])#sample.index])
 
-        else: 
+        else:
             return self._vmodel._frame_section(None)
 
 
     def simple_samples(self):
         return (_SimpleSample(i) for i in range(len(self._simple_sample_points)))
-    
+
     # def gauss_samples(self):
     #     return (_GaussSample(i)  for i in range(len(self._gauss_sample_points)))
 
