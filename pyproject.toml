@@ -1,6 +1,6 @@
 [project]
 name = "veux"
-version = "0.0.42"
+version = "0.0.44"
 authors = [
   {name="Claudio M. Perez", email="50180406+claudioperez@users.noreply.github.com"},
 ]
@@ -35,10 +35,10 @@ dependencies = [
   "plotly",
 
 # "trimesh",
-  "xara",
+  "xara>=0.0.35",
   "pygltflib",
   "colorcet",
-  "shps>=0.0.28"
+  "shps>=0.0.35"
 ]
 
 classifiers = [
