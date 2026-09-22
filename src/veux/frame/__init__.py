@@ -560,6 +560,7 @@ class FrameArtist:
                       scale=1.0,
                       mesh_style=None, 
                       config=None,
+                      shape=None,
                       outline=None):
         """
         Draw beam elements with extruded cross-sections. By default, cross-sectional
@@ -584,7 +585,7 @@ class FrameArtist:
 
         if state is not None or rotation is not None or position is not None:
             state = model.wrap_state(state, 
-                                     rotation=rotation, 
+                                     rotation=rotation,
                                      position=position, 
                                      scale=scale,
                                      transform=self.dofs2plot)
@@ -596,8 +597,16 @@ class FrameArtist:
         if mesh_style is not None:
             config["frame"]["style"] = mesh_style
 
-        if outline is not None and outline is False and "outline" in config["frame"]:
-            del config["frame"]["outline"]
+        if outline is not None:
+            if outline is False and "outline" in config["frame"]:
+                del config["frame"]["outline"]
+            elif isinstance(outline, str):
+                config["frame"]["outline"] = [outline]
+
+        if shape is not None:
+            if not isinstance(shape, SectionGeometry):
+                shape = SectionGeometry(exterior=shape.exterior(), 
+                                        interior=shape.interior())
 
         # Draw extruded frames
         from veux.frame import extrude
@@ -605,6 +614,7 @@ class FrameArtist:
                                 canvas=self.canvas,
                                 state=state,
                                 Ra=Ra,
+                                shape=shape,
                                 config=config["frame"])
 
 
@@ -691,7 +701,17 @@ class FrameArtist:
 
     def draw_nodes(self,
                    state=None,
-                   data=None, label=None, config=None, size=None, scale=1.0):
+                   data=None, 
+                   label=None, 
+                   config=None, 
+                   size=None, 
+                   scale=1.0,
+                   filter=None,
+                   # Vectors
+                   vector=None,
+                   vector_scale=1.0,
+                   vector_offset=None
+                   ):
         
         R = self._plot_rotation 
 
@@ -728,9 +748,18 @@ class FrameArtist:
                                    keys=["tag", "crd"],
                                    data=[[str(k), list(map(str, R.T@coord[i]))]
                                        for i,k in enumerate(self.model.iter_node_tags())])
+        
+        if vector is not None:
+            vec_call = self.model.wrap_state(vector, transform=self.dofs2plot)
+            vecs = np.array([R@vec_call.node_array(tag) for tag in self.model.iter_node_tags()])
+            non_zero = np.linalg.norm(vecs, axis=1) > 1e-8
 
-    def draw_edges(self, state=None, config=None, scale=1.0):
-        pass
+            self.canvas.plot_vectors(coord[non_zero,:self.ndm],
+                                     vecs[non_zero],
+                                     extrude=True,
+                                     line_style=LineStyle(color="red")
+                                     )
+
 
     def draw_axes(self, state=None, config=None, extrude=False, size=None):
         Ra = self._plot_rotation
@@ -765,11 +794,15 @@ class FrameArtist:
                                  extrude=extrude)
 
 
-    def draw_origin(self, **kwds):
+    def draw_origin(self, color=None, **kwds):
         xyz = np.zeros((3,3))
         uvw = self._plot_rotation.T*kwds.get("scale", 1.0)
 
-        self.canvas.plot_vectors(xyz, uvw, **kwds)
+        if True: #color is None:
+            self.canvas.plot_vectors(xyz, uvw, **kwds)
+        else:
+            # color like "rgb" means x is red, y is green, z is blue
+            pass
 
 #       for i,label in enumerate(kwds.get("label", [])):
 #           self.canvas.annotate(label, (xyz+uvw)[i]+off[i])
@@ -803,6 +836,8 @@ class FrameArtist:
         self.canvas.write(filename)
 
     def _repr_html_(self):
+        if hasattr(self.canvas, "ax"):
+            return ""
         from veux.viewer import Viewer
         import textwrap
         viewer = Viewer(self,
