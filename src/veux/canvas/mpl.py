@@ -17,6 +17,41 @@ VIEWS = { # pre-defined plot views
     "iso":     dict(azim= 45, elev= 35)
 }
 
+
+def place_legend(ax, **kwargs):
+    """Place legend flush to the right of ax, top-aligned, no overlap."""
+    fig = ax.get_figure()
+
+    kwargs.setdefault("fontsize", "small")
+    kwargs.setdefault("handlelength", 1.5)
+    kwargs.setdefault("handletextpad", 0.4)
+    kwargs.setdefault("borderpad", 0.3)
+
+    # let tight_layout position the axes using the full figure width
+    fig.tight_layout()
+
+    # place legend anchored to the axes top-right corner
+    leg = ax.legend(
+        bbox_to_anchor=(1.02, 1),
+        loc="upper left",
+        borderaxespad=0,
+        **kwargs,
+    )
+
+    # measure the legend in figure-fraction coordinates
+    renderer = fig.canvas.get_renderer()
+    leg_width = (
+        leg.get_window_extent(renderer)
+        .transformed(fig.transFigure.inverted())
+        .width
+    )
+
+    # shrink axes from the right to make room
+    pos = ax.get_position()
+    ax.set_position([pos.x0, pos.y0, pos.width - leg_width, pos.height])
+
+    return leg
+
 class MatplotlibCanvas(Canvas):
     # vertical direction is the third coordinate
     vertical = 3
@@ -54,16 +89,18 @@ class MatplotlibCanvas(Canvas):
         self.ax.figure.savefig(filename)
 
     def plot_lines(self, vertices, label=None, style=None, indices=None):
-        if indices is not None:
-            warnings.warn("matplotlib canvas does not support indices in plot_lines")
-            return
-        if style is None:
-            style = LineStyle(width=0.5, color="gray", alpha=0.6)
-
         # Map the LineStyle attributes to Matplotlib's kwds
         props = {"color":     style.color,
                  "alpha":     style.alpha,
                  "linewidth": style.width}
+
+        if style is None:
+            style = LineStyle(width=0.5, color="gray", alpha=0.6)
+    
+        if indices is not None:
+            warnings.warn("matplotlib canvas does not support indices in plot_lines")
+            return
+
         self.ax.plot(*vertices.T, **props)
 
     def plot_nodes(self, vertices, label=None, style=None, rotations=None, data=None):
@@ -88,6 +125,9 @@ class MatplotlibCanvas(Canvas):
 
 
     def plot_vectors(self, locs, vecs, alr=0.1, **kwds):
-        self.ax.quiver(*locs.T, *vecs.T, arrow_length_ratio=alr, color="black")
+        try:
+            self.ax.quiver(*locs.T, *vecs.T, arrow_length_ratio=alr, color="black")
+        except:
+            pass
 
 
