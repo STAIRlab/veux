@@ -52,9 +52,12 @@ def _find_port():
     return port
 
 class Server:
-    def __init__(self, viewer=None, html=None):
+    def __init__(self, viewer=None, html=None, port=None):
         self._app = bottle.Bottle()
         self._server = None
+        if port is None:
+            port = 8081 if _check_port(8081) else _find_port()
+        self.port = port
 
         if html is not None:
             self._app.route("/")(lambda : html )
@@ -79,8 +82,7 @@ class Server:
 
     def run(self, port=None):
         if port is None:
-            # Default to something consistent
-            port = 8081 if _check_port(8081) else _find_port()
+            port = self.port
 
         print(f"  Displaying at http://localhost:{port}/ \n  Press Ctrl-C to quit.\n")
 
