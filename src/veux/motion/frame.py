@@ -301,9 +301,7 @@ def _create_skin(canvas, ibms, joint_nodes, skeleton):
 
 class Motion:
     """
-    A helper class that accumulates multiple "states" (deformed configurations)
-    and creates a time-based glTF Animation. Each call to add_state() adds
-    a new keyframe at the next time step.
+    A class that builds an interactive animation by accumulating multiple "states" (deformed configurations). 
     """
 
     def __init__(self, artist=None, time_step=1.0, name="BeamDeformations"):
