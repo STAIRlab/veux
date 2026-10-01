@@ -18,6 +18,7 @@ def model(nodes, yvec):
           }
         }
 
+
 for nodes, yvects in (
        (((0, 0, 0), (L, 0, 0)),
         ((0, 1, 0), # sideways if --vert 3
