@@ -34,6 +34,7 @@ This centers around the :ref:`Artist <artist>` class, which provides methods for
    artist/index
    model
    canvas
+   motion
    state
 
 
