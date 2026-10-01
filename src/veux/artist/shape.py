@@ -84,7 +84,8 @@ class PlaneArtist:
         if self._section is not None:
             section = self._section
             if hasattr(section, "_fibers") and section._fibers is not None:
-                self.ax.scatter(*section._fibers[:,:2].T, color=color, s=10)
+                fiber_yz = np.array([[fiber.y, fiber.z] for fiber in section._fibers.fibers])
+                self.ax.scatter(*fiber_yz.T, color=color, s=10)
                 return
 
         fibers = np.array([fiber.coord for fiber in model.fibers]).T
