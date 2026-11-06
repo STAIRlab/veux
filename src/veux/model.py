@@ -811,17 +811,6 @@ class FrameModel:
         if self._frame_shape is not None:
             return self._frame_shape
 
-        # sections = []
-        # if self._extrude_outline is not None:
-        #     sections = [
-        #         SectionGeometry(self._extrude_outline.exterior()*self._section_area(tag, 0))
-        #     ]*2 #*self._extrude_scale
-
-        # elif tag in self._frame_outlines:
-        #     sections = self._frame_outlines[tag]
-
-        # elif self._extrude_default is not None:
-        #     sections = [self._extrude_default]*2 #*self._extrude_scale
         elem = self.frame_element(tag)
         sections = [elem.sample_section(i) for i in elem.simple_samples()]
 
@@ -873,6 +862,9 @@ class FrameModel:
             trsfm = el.get("trsfm", el.get("crdTransformation", {}))
             if trsfm is None:
                 trsfm = {}
+
+            # if "orientation" in trsfm:
+            #     return np.array(trsfm["orientation"])
 
             if "yvec" in trsfm and trsfm["yvec"] is not None:
                 v2  = np.array(trsfm["yvec"])
