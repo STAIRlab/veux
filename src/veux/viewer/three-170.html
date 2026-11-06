@@ -13,6 +13,21 @@
       }
     }
   </script>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:grid; grid-template-columns: 1.4fr 1fr; gap:16px; padding:16px; }
+    #viewport { height: 80vh; border-radius: 12px; background:#111; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e6e6e6; text-align:left; }
+    tr { cursor: pointer; }
+    tr.active { background: #eef3ff; }
+    .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .toolbar input[type="search"] { flex:1; padding:8px 10px; border-radius: 10px; border: 1px solid #ddd; }
+    .muted { color:#888; font-size:12px; }
+    #count { font-size: 12px; color:#666; }
+    #container { position: relative; }
+    #viewport canvas { display:block; width:100%; height:100%; }
+  </style>
 </head>
 
 <body>
@@ -35,7 +50,24 @@
 
   <button id="screenshot" type="button">Save Image</button>
   <button id="saveSvg" type="button">Save SVG</button>
-  <canvas id="veux-canvas"></canvas>
+
+  <div id="viewport">
+    <!-- <div id="viewport"></div> -->
+    <canvas id="veux-canvas"></canvas>
+  </div>
+
+  <section>
+    <div class="toolbar">
+      <input id="filter" type="search" placeholder="Filter nodes by name or path…" />
+      <span id="count"></span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Node</th><th class="muted">Path</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
 
   <script type="module">
     import * as THREE from 'three';
@@ -176,6 +208,15 @@
 
       const svgRenderer = new SVGRenderer();
       svgRenderer.setSize(window.innerWidth, window.innerHeight);
+
+      // // Create a temporary scene with only meshes
+      // const tempScene = new THREE.Scene();
+      // scene.traverse((obj) => {
+      //   if (obj.isMesh) {
+      //     tempScene.add(obj.clone());
+      //   }
+      // });
+      
       // render the scene to SVG
       svgRenderer.render(scene, camera);
 
@@ -184,7 +225,7 @@
 
       // make a Blob and download it
       const blob = new Blob([svgData], { type: 'image/svg+xml' });
-      saveBlob(blob, `scene-${window.innerWidth}x${window.innerHeight}.svg`);
+      saveBlob(blob, `veux-scene.svg`);
     });
 
     const saveBlob = (function() {
@@ -198,6 +239,165 @@
         a.click();
       };
     }());
+
+
+    //
+    //
+    //
+    class ModelTable {
+      /**
+       * @param {{
+       *  sceneRoot: THREE.Object3D,
+       *  tbody: HTMLElement|string,
+       *  filter?: HTMLElement|string,
+       *  count?: HTMLElement|string,
+       *  emissive?: [number,number,number]
+       *  onFocus?: (pos:THREE.Vector3)=>void
+       * }} opts
+       */
+      constructor(opts) {
+        this.root = opts.sceneRoot;
+        this.tbody  = this._getEl(opts.tbody);
+        this.filter = opts.filter ? this._getEl(opts.filter) : null;
+        this.count  = opts.count  ? this._getEl(opts.count)  : null;
+        this.emissive = opts.emissive || [0.9, 0.3, 0.0];
+        this.onFocus = opts.onFocus || (()=>{});
+
+        this.nodes = [];  // { obj, name, path }
+        this.highlighted = null; // { obj, materials:[{mat, origEmissive:THREE.Color, hadEmissive:boolean}] }
+
+        this._buildList();
+        if (this.filter) this.filter.addEventListener('input', () => this._populate());
+        this._populate();
+      }
+
+      _getEl(x){ return (typeof x === 'string') ? document.querySelector(x) : x; }
+
+      _buildList() {
+        this.nodes.length = 0;
+        const stack = [[this.root, []]];
+        while (stack.length) {
+          const [obj, path] = stack.pop();
+          const name = obj.name || '(unnamed)';
+          const pathArr = [...path, name];
+          this.nodes.push({ obj, name, path: pathArr.join(' / ') });
+          const children = obj.children || [];
+          for (let i = children.length - 1; i >= 0; --i) {
+            stack.push([children[i], pathArr]);
+          }
+        }
+      }
+
+      _populate() {
+        const q = (this.filter?.value || '').trim().toLowerCase();
+        const rows = q ? this.nodes.filter(n => n.name.toLowerCase().includes(q) || n.path.toLowerCase().includes(q)) : this.nodes;
+
+        this.tbody.innerHTML = '';
+        for (const entry of rows) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${entry.name}</td><td class="muted">${entry.path}</td>`;
+          tr.addEventListener('click', (e) => {
+            [...this.tbody.querySelectorAll('tr')].forEach(r => r.classList.remove('active'));
+            tr.classList.add('active');
+            this._highlight(entry.obj);
+            e.stopPropagation();
+          });
+          this.tbody.appendChild(tr);
+        }
+        if (this.count) this.count.textContent = `${rows.length} / ${this.nodes.length} nodes`;
+      }
+
+      _clearHighlight() {
+        if (!this.highlighted) return;
+        for (const {mat, origEmissive, hadEmissive} of this.highlighted.materials) {
+          if (hadEmissive) {
+            mat.emissive.copy(origEmissive);
+          } else if ('emissive' in mat) {
+            mat.emissive.setRGB(0,0,0);
+          }
+        }
+        this.highlighted = null;
+      }
+
+      _highlight(obj) {
+        this._clearHighlight();
+
+        // collect materials on meshes under obj
+        const mats = [];
+        obj.updateMatrixWorld(true);
+
+        obj.traverse((n) => {
+          if (n.isMesh && n.material) {
+            const mat = Array.isArray(n.material) ? n.material : [n.material];
+            for (const m of mat) {
+              // avoid mutating shared materials: clone if used elsewhere
+              if (m.userData.__sharedCloned !== true && m.userData.__instances > 1) {
+                const clone = m.clone();
+                clone.userData.__sharedCloned = true;
+                // swap the material on this mesh
+                if (Array.isArray(n.material)) {
+                  const idx = n.material.indexOf(m);
+                  if (idx >= 0) n.material[idx] = clone;
+                } else {
+                  n.material = clone;
+                }
+              }
+            }
+          }
+        });
+
+        // After potential cloning, traverse again to gather effective materials
+        obj.traverse((n) => {
+          if (n.isMesh && n.material) {
+            const list = Array.isArray(n.material) ? n.material : [n.material];
+            for (const m of list) {
+              if ('emissive' in m) {
+                mats.push({
+                  mat: m,
+                  origEmissive: m.emissive.clone(),
+                  hadEmissive: true
+                });
+                m.emissive.setRGB(this.emissive[0], this.emissive[1], this.emissive[2]);
+              }
+            }
+          }
+        });
+
+        this.highlighted = { obj, materials: mats };
+
+        // focus camera target on node world position
+        const pos = new THREE.Vector3();
+        obj.getWorldPosition(pos);
+        this.onFocus(pos);
+      }
+    }
+
+    // Track material sharing counts so we can decide when to clone
+    (function markMaterialInstances(root) {
+      const counts = new Map();
+      root.traverse((n) => {
+        if (n.isMesh && n.material) {
+          const mats = Array.isArray(n.material) ? n.material : [n.material];
+          for (const m of mats) counts.set(m, (counts.get(m) || 0) + 1);
+        }
+      });
+      for (const [m, c] of counts) m.userData.__instances = c;
+    })(scene);
+
+    // Hook up the table
+    const table = new ModelTable({
+      sceneRoot: scene,
+      tbody: '#rows',
+      filter: '#filter',
+      count:  '#count',
+      emissive: [0.95, 0.45, 0.1],
+      onFocus: (pos) => {
+        // Smoothly move the OrbitControls target and offset the camera a bit
+        controls.target.copy(pos);
+        const dirVec = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+        camera.position.copy(pos).add(dirVec.multiplyScalar(2.0)); // keep distance ~2
+      }
+    });
   </script>
 </body>
 </html>
