@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Build HTML
       uses: ammaraskar/sphinx-action@8.2.3
@@ -20,7 +20,7 @@ jobs:
     
     - name: Upload static files as artifact
       id: deployment
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         path: docs/_build/html/
 
